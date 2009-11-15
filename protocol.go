@@ -1,3 +1,21 @@
+//   Copyright 2009 Joubin Houshyar
+// 
+//   Licensed under the Apache License, Version 2.0 (the "License");
+//   you may not use this file except in compliance with the License.
+//   You may obtain a copy of the License at
+//    
+//   http://www.apache.org/licenses/LICENSE-2.0
+//    
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the License is distributed on an "AS IS" BASIS,
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//   See the License for the specific language governing permissions and
+//   limitations under the License.
+//
+
+/*
+	Package protocol provides the implementation of the Redis protocol.
+*/
 package protocol
 
 import (
@@ -120,7 +138,7 @@ func CreateRequestBytes (cmd *redis.Command, v ...) ([]byte, os.Error) {
 // The returned response (regardless of flavor) may have (application level)
 // errors as sent from Redis server.
 //
-func GetResponse (reader io.Reader, cmd *redis.Command) (resp Response, err os.Error) {
+func GetResponse (reader *bufio.Reader, cmd *redis.Command) (resp Response, err os.Error) {
 	switch cmd.RespType {
 	case redis.BOOLEAN:
 	    resp, err = getBooleanResponse(reader, cmd);
@@ -144,7 +162,7 @@ func GetResponse (reader io.Reader, cmd *redis.Command) (resp Response, err os.E
 // internal ops
 // ----------------------------------------------------------------------------
 
-func getStatusResponse (conn io.Reader, cmd *redis.Command) (resp Response, e os.Error) {
+func getStatusResponse (conn *bufio.Reader, cmd *redis.Command) (resp Response, e os.Error) {
 	buff, error, fault := readLine(conn);
 	if fault == nil {
 		line := bytes.NewBuffer(buff).String();
@@ -153,7 +171,7 @@ func getStatusResponse (conn io.Reader, cmd *redis.Command) (resp Response, e os
 	return resp, fault;
 }
 
-func getBooleanResponse (conn io.Reader, cmd *redis.Command) (resp Response, e os.Error) {
+func getBooleanResponse (conn *bufio.Reader, cmd *redis.Command) (resp Response, e os.Error) {
 	buff, error, fault := readLine(conn);
 	if fault == nil {
 		if !error {
@@ -165,7 +183,7 @@ func getBooleanResponse (conn io.Reader, cmd *redis.Command) (resp Response, e o
 	return resp, fault;
 }
 
-func getStringResponse (conn io.Reader, cmd *redis.Command) (resp Response, e os.Error) {
+func getStringResponse (conn *bufio.Reader, cmd *redis.Command) (resp Response, e os.Error) {
 	buff, error, fault := readLine(conn);
 	if fault == nil {
 		if !error {
@@ -177,7 +195,7 @@ func getStringResponse (conn io.Reader, cmd *redis.Command) (resp Response, e os
 	}
 	return resp, fault;
 }
-func getNumberResponse (conn io.Reader, cmd *redis.Command)  (resp Response, e os.Error) {
+func getNumberResponse (conn *bufio.Reader, cmd *redis.Command)  (resp Response, e os.Error) {
 
 	buff, error, fault := readLine(conn);
 	if fault == nil {
@@ -193,26 +211,76 @@ func getNumberResponse (conn io.Reader, cmd *redis.Command)  (resp Response, e o
 	return resp, fault;
 }
 
-func getBulkResponse (conn io.Reader, cmd *redis.Command) (Response, os.Error) {
-/*
-	num, error, fault := readCtlNum(conn, true, SIZE_BYTE);
-	if fault == nil {
-		if !error {
-			buff = buff[1: len(buff)];
-			numrep := bytes.NewBuffer(buff).String();
-			num, err := strconv.Atoi64(numrep);
-			if err == nil {  resp = newNumberResponse(num, error);  }
-			else { e = os.NewError("<BUG> Expecting a int64 number representation here: " + err.String()); }
-		}
-		else { resp = newStatusResponse(bytes.NewBuffer(buff).String(), error); }
+func btoi64 (buff []byte) (num int64, e os.Error) {
+	numrep := bytes.NewBuffer(buff).String();
+	num, e = strconv.Atoi64(numrep);
+	if e != nil {
+		e = os.NewError("<BUG> Expecting a int64 number representation here: " + e.String());
 	}
-*/	
-	num, _, _ := readCtlNum(conn, true, SIZE_BYTE);
-	log.Stderr("bulk data size: ", num);
-	return nil, os.NewError("<BUG> Not implemented");;
+	return;
 }
-func getMultiBulkResponse (conn io.Reader, cmd *redis.Command) (Response, os.Error) {
-	return nil, os.NewError("GetMultiBullkResponse NOT IMPLEMENTED!");
+func getBulkResponse (conn *bufio.Reader, cmd *redis.Command) (Response, os.Error) {
+	buf, e1 := readToCRLF(conn);
+	if e1 != nil { return nil, e1;}
+	
+	if buf[0] == ERR_BYTE {
+		return newStatusResponse(bytes.NewBuffer(buf).String(), true), nil;	
+	}
+	if buf[0] != SIZE_BYTE {
+		return nil, os.NewError("<BUG> Expecting a SIZE_BYTE in getBulkResponse");	
+	}
+
+	num, e2 := btoi64 (buf[1: len(buf)]);
+	if e2 != nil { return nil, e2; }
+
+	log.Stderr("bulk data size: ", num);
+	if num < 0 {
+		return newBulkResponse (nil, false), nil;	
+	}
+	bulkdata, e3 := readBulkData(conn, num);
+	if e3 != nil { return nil, e3; }
+	
+	return newBulkResponse (bulkdata, false), nil;
+}
+
+func getMultiBulkResponse (conn *bufio.Reader, cmd *redis.Command) (Response, os.Error) {
+	buf, e1 := readToCRLF(conn);
+	if e1 != nil { return nil, e1;}
+	
+	if buf[0] == ERR_BYTE {
+		return newStatusResponse(bytes.NewBuffer(buf).String(), true), nil;	
+	}
+	if buf[0] != COUNT_BYTE {
+		return nil, os.NewError("<BUG> Expecting a NUM_BYTE in getMultiBulkResponse");	
+	}
+
+	num, e2 := btoi64 (buf[1: len(buf)]);
+	if e2 != nil { return nil, e2; }
+
+	log.Stderr("multibulk data count: ", num);
+	if num < 0 {
+		return newMultiBulkResponse (nil, false), nil;	
+	}
+	multibulkdata := make([][]byte, num);
+	for i:=int64(0);i<num;i++ {
+		sbuf, e := readToCRLF(conn);
+		if e != nil { return nil, e;}
+		if sbuf[0] != SIZE_BYTE {
+			return nil, os.NewError("<BUG> Expecting a SIZE_BYTE for data item in getMultiBulkResponse");	
+		}
+		size, e2 := btoi64 (sbuf[1: len(sbuf)]);
+		if e2 != nil { return nil, e2; }
+		log.Stderr("item: bulk data size: ", size);
+		if size < 0 {
+			multibulkdata[i] = nil;	
+		}
+		else {
+			bulkdata, e3 := readBulkData(conn, size);
+			if e3 != nil { return nil, e3; }
+			multibulkdata[i] = bulkdata;
+		}
+	}
+	return newMultiBulkResponse (multibulkdata, false), nil;
 }
 
 
@@ -292,8 +360,8 @@ func newMultiBulkResponse (val [][]byte, isError bool) Response {
 // error returned is NOT ("-ERR ...").  If there is a Redis error
 // that is in the line buffer returned
 
-func readToCRLF (conn io.Reader) (buffer []byte, err os.Error) {
-	reader := bufio.NewReader(conn);
+func readToCRLF (reader *bufio.Reader) (buffer []byte, err os.Error) {
+//	reader := bufio.NewReader(conn);
 	var buf []byte;
 	buf, err = reader.ReadBytes(CR_BYTE);
 	if err == nil {
@@ -309,7 +377,7 @@ func readToCRLF (conn io.Reader) (buffer []byte, err os.Error) {
 	return;
 }
 
-func readLine (conn io.Reader) (buf []byte, error bool, fault os.Error) {
+func readLine (conn *bufio.Reader) (buf []byte, error bool, fault os.Error) {
 	buf, fault = readToCRLF (conn);
 	if fault == nil {
 		error = buf[0] == ERR_BYTE;
@@ -317,24 +385,29 @@ func readLine (conn io.Reader) (buf []byte, error bool, fault os.Error) {
 	return;
 }
 
-func readCtlNum (conn io.Reader, checkForError bool, ctlByte byte) (ctlNum int64, error redis.Error, fault os.Error) {
-	buff, isError, fault := readLine(conn);
-	if fault == nil {
-		if isError && checkForError {
-			log.Stderr("we have a redis error in readCtlNum");
-			error = redis.NewRedisError(bytes.NewBuffer(buff).String());
-		}
-		else {
-			if buff[0] == ctlByte {
-				buff = buff[1: len(buff)];
-				numrep := bytes.NewBuffer(buff).String();
-				ctlNum, fault = strconv.Atoi64(numrep);
-			}
-			else {
-				log.Stderr("we have a fault in readCtlNum");
-				fault = os.NewError ("<BUG> Expecting a ctl byte here!"); 
-			}
-		}
+func readBulkData (conn *bufio.Reader, len int64) ([]byte, os.Error) {
+	buff := make([]byte, len);
+
+	n, e := io.ReadFull (conn, buff);
+	if e != nil {
+		return nil, redis.NewErrorWithCause (redis.SYSTEM_ERR, "Error while attempting read of bulkdata", e);
 	}
-	return;
+	log.Stdout ("Read ", n, " bytes.  data: ", buff);
+	
+	crb, e1 := conn.ReadByte();
+	if e1 != nil {
+		return nil, os.NewError("Error while attempting read of bulkdata terminal CR:"+ e1.String());
+	}
+	if crb != CR_BYTE {
+		return nil, os.NewError("<BUG> bulkdata terminal was not CR as expected");
+	}
+	lfb, e2 := conn.ReadByte();
+	if e2 != nil {
+		return nil, os.NewError("Error while attempting read of bulkdata terminal LF:"+ e2.String());
+	}
+	if lfb != LF_BYTE {
+		return nil, os.NewError("<BUG> bulkdata terminal was not LF as expected.");
+	}
+	
+	return buff, nil;
 }

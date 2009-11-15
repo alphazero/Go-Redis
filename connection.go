@@ -1,3 +1,22 @@
+//   Copyright 2009 Joubin Houshyar
+// 
+//   Licensed under the Apache License, Version 2.0 (the "License");
+//   you may not use this file except in compliance with the License.
+//   You may obtain a copy of the License at
+//    
+//   http://www.apache.org/licenses/LICENSE-2.0
+//    
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the License is distributed on an "AS IS" BASIS,
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//   See the License for the specific language governing permissions and
+//   limitations under the License.
+//
+
+/*
+	Package connection provides various types of endpoint connectors to
+	Redis server.  
+*/
 package connection
 
 import (
@@ -5,6 +24,7 @@ import (
 	"fmt";
 	"os";
 	"io";
+	"bufio";
 	"log";
 	"redis";
 	"protocol";
@@ -62,8 +82,9 @@ type Endpoint interface {
 	Close () os.Error;
 }
 type _connection struct {
-	spec *Spec;
-	conn net.Conn;
+	spec 	*Spec;
+	conn 	net.Conn;
+	reader 	*bufio.Reader;
 }
 func (hdl _connection) Close() os.Error {
 	err := hdl.conn.Close();
@@ -84,7 +105,7 @@ func (c _connection) ServiceRequest (cmd *redis.Command, args ...) (resp protoco
 		return nil, redis.NewErrorWithCause(redis.SYSTEM_ERR, "ServiceRequest(): failed to send request", e2);
 	}
 	
-	resp, e3 := protocol.GetResponse(c.conn, cmd);
+	resp, e3 := protocol.GetResponse(c.reader, cmd);
 	if e3 != nil {
 		return nil, redis.NewErrorWithCause(redis.SYSTEM_ERR, "ServiceRequest(): failed to get response", e3);
 	}
@@ -99,12 +120,13 @@ func (c _connection) ServiceRequest (cmd *redis.Command, args ...) (resp protoco
 func OpenNew (spec *Spec) (c Endpoint, err os.Error) {
 	hdl := new(_connection);
 	addr := spec.Addr();
-	hdl.conn, err = net.Dial(TCP, "", addr);	
+	hdl.conn, err = net.Dial(TCP, "", addr);
 	switch {
 		case err != nil:
 			err = redis.NewErrorWithCause(redis.SYSTEM_ERR, "Could not open connection", err);
 		default:
 			log.Stdout("Opened connection to ", addr);
+			hdl.reader = bufio.NewReader(hdl.conn);	
 			c = hdl;
 	}
 	return;

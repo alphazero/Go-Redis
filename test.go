@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings";
+	"bytes";
 	"log";
 	"redis";
 	"connection";
@@ -18,14 +19,54 @@ func check (c redis.Client) {
 
 	val, e := c.Get("foobar");
 	if e != nil { log.Stderr("error on Get: ", e); }
-	else { log.Stdout("Get => %s", val); }
+	else { log.Stdout("(Get) foobar => ", bytes.NewBuffer(val).String()); }
 	
 	members, e2 := c.Smembers ("my-set");	
 	if e2 != nil { log.Stderr("error on Smembers: ", e2); }
-	else {
-		for i, member := range members {
-			log.Stdout("[",i,"] => ", member);
+	else if members != nil {
+		if len(members) > 0 {
+			for i, member := range members {
+				log.Stdout("[",i,"] => ", member);
+			}
 		}
+		else {
+			log.Stdout ("my-set IS EMPTY");
+		}	
+	}
+	else {
+		log.Stdout ("my-set smembers RETURNED NIL");
+	}	
+	
+	members, e2 = c.Smembers ("set");	
+	if e2 != nil { log.Stderr("error on Smembers: ", e2); }
+	else if members != nil {
+		if len(members) > 0 {
+			for i, member := range members {
+				log.Stdout("set:[",i,"] => ", member);
+			}
+		}
+		else {
+			log.Stdout ("set IS EMPTY");
+		}	
+	}
+	else {
+		log.Stdout ("set smembers RETURNED NIL");
+	}	
+	
+	members, e2 = c.Smembers ("s");	
+	if e2 != nil { log.Stderr("error on Smembers: ", e2); }
+	else if members != nil {
+		if len(members) > 0 {
+			for i, member := range members {
+				log.Stdout("s:[",i,"] => ", member);
+			}
+		}
+		else {
+			log.Stdout ("s IS EMPTY");
+		}	
+	}
+	else {
+		log.Stdout ("s smembers RETURNED NIL");
 	}	
 }
 

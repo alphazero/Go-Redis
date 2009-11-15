@@ -1,3 +1,21 @@
+//   Copyright 2009 Joubin Houshyar
+// 
+//   Licensed under the Apache License, Version 2.0 (the "License");
+//   you may not use this file except in compliance with the License.
+//   You may obtain a copy of the License at
+//    
+//   http://www.apache.org/licenses/LICENSE-2.0
+//    
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the License is distributed on an "AS IS" BASIS,
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//   See the License for the specific language governing permissions and
+//   limitations under the License.
+//
+
+/*
+	Package redis defines the interfaces for Redis clients.  
+*/
 package redis
 
 import (
@@ -9,28 +27,68 @@ import (
 // Interfaces
 // ----------------------------------------------------------------------------
 
+// Redis 'KeyType'
+type KeyType byte;
+
+// Known Redis key types
+const (
+	RT_NONE 	KeyType = iota;
+	RT_STRING;
+	RT_SET;
+	RT_LIST;
+	RT_ZSET;
+)
+
+// Returns KeyType by name
+func GetKeyType (typename string) (keytype KeyType) {
+	switch {
+	case typename == "none": keytype =  RT_NONE;
+	case typename == "string": keytype =  RT_STRING;
+	case typename == "list": keytype =  RT_LIST;
+	case typename == "set": keytype =  RT_SET;
+	case typename == "zset": keytype =  RT_ZSET;
+	}
+	return;
+}
+
+// The synchronous call semantics Client interface.
+//
+// Method names map one to one to the Redis command set.
+// All methods may return an redis.Error, which is either
+// a system error (runtime issue or bug) or Redis error (i.e. user error)
+// See Error in this package for details of its interface.
+
 type Client interface {
 
 	// Redis GET command.
 	Get (key string) (result []byte, err Error);
 
 	// Redis TYPE command.
-	Type (key string) (result string, err Error);
+	Type (key string) (result KeyType, err Error);
 
 	// Redis SET command.
 	Set (key string, arg1 []byte) (Error);
 
+	// Redis SET command.
+//	Set (key string, arg1 string) (Error);
+
+	// Redis SET command.
+//	Set (key string, arg1 int64) (Error);
+
+	// Redis SET command.
+//	Set (key string, arg1 io.ReadWriter) (Error);
+
 	// Redis SAVE command.
 	Save () (Error);
 
-	// Redis KEYS command.
-	AllKeys () (result [][]byte, err Error);
+	// Redis KEYS command using "*" wildcard 
+	AllKeys () (result []string, err Error);
 
 	// Redis KEYS command.
-	Keys (key string) (result [][]byte, err Error);
+	Keys (key string) (result []string, err Error);
 
 	// Redis SORT command.
-//	Sort (key string) (result Sort, err Error);
+//	Sort (key string) (result redis.Sort, err Error);
 
 	// Redis EXISTS command.
 	Exists (key string) (result bool, err Error);
@@ -42,16 +100,34 @@ type Client interface {
 	Info () (result map[string]string, err Error);
 
 	// Redis PING command.
-	Ping () (result Client, err Error);
+	Ping () (Error);
 
 	// Redis QUIT command.
 	Quit () (Error);
 
 	// Redis SETNX command.
+//	Setnx (key string, arg1 io.ReadWriter) (result bool, err Error);
+
+	// Redis SETNX command.
 	Setnx (key string, arg1 []byte) (result bool, err Error);
 
+	// Redis SETNX command.
+//	Setnx (key string, arg1 string) (result bool, err Error);
+
+	// Redis SETNX command.
+//	Setnx (key string, arg1 int64) (result bool, err Error);
+
 	// Redis GETSET command.
-	Getset (key string, arg1 int64) (result []byte, err Error);
+//	Getset (key string, arg1 string) (result []byte, err Error);
+
+	// Redis GETSET command.
+//	Getset (key string, arg1 int64) (result []byte, err Error);
+
+	// Redis GETSET command.
+//	Getset (key string, arg1 io.ReadWriter) (result []byte, err Error);
+
+	// Redis GETSET command.
+	Getset (key string, arg1 []byte) (result []byte, err Error);
 
 	// Redis MGET command.
 	Mget (key string, arg1 []string) (result [][]byte, err Error);
@@ -87,16 +163,52 @@ type Client interface {
 	Ttl (key string) (result int64, err Error);
 
 	// Redis RPUSH command.
+//	Rpush (key string, arg1 io.ReadWriter) (Error);
+
+	// Redis RPUSH command.
 	Rpush (key string, arg1 []byte) (Error);
+
+	// Redis RPUSH command.
+//	Rpush (key string, arg1 string) (Error);
+
+	// Redis RPUSH command.
+//	Rpush (key string, arg1 int64) (Error);
+
+	// Redis LPUSH command.
+//	Lpush (key string, arg1 io.ReadWriter) (Error);
+
+	// Redis LPUSH command.
+//	Lpush (key string, arg1 int64) (Error);
+
+	// Redis LPUSH command.
+//	Lpush (key string, arg1 string) (Error);
 
 	// Redis LPUSH command.
 	Lpush (key string, arg1 []byte) (Error);
 
 	// Redis LSET command.
+//	Lset (key string, arg1 int64, arg2 io.ReadWriter) (Error);
+
+	// Redis LSET command.
 	Lset (key string, arg1 int64, arg2 []byte) (Error);
+
+	// Redis LSET command.
+//	Lset (key string, arg1 int64, arg2 string) (Error);
+
+	// Redis LSET command.
+//	Lset (key string, arg1 int64, arg2 int64) (Error);
+
+	// Redis LREM command.
+//	Lrem (key string, arg1 io.ReadWriter, arg2 int64) (result int64, err Error);
 
 	// Redis LREM command.
 	Lrem (key string, arg1 []byte, arg2 int64) (result int64, err Error);
+
+	// Redis LREM command.
+//	Lrem (key string, arg1 string, arg2 int64) (result int64, err Error);
+
+	// Redis LREM command.
+//	Lrem (key string, arg1 int64, arg2 int64) (result int64, err Error);
 
 	// Redis LLEN command.
 	Llen (key string) (result int64, err Error);
@@ -122,14 +234,50 @@ type Client interface {
 	// Redis SADD command.
 	Sadd (key string, arg1 []byte) (result bool, err Error);
 
+	// Redis SADD command.
+//	Sadd (key string, arg1 io.ReadWriter) (result bool, err Error);
+
+	// Redis SADD command.
+//	Sadd (key string, arg1 int64) (result bool, err Error);
+
+	// Redis SADD command.
+//	Sadd (key string, arg1 string) (result bool, err Error);
+
 	// Redis SREM command.
 	Srem (key string, arg1 []byte) (result bool, err Error);
+
+	// Redis SREM command.
+//	Srem (key string, arg1 string) (result bool, err Error);
+
+	// Redis SREM command.
+//	Srem (key string, arg1 int64) (result bool, err Error);
+
+	// Redis SREM command.
+//	Srem (key string, arg1 io.ReadWriter) (result bool, err Error);
+
+	// Redis SISMEMBER command.
+//	Sismember (key string, arg1 io.ReadWriter) (result bool, err Error);
+
+	// Redis SISMEMBER command.
+//	Sismember (key string, arg1 int64) (result bool, err Error);
+
+	// Redis SISMEMBER command.
+//	Sismember (key string, arg1 string) (result bool, err Error);
 
 	// Redis SISMEMBER command.
 	Sismember (key string, arg1 []byte) (result bool, err Error);
 
 	// Redis SMOVE command.
+//	Smove (key string, arg1 string, arg2 io.ReadWriter) (result bool, err Error);
+
+	// Redis SMOVE command.
 	Smove (key string, arg1 string, arg2 []byte) (result bool, err Error);
+
+	// Redis SMOVE command.
+//	Smove (key string, arg1 string, arg2 string) (result bool, err Error);
+
+	// Redis SMOVE command.
+//	Smove (key string, arg1 string, arg2 int64) (result bool, err Error);
 
 	// Redis SCARD command.
 	Scard (key string) (result int64, err Error);
@@ -161,6 +309,24 @@ type Client interface {
 	// Redis ZADD command.
 	Zadd (key string, arg1 float64, arg2 []byte) (result bool, err Error);
 
+	// Redis ZADD command.
+//	Zadd (key string, arg1 float64, arg2 string) (result bool, err Error);
+
+	// Redis ZADD command.
+//	Zadd (key string, arg1 float64, arg2 int64) (result bool, err Error);
+
+	// Redis ZADD command.
+//	Zadd (key string, arg1 float64, arg2 io.ReadWriter) (result bool, err Error);
+
+	// Redis ZREM command.
+//	Zrem (key string, arg1 io.ReadWriter) (result bool, err Error);
+
+	// Redis ZREM command.
+//	Zrem (key string, arg1 int64) (result bool, err Error);
+
+	// Redis ZREM command.
+//	Zrem (key string, arg1 string) (result bool, err Error);
+
 	// Redis ZREM command.
 	Zrem (key string, arg1 []byte) (result bool, err Error);
 
@@ -168,7 +334,16 @@ type Client interface {
 	Zcard (key string) (result int64, err Error);
 
 	// Redis ZSCORE command.
+//	Zscore (key string, arg1 io.ReadWriter) (result float64, err Error);
+
+	// Redis ZSCORE command.
+//	Zscore (key string, arg1 int64) (result float64, err Error);
+
+	// Redis ZSCORE command.
 	Zscore (key string, arg1 []byte) (result float64, err Error);
+
+	// Redis ZSCORE command.
+//	Zscore (key string, arg1 string) (result float64, err Error);
 
 	// Redis ZRANGE command.
 	Zrange (key string, arg1 int64, arg2 int64) (result [][]byte, err Error);
@@ -180,10 +355,10 @@ type Client interface {
 	Zrangebyscore (key string, arg1 float64, arg2 float64) (result [][]byte, err Error);
 
 	// Redis FLUSHDB command.
-	Flushdb () (result Client, err Error);
+	Flushdb () (Error);
 
 	// Redis FLUSHALL command.
-	Flushall () (result Client, err Error);
+	Flushall () (Error);
 
 	// Redis MOVE command.
 	Move (key string, arg1 int64) (result bool, err Error);
@@ -195,14 +370,20 @@ type Client interface {
 	Lastsave () (result int64, err Error);
 }
 
+// Asynchronous call semantics client interface.
+//
+// TBD.
+
 type Pipeline interface {
-	Sync () (Client, os.Error);
 }
 
 // ----------------------------------------------------------------------------
 // PROTOCOL SPEC
+// These are for internal ops and not of any interest to the end user.  
 // ----------------------------------------------------------------------------
 
+// Request type defines the characteristic pattern of a cmd request
+//
 type RequestType int;
 const (
 	_ RequestType = iota;
@@ -219,6 +400,9 @@ const (
 	MULTI_KEY;
 )
 
+// Response type defines the various flavors of responses from Redis
+// per its specification.
+
 type ResponseType int;
 const (
 	VIRTUAL ResponseType = iota;
@@ -230,12 +414,16 @@ const (
 	MULTI_BULK;
 )
 
+// Describes a given Redis command
+//
 type Command struct {
 	Code string;
 	ReqType RequestType;
 	RespType ResponseType;
 }
 
+// The supported Command set, with one to one mapping to eponymous Redis command.
+//
 var (
 	AUTH			Command = Command {"AUTH", KEY, 	STATUS};
  	PING			Command = Command {"PING", NO_ARG, 	STATUS};
@@ -308,14 +496,28 @@ var (
 // ERRORS
 // ----------------------------------------------------------------------------
 
+// redis.Errors can be either user or system category.
+//  
+// REDIS_ERR are sent by the Redis server in response to user commands. (For example
+// "operation against key holding the wrong value).  If a call to the client method
+// has a non nil error with this cateogry, it means you did something wrong.  If you
+// want to know the details, see Error.GetMessage() which returns the precise error
+// sent from Redis.
+//
+// If error is of category SYSTEM_ERR, it either means there were errors during exeuction
+// (which may be due to your system environment, networking, memory, etc.) OR, there is
+// a bug in the package.   Unlike REDIS_ERR cateogry, SYSTEM_ERR category errors may have
+// and underlying cause (os.Error) which can be obtained by Error.Cause() method.
+
 type ErrorCategory uint8;
 const (
 	_ ErrorCategory = iota;
 	REDIS_ERR;
 	SYSTEM_ERR;
-//	RUNTIME;
-//	BUG;
 )
+
+// Defines the interfce to get details of an Error.
+// 
 type Error interface {
 	Cause() os.Error;
 	Category() ErrorCategory;
@@ -345,18 +547,26 @@ func (e redisError) String() string {
 	return fmt.Sprintf("[go-redis|%d|%s]: %s %s", e.category, errCat, e.msg, causeDetails);
 }
 
+// Creates an Error of REDIS_ERR category with the message.
+//
 func NewRedisError(msg string) Error {
 	e := new (redisError);
 	e.msg = msg;
 	e.category = REDIS_ERR;
 	return e;
 }
+
+// Creates an Error of specified category with the message.
+//
 func NewError(t ErrorCategory, msg string) Error {
 	e := new (redisError);
 	e.msg = msg;
 	e.category = t;
 	return e;
 }
+
+// Creates an Error of specified category with the message and cause.
+//
 func NewErrorWithCause(cat ErrorCategory, msg string, cause os.Error) Error {
 	e := new (redisError);
 	e.msg = msg;

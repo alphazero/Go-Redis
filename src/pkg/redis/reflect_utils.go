@@ -14,10 +14,11 @@
 //
 
 /*
-	Package reflect_utils provides helper functions to faciliate working with
-	the reflect artifacts of Go.  
+	reflect_utils provides helper functions to faciliate working with
+	the reflect artifacts of Go.  Probably deserves to be in its own
+	(independent) little package as using Go reflection is quite tedious.
 */
-package reflect_utils
+package redis
 
 import (
 	"reflect";

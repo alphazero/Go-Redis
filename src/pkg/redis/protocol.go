@@ -14,9 +14,8 @@
 //
 
 /*
-	Package protocol provides the implementation of the Redis protocol.
 */
-package protocol
+package redis
 
 import (
 	"os";
@@ -28,8 +27,6 @@ import (
 	"log";
 	"reflect";
 	"fmt";
-	"redis";
- 	ARGS "reflect_utils";
 )
 // ----------------------------------------------------------------------------
 // Wire
@@ -50,9 +47,9 @@ const
 	TRUE_BYTE 		= byte(49);
 )
 
-type CtlBytes []byte;
-var CRLF 		CtlBytes = make([]byte, 2);
-var WHITESPACE 	CtlBytes = make([]byte, 1);
+type ctlbytes []byte;
+var CRLF 		ctlbytes = make([]byte, 2);
+var WHITESPACE 	ctlbytes = make([]byte, 1);
 
 func init () {
 	CRLF[0] = CR_BYTE; CRLF[1] = LF_BYTE;
@@ -63,9 +60,12 @@ func init () {
 // Services
 // ----------------------------------------------------------------------------
 
+// Creates the byte buffer that corresponds to the specified Command and
+// provided command arguments.  
+//
 // TODO: tedious but need to check for errors on all buffer writes ..
 //
-func CreateRequestBytes (cmd *redis.Command, v ...) ([]byte, os.Error) {
+func CreateRequestBytes (cmd *Command, v ...) ([]byte, os.Error) {
 
 	args := reflect.NewValue(v).(*reflect.StructValue);
 	cmd_bytes := strings.Bytes(cmd.Code);
@@ -74,62 +74,60 @@ func CreateRequestBytes (cmd *redis.Command, v ...) ([]byte, os.Error) {
 
 	switch cmd.ReqType {
 
-	case redis.NO_ARG:
+	case NO_ARG:
 	
-	case redis.KEY:
+	case KEY:
 		buffer.Write(WHITESPACE);	
-		key, _ := ARGS.GetByteArrayAtIndex (args, 0);
-		log.Stdout("redis.Key => ", key);
+		key, _ := GetByteArrayAtIndex (args, 0);
+		log.Stdout("Key => ", key);
 		buffer.Write(key);
 		
 	case 
-		redis.KEY_KEY, 
-		redis.KEY_NUM, 
-		redis.KEY_SPEC:
+		KEY_KEY, 
+		KEY_NUM, 
+		KEY_SPEC:
 		
 		buffer.Write(WHITESPACE);	
-		key, _ := ARGS.GetByteArrayAtIndex (args, 0);
+		key, _ := GetByteArrayAtIndex (args, 0);
 		buffer.Write(key);
 		buffer.Write(WHITESPACE);	
-		key2, _ := ARGS.GetByteArrayAtIndex (args, 1);
+		key2, _ := GetByteArrayAtIndex (args, 1);
 		buffer.Write(key2);
 	
-	case redis.KEY_NUM_NUM:
+	case KEY_NUM_NUM:
 	
 		buffer.Write(WHITESPACE);	
-		key, _ := ARGS.GetByteArrayAtIndex (args, 0);
+		key, _ := GetByteArrayAtIndex (args, 0);
 		buffer.Write(key);
 		buffer.Write(WHITESPACE);	
-		num1, _ := ARGS.GetByteArrayAtIndex (args, 1);
+		num1, _ := GetByteArrayAtIndex (args, 1);
 		buffer.Write(num1);
 		buffer.Write(WHITESPACE);	
-		num2, _ := ARGS.GetByteArrayAtIndex (args, 2);
+		num2, _ := GetByteArrayAtIndex (args, 2);
 		buffer.Write(num2);
 	
-	case redis.KEY_VALUE:
+	case KEY_VALUE:
 		buffer.Write(WHITESPACE);	
-		key, _ := ARGS.GetByteArrayAtIndex (args, 0);
+		key, _ := GetByteArrayAtIndex (args, 0);
 		buffer.Write(key);
 		buffer.Write(WHITESPACE);
-		value, _ := ARGS.GetByteArrayAtIndex (args, 1);;
+		value, _ := GetByteArrayAtIndex (args, 1);;
 		len := fmt.Sprintf("%d", len(value));
 		buffer.Write(strings.Bytes(len)); 
 		buffer.Write(CRLF);
 		buffer.Write(value);
 	
 	case 
-		redis.KEY_IDX_VALUE,
-		redis.KEY_KEY_VALUE:
+		KEY_IDX_VALUE,
+		KEY_KEY_VALUE:
 		
-	case redis.KEY_CNT_VALUE:
+	case KEY_CNT_VALUE:
 	
-	case redis.MULTI_KEY:
+	case MULTI_KEY:
 	}
 	
 	buffer.Write(CRLF);	
 	
-//	log.Stdout ("** \n", buffer);
-
 	return buffer.Bytes(), nil;
 }
 
@@ -138,21 +136,21 @@ func CreateRequestBytes (cmd *redis.Command, v ...) ([]byte, os.Error) {
 // The returned response (regardless of flavor) may have (application level)
 // errors as sent from Redis server.
 //
-func GetResponse (reader *bufio.Reader, cmd *redis.Command) (resp Response, err os.Error) {
+func GetResponse (reader *bufio.Reader, cmd *Command) (resp Response, err os.Error) {
 	switch cmd.RespType {
-	case redis.BOOLEAN:
+	case BOOLEAN:
 	    resp, err = getBooleanResponse(reader, cmd);
-	case redis.BULK:
+	case BULK:
 	    resp, err = getBulkResponse (reader, cmd);
-	case redis.MULTI_BULK:
+	case MULTI_BULK:
 	    resp, err = getMultiBulkResponse (reader, cmd);
-	case redis.NUMBER:
+	case NUMBER:
 	    resp, err = getNumberResponse (reader, cmd);
-	case redis.STATUS:
+	case STATUS:
 	    resp, err = getStatusResponse (reader, cmd);
-	case redis.STRING:
+	case STRING:
 	    resp, err = getStringResponse (reader, cmd);
-//	case redis.VIRTUAL:
+//	case VIRTUAL:
 //	    resp, err = getVirtualResponse ();
 	}
 	return;
@@ -162,7 +160,7 @@ func GetResponse (reader *bufio.Reader, cmd *redis.Command) (resp Response, err 
 // internal ops
 // ----------------------------------------------------------------------------
 
-func getStatusResponse (conn *bufio.Reader, cmd *redis.Command) (resp Response, e os.Error) {
+func getStatusResponse (conn *bufio.Reader, cmd *Command) (resp Response, e os.Error) {
 	buff, error, fault := readLine(conn);
 	if fault == nil {
 		line := bytes.NewBuffer(buff).String();
@@ -171,7 +169,7 @@ func getStatusResponse (conn *bufio.Reader, cmd *redis.Command) (resp Response, 
 	return resp, fault;
 }
 
-func getBooleanResponse (conn *bufio.Reader, cmd *redis.Command) (resp Response, e os.Error) {
+func getBooleanResponse (conn *bufio.Reader, cmd *Command) (resp Response, e os.Error) {
 	buff, error, fault := readLine(conn);
 	if fault == nil {
 		if !error {
@@ -183,7 +181,7 @@ func getBooleanResponse (conn *bufio.Reader, cmd *redis.Command) (resp Response,
 	return resp, fault;
 }
 
-func getStringResponse (conn *bufio.Reader, cmd *redis.Command) (resp Response, e os.Error) {
+func getStringResponse (conn *bufio.Reader, cmd *Command) (resp Response, e os.Error) {
 	buff, error, fault := readLine(conn);
 	if fault == nil {
 		if !error {
@@ -195,7 +193,7 @@ func getStringResponse (conn *bufio.Reader, cmd *redis.Command) (resp Response, 
 	}
 	return resp, fault;
 }
-func getNumberResponse (conn *bufio.Reader, cmd *redis.Command)  (resp Response, e os.Error) {
+func getNumberResponse (conn *bufio.Reader, cmd *Command)  (resp Response, e os.Error) {
 
 	buff, error, fault := readLine(conn);
 	if fault == nil {
@@ -219,7 +217,7 @@ func btoi64 (buff []byte) (num int64, e os.Error) {
 	}
 	return;
 }
-func getBulkResponse (conn *bufio.Reader, cmd *redis.Command) (Response, os.Error) {
+func getBulkResponse (conn *bufio.Reader, cmd *Command) (Response, os.Error) {
 	buf, e1 := readToCRLF(conn);
 	if e1 != nil { return nil, e1;}
 	
@@ -243,7 +241,7 @@ func getBulkResponse (conn *bufio.Reader, cmd *redis.Command) (Response, os.Erro
 	return newBulkResponse (bulkdata, false), nil;
 }
 
-func getMultiBulkResponse (conn *bufio.Reader, cmd *redis.Command) (Response, os.Error) {
+func getMultiBulkResponse (conn *bufio.Reader, cmd *Command) (Response, os.Error) {
 	buf, e1 := readToCRLF(conn);
 	if e1 != nil { return nil, e1;}
 	
@@ -390,7 +388,7 @@ func readBulkData (conn *bufio.Reader, len int64) ([]byte, os.Error) {
 
 	n, e := io.ReadFull (conn, buff);
 	if e != nil {
-		return nil, redis.NewErrorWithCause (redis.SYSTEM_ERR, "Error while attempting read of bulkdata", e);
+		return nil, NewErrorWithCause (SYSTEM_ERR, "Error while attempting read of bulkdata", e);
 	}
 	log.Stdout ("Read ", n, " bytes.  data: ", buff);
 	

@@ -14,10 +14,8 @@
 //
 
 /*
-	Package connection provides various types of endpoint connectors to
-	Redis server.  
 */
-package connection
+package redis
 
 import (
 	"net";
@@ -26,8 +24,6 @@ import (
 	"io";
 	"bufio";
 	"log";
-	"redis";
-	"protocol";
 )
 
 const (
@@ -36,53 +32,83 @@ const (
 )
 
 // ----------------------------------------------------------------------------
-// Connection Spec
+// Connection ConnectionSpec
 // ----------------------------------------------------------------------------
 
-type Spec struct {
+// Defines the set of parameters that are used by the client connections
+//
+type ConnectionSpec struct {
 	host string;
 	port int;
 	password string;
 	db 	int;
 }
 
-func DefaultSpec () *Spec {
-	spec := new (Spec);
-	//var spec Spec;
+// Creates a ConnectionSpec using default settings.
+// host is localhost
+// port is 6379
+// no password is specified (so no AUTH on connect)
+// no db is specified (so no SELECT on connect)
+//
+func DefaultSpec () *ConnectionSpec {
+	spec := new (ConnectionSpec);
 	spec.host = LOCALHOST;
 	spec.port = 6379;
 	return spec;
 }
-func (spec *Spec) Db(db int) *Spec {
+
+// Sets the db for connection spec and returns the reference
+// Note that you should not this after you have already connected.
+//
+func (spec *ConnectionSpec) Db(db int) *ConnectionSpec {
 	spec.db = db;
 	return spec;
 }
-func (spec *Spec) Host(host string) *Spec {
+
+// Sets the host for connection spec and returns the reference
+// Note that you should not this after you have already connected.
+//
+func (spec *ConnectionSpec) Host(host string) *ConnectionSpec {
 	spec.host = host;
 	return spec;
 }
-func (spec *Spec) Port(port int) *Spec {
+
+// Sets the port for connection spec and returns the reference
+// Note that you should not this after you have already connected.
+//
+func (spec *ConnectionSpec) Port(port int) *ConnectionSpec {
 	spec.port = port;
 	return spec;
 }
-func (spec *Spec) Password(password string) *Spec {
+
+// Sets the password for connection spec and returns the reference
+// Note that you should not this after you have already connected.
+//
+func (spec *ConnectionSpec) Password(password string) *ConnectionSpec {
 	spec.password = password;
 	return spec;
 }
-func (spec *Spec) Addr () string {
+
+func (spec *ConnectionSpec) Addr () string {
 	return fmt.Sprintf("%s:%d", spec.host, spec.port);
 }
 
 // ----------------------------------------------------------------------------
-// Connection Endpoint
+// Connection SyncConnection
 // ----------------------------------------------------------------------------
 
-type Endpoint interface {
-	ServiceRequest (cmd *redis.Command, args ...) (protocol.Response, redis.Error);
+// Defines the service contract supported by synchronous (Request/Reply)
+// connections.
+
+type SyncConnection interface {
+	ServiceRequest (cmd *Command, args ...) (Response, Error);
 	Close () os.Error;
 }
+
+// General control structure used by connections.
+//
 type _connection struct {
-	spec 	*Spec;
+	spec 	*ConnectionSpec;
 	conn 	net.Conn;
 	reader 	*bufio.Reader;
 }
@@ -92,38 +118,42 @@ func (hdl _connection) Close() os.Error {
 	return err;
 }
 
-func (c _connection) ServiceRequest (cmd *redis.Command, args ...) (resp protocol.Response, err redis.Error) {
+// Implementation of SyncConnection.ServiceRequest.
+//
+func (c _connection) ServiceRequest (cmd *Command, args ...) (resp Response, err Error) {
 	
 	// TODO: need to consider errors here -- assuming it is always ok to write to Buffer ...
-	buff, e1 := protocol.CreateRequestBytes(cmd, args);
+	buff, e1 := CreateRequestBytes(cmd, args);
 	if e1 != nil {
-		return nil, redis.NewErrorWithCause(redis.SYSTEM_ERR, "ServiceRequest(): failed to create request buffer", e1);
+		return nil, NewErrorWithCause(SYSTEM_ERR, "ServiceRequest(): failed to create request buffer", e1);
 	}
 	
 	e2 := c.sendRequest(c.conn, buff);
 	if e2 != nil {
-		return nil, redis.NewErrorWithCause(redis.SYSTEM_ERR, "ServiceRequest(): failed to send request", e2);
+		return nil, NewErrorWithCause(SYSTEM_ERR, "ServiceRequest(): failed to send request", e2);
 	}
 	
-	resp, e3 := protocol.GetResponse(c.reader, cmd);
+	resp, e3 := GetResponse(c.reader, cmd);
 	if e3 != nil {
-		return nil, redis.NewErrorWithCause(redis.SYSTEM_ERR, "ServiceRequest(): failed to get response", e3);
+		return nil, NewErrorWithCause(SYSTEM_ERR, "ServiceRequest(): failed to get response", e3);
 	}
 	
 	if resp.IsError() {
 		log.Stderr("REDIS ERROR: ", resp.GetMessage());
-		return nil, redis.NewRedisError(resp.GetMessage());
+		return nil, NewRedisError(resp.GetMessage());
 	}
 	return;
 }
 
-func OpenNew (spec *Spec) (c Endpoint, err os.Error) {
+// Creates and opens a new SyncConnection.
+//
+func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
 	hdl := new(_connection);
 	addr := spec.Addr();
 	hdl.conn, err = net.Dial(TCP, "", addr);
 	switch {
 		case err != nil:
-			err = redis.NewErrorWithCause(redis.SYSTEM_ERR, "Could not open connection", err);
+			err = NewErrorWithCause(SYSTEM_ERR, "Could not open connection", err);
 		default:
 			log.Stdout("Opened connection to ", addr);
 			hdl.reader = bufio.NewReader(hdl.conn);	
@@ -143,9 +173,7 @@ func (hdl _connection) sendRequest (conn io.Writer, data []byte) os.Error {
 	}
 	if n < 6 {
 		log.Stderr ("didn't write the whole data: ", n);
-	}
-	else {
-//		log.Stderr ("wrote data: ", n);
+		return os.NewError("<BUG> lazy programmer didn't finish sendRequest...");
 	}
 	return e1;
 }

@@ -139,7 +139,7 @@ func (c _connection) ServiceRequest (cmd *Command, args ...) (resp Response, err
 	}
 	
 	if resp.IsError() {
-		log.Stderr("REDIS ERROR: ", resp.GetMessage());
+		log.Stderr("[Go-Redis] REDIS ERROR: ", resp.GetMessage());
 		return nil, NewRedisError(resp.GetMessage());
 	}
 	return;
@@ -155,7 +155,7 @@ func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
 		case err != nil:
 			err = NewErrorWithCause(SYSTEM_ERR, "Could not open connection", err);
 		default:
-			log.Stdout("Opened connection to ", addr);
+			log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);
 			hdl.reader = bufio.NewReader(hdl.conn);	
 			c = hdl;
 	}

@@ -8,7 +8,7 @@ REDIS_FILES=\
 	redis.go\
 	protocol.go\
 	connection.go\
-	client.go\
+	synchclient.go\
 
 redis.$(O): $(REDIS_FILES)
 	$(GC) -o redis.$(O) $(REDIS_FILES)

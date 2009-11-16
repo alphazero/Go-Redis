@@ -33,16 +33,16 @@ type synchClient struct {
 // Create a new Client and connects to the Redis server using the
 // default ConnectionSpec.
 //
-func Connect () (c *Client, err os.Error){
+func NewSynchClient () (c *Client, err os.Error){
 	spec := DefaultSpec();
-	c, err = ConnectWithSpec(spec);
+	c, err = NewSynchClientWithSpec(spec);
 	return;
 }
 
 // Create a new Client and connects to the Redis server using the
 // specified ConnectionSpec.
 //
-func ConnectWithSpec (spec *ConnectionSpec) (c *Client, err os.Error) {
+func NewSynchClientWithSpec (spec *ConnectionSpec) (c *Client, err os.Error) {
 	_c := new(synchClient);
 	_c.conn, err = NewSyncConnection (spec);
 	return;

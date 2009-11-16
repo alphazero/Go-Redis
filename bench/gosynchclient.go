@@ -23,7 +23,7 @@ func report (cmd string, delta int64, cnt int) {
 }
 
 func main ()  {
-	cnt := 10000;
+	cnt := 20000;
 	workers := 50;
 	
 	doConcurrent (cnt/workers, workers);

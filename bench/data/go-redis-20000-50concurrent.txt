@@ -1,20 +1,20 @@
-=== Bench synchclient ================ 50 Concurrent Clients -- 200 opts each --- 
+=== Bench synchclient ================ 50 Concurrent Clients -- 400 opts each --- 
 
 ---
 cmd: concurrent PING
-10000 iterations of concurrent PING in 565 msecs
+20000 iterations of concurrent PING in 1142 msecs
 ---
 cmd: concurrent INCR
-10000 iterations of concurrent INCR in 637 msecs
+20000 iterations of concurrent INCR in 1253 msecs
 ---
 cmd: concurrent SET
-10000 iterations of concurrent SET in 646 msecs
+20000 iterations of concurrent SET in 1342 msecs
 ---
 cmd: concurrent GET
-10000 iterations of concurrent GET in 629 msecs
+20000 iterations of concurrent GET in 1235 msecs
 ---
 cmd: concurrent LPUSH
-10000 iterations of concurrent LPUSH in 667 msecs
+20000 iterations of concurrent LPUSH in 1339 msecs
 ---
 cmd: concurrent RPUSH
-10000 iterations of concurrent RPUSH in 660 msecs
+20000 iterations of concurrent RPUSH in 1356 msecs

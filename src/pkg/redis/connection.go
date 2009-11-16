@@ -166,8 +166,8 @@ func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
 // internal ops
 // ----------------------------------------------------------------------------
 
-func (hdl _connection) sendRequest (conn io.Writer, data []byte) os.Error {
-	n, e1 := conn.Write(data);
+func (hdl _connection) sendRequest (writer io.Writer, data []byte) os.Error {
+	n, e1 := writer.Write(data);
 	if e1 != nil {
 		log.Stderr ("error on Write: ", e1);
 	}

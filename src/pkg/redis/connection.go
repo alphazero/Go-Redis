@@ -114,7 +114,7 @@ type _connection struct {
 }
 func (hdl _connection) Close() os.Error {
 	err := hdl.conn.Close();
-	log.Stdout ("Closed connection");
+//	log.Stdout ("Closed connection");
 	return err;
 }
 
@@ -155,7 +155,7 @@ func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
 		case err != nil:
 			err = NewErrorWithCause(SYSTEM_ERR, "Could not open connection", err);
 		default:
-			log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);
+//			log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);
 			hdl.reader = bufio.NewReader(hdl.conn);	
 			c = hdl;
 	}

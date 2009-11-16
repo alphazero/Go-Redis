@@ -16,9 +16,19 @@ func failedTest (msg string) os.Error {
 	log.Stderr (msg);
 	return nil;
 }
-func main () os.Error {
+func main ()  {
+	cnt := 20000;
+	
+	doOne(cnt);
+}
 
+func doOne (cnt int) os.Error {
+
+	var delta int64;
 	spec := redis.DefaultSpec().Db(13);
+	
+	fmt.Printf("\n\n=== Bench synchclient ================ 1 Client -- %d opts --- %s\n", cnt, spec.Addr());
+	fmt.Println ();
 	
 	client, e := redis.NewSynchClientWithSpec (spec);
 	if e != nil {  return onError ("on NewSynchClient call: ", e); }
@@ -26,10 +36,6 @@ func main () os.Error {
 
 	client.Flushdb();
 	
-	var delta int64;
-	cnt := 20000;
-	
-	log.Stdout("--- Bench synchclient ----------- 1 Client -- ", cnt, " ops -- ", spec.Addr());
 	
 	delta = doPing(client, cnt);
 	report ("PING", delta, cnt);
@@ -58,14 +64,14 @@ func main () os.Error {
 	delta = doRpop(client, cnt);
 	report ("RPOP", delta, cnt);
 	
+	client.Quit();
 	return nil;
 }
 
 func report (cmd string, delta int64, cnt int) {
-	
-	log.Stdout("---");
-	log.Stdout(fmt.Sprintf("cmd: %s", cmd));
-	log.Stdout(fmt.Sprintf("%d iterations of %s in %d msecs", cnt, cmd, delta/1000000));
+	fmt.Printf("---\n");
+	fmt.Printf(fmt.Sprintf("cmd: %s\n", cmd));
+	fmt.Printf(fmt.Sprintf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/1000000));
 }
 
 func doPing (client redis.Client, cnt int) (delta int64) {

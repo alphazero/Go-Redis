@@ -193,7 +193,8 @@ func (c *synchClient) Ping () (err Error){
 
 // Redis QUIT command.
 func (c *synchClient) Quit () (err Error){
-	_, err = c.conn.ServiceRequest(&QUIT);
+	c.conn.Close();
+//	_, err = c.conn.ServiceRequest(&QUIT);
 	return;
 }
 

@@ -1,0 +1,163 @@
+==> Usage: [db [conn [req [size [host]]]]
+
+-------------------------------------------------------------------- JREDIS ----
+---
+--- Benchmarking JRedis provider: org.jredis.ri.alphazero.JRedisClient
+--- host:127.0.0.1:6379 (db:13) | bytes:3 | threads:1 | reqs/conn:20000 
+---
+--------------------------------------------------------------------------------
+
+
+ ...
+===== PING =====
+1 concurrent clients (20000 PINGs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 11547.343750/second
+
+			min: 1716 msecs
+			max: 1716 msecs
+
+ ...
+===== SET =====
+1 concurrent clients (20000 SETs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 11293.054688/second
+
+			min: 1770 msecs
+			max: 1770 msecs
+
+ ...
+===== GET =====
+1 concurrent clients (20000 GETs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 13046.314453/second
+
+			min: 1533 msecs
+			max: 1533 msecs
+
+ ...
+===== SETNX =====
+1 concurrent clients (20000 SETNXs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 12247.397461/second
+
+			min: 1633 msecs
+			max: 1633 msecs
+
+ ...
+===== INCR =====
+1 concurrent clients (20000 INCRs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 11750.880859/second
+
+			min: 1701 msecs
+			max: 1701 msecs
+
+ ...
+===== DECR =====
+1 concurrent clients (20000 DECRs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 11918.951172/second
+
+			min: 1677 msecs
+			max: 1677 msecs
+
+ ...
+===== INCRBY =====
+1 concurrent clients (20000 INCRBYs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 11305.822266/second
+
+			min: 1768 msecs
+			max: 1768 msecs
+
+ ...
+===== DECRBY =====
+1 concurrent clients (20000 DECRBYs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 11554.014648/second
+
+			min: 1731 msecs
+			max: 1731 msecs
+
+ ...
+===== DBSIZE =====
+1 concurrent clients (20000 DBSIZEs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 12445.550781/second
+
+			min: 1607 msecs
+			max: 1607 msecs
+
+ ...
+===== LPUSH =====
+1 concurrent clients (20000 LPUSHs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 10476.689453/second
+
+			min: 1909 msecs
+			max: 1909 msecs
+
+ ...
+===== RPUSH =====
+1 concurrent clients (20000 RPUSHs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 11883.541016/second
+
+			min: 1683 msecs
+			max: 1683 msecs
+
+ ...
+===== LPOP =====
+1 concurrent clients (20000 LPOPs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 11117.287109/second
+
+			min: 1798 msecs
+			max: 1798 msecs
+
+ ...
+===== RPOP =====
+1 concurrent clients (20000 RPOPs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 12360.939453/second
+
+			min: 1618 msecs
+			max: 1618 msecs
+
+ ...
+===== LLEN =====
+1 concurrent clients (20000 LLENs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 12674.271484/second
+
+			min: 1578 msecs
+			max: 1578 msecs
+
+ ...
+===== SCARD =====
+1 concurrent clients (20000 SCARDs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 12804.097656/second
+
+			min: 1562 msecs
+			max: 1562 msecs
+
+ ...
+===== SADD =====
+1 concurrent clients (20000 SADDs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 11954.572266/second
+
+			min: 1672 msecs
+			max: 1672 msecs
+
+ ...
+===== SREM =====
+1 concurrent clients (20000 SREMs each) [host: 127.0.0.1]
+  ==> 20000 total requests @ 1.000000 seconds
+  ==> 11248.593750/second
+
+			min: 1778 msecs
+			max: 1778 msecs
+

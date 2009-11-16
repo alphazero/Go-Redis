@@ -41,3 +41,11 @@ func GetByteArray (v reflect.Value) (arr []byte, ok bool) {
 	}
 	return;
 }
+func GetByteArrayLen (v reflect.Value) (len int, ok bool) {
+	switch v := v.(type) {
+	case reflect.ArrayOrSliceValue:
+		aosv := reflect.ArrayOrSliceValue(v);
+		return aosv.Len(), true;
+	}
+	return;
+}

@@ -33,7 +33,7 @@ type synchClient struct {
 // Create a new Client and connects to the Redis server using the
 // default ConnectionSpec.
 //
-func NewSynchClient () (c *Client, err os.Error){
+func NewSynchClient () (c Client, err os.Error){
 	spec := DefaultSpec();
 	c, err = NewSynchClientWithSpec(spec);
 	return;
@@ -42,10 +42,10 @@ func NewSynchClient () (c *Client, err os.Error){
 // Create a new Client and connects to the Redis server using the
 // specified ConnectionSpec.
 //
-func NewSynchClientWithSpec (spec *ConnectionSpec) (c *Client, err os.Error) {
+func NewSynchClientWithSpec (spec *ConnectionSpec) (c Client, err os.Error) {
 	_c := new(synchClient);
 	_c.conn, err = NewSyncConnection (spec);
-	return;
+	return _c, nil;
 }
 
 /** ----------------- REDIS INTERFACE ------------- **/
@@ -1231,76 +1231,3 @@ func (c *synchClient) Lastsave () (result int64, err Error){
 	return result, err;
 
 }
-
-
-
-
-
-
-
-
-
-
-
-/**
-func (c *synchClient) Set (key string, arg1 []byte) (Error) {
-	keybytes := strings.Bytes(key);
-
-	_, err := c.conn.ServiceRequest (&SET, keybytes, arg1);
-	return err;
-}
-
-func (c *synchClient) Exists (key string) (result bool, err Error){
-	keybytes := strings.Bytes(key);
-
-	var resp Response;
-	resp, err = c.conn.ServiceRequest (&EXISTS, keybytes);
-	if err == nil { result = resp.GetBooleanValue(); }
-	return result, err;
-}
-
-func (c *synchClient) Type (key string) (result string, err Error){
-	keybytes := strings.Bytes(key);
-
-	var resp Response;
-	resp, err = c.conn.ServiceRequest (&TYPE, keybytes);
-	if err == nil { result = resp.GetStringValue(); }
-	return result, err;
-}
-
-func (c *synchClient) Incr (key string) (num int64, err Error){
-	keybytes := strings.Bytes(key);
-
-	var resp Response;
-	resp, err = c.conn.ServiceRequest (&INCR, keybytes);
-	if err == nil { num = resp.GetNumberValue(); }
-	return num, err;
-}
-
-func (c *synchClient) Ping() (err Error){
-	_, err := c.conn.ServiceRequest (&PING);
-	return err;
-}
-
-func (c *synchClient) Get(key string) (data []byte, e Error) {
-	log.Stdout("=> Get " + key);
-	keybytes := strings.Bytes(key);
-	
-	var resp Response;
-	resp, e = c.conn.ServiceRequest (&GET, keybytes);
-	if e == nil { data = resp.GetBulkData(); }
-	
-	return data, e;
-}
-
-func (c *synchClient) Smembers (key string) (data [][]byte, e Error) {
-	log.Stdout("=> SMEMBERS " + key);
-	keybytes := strings.Bytes(key);
-	var resp Response;
-	resp, e = c.conn.ServiceRequest (&SMEMBERS, keybytes);
-	if e == nil {
-		data = resp.GetMultiBulkData();
-	}
-	return data, e;
-}
-**/

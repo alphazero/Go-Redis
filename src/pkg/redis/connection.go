@@ -149,11 +149,18 @@ func (c _connection) ServiceRequest (cmd *Command, args ...) (resp Response, err
 //
 func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
 	hdl := new(_connection);
+	if hdl == nil { 
+		errmsg := "in NewSyncConnection(): Failed to allocate a new _connection";
+		log.Stderr(errmsg);
+		return nil, os.NewError (errmsg);
+	}
 	addr := spec.Addr();
 	hdl.conn, err = net.Dial(TCP, "", addr);
 	switch {
 		case err != nil:
 			err = NewErrorWithCause(SYSTEM_ERR, "Could not open connection", err);
+		case hdl.conn == nil:
+			err = NewError(SYSTEM_ERR, "Could not open connection");
 		default:
 //			log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);
 			hdl.reader = bufio.NewReader(hdl.conn);	
@@ -167,6 +174,10 @@ func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
 // ----------------------------------------------------------------------------
 
 func (hdl _connection) sendRequest (writer io.Writer, data []byte) os.Error {
+	if writer == nil {
+		log.Stderr ("sendRequest invoked with NIL writer!");
+		return os.NewError("<BUG> illegal argument in sendRequest: nil writer.");
+	}
 	n, e1 := writer.Write(data);
 	if e1 != nil {
 		log.Stderr ("error on Write: ", e1);

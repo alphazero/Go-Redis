@@ -2,181 +2,166 @@ package main
 
 import (
 	"os";
-	"redis";
+	"flag";
 	"strings";
 	"log";
 	"fmt";
 	"time";
+	"redis";
 )
-func onError (msg string, e os.Error) os.Error {
-	log.Stderr (msg, "", e);
-	return e;
+
+func main ()  {
+	flag.Parse();
+	fmt.Printf("\n\n=== Bench synchclient ================ %d Concurrent Clients -- %d opts each --- \n\n", *workers, *opcnt);
+	for _,task := range tasks {
+		benchTask(task, *opcnt, *workers, true);
+	}
 }
-func failedTest (msg string) os.Error {
-	log.Stderr (msg);
-	return nil;
+
+// ----------------------------------------------------------------------------
+// types and props
+// ----------------------------------------------------------------------------
+
+// workers option.  default is equiv to -w=10 on command line
+var workers = flag.Int("w", 10, "number of concurrent workers");
+
+// opcnt option.  default is equiv to -n=2000 on command line
+var opcnt = flag.Int("n", 2000, "number of task iterations per worker");
+
+// array of Tasks to run in sequence
+// Add a task to the list to bench to the runner.
+// Tasks are run in sequence.
+var	tasks = []taskSpec{
+	taskSpec{doPing, "PING"}, 
+	taskSpec{doSet, "SET"}, 
+	taskSpec{doGet, "GET"}, 
+	taskSpec{doIncr, "INCR"}, 
+	taskSpec{doDecr, "DECR"}, 
+	taskSpec{doLpush, "LPUSH"}, 
+	taskSpec{doLpop, "LPOP"}, 
+	taskSpec{doRpush, "RPUSH"}, 
+	taskSpec{doRpop, "RPOP"}
+};
+
+// ----------------------------------------------------------------------------
+// benchmarker
+// ----------------------------------------------------------------------------
+
+// redis task function type def
+type redisTask func (id string, signal chan int, client redis.Client, iterations int);
+
+// task info
+type taskSpec struct {
+	task redisTask;
+	name string;
 }
+func benchTask (taskspec taskSpec, iterations int, workers int, printReport bool) (delta int64, err os.Error)  {
+    signal := make(chan int, workers);  // Buffering optional but sensible.
+    clients, e := makeConcurrentClients(workers);
+    if e != nil {
+    	return 0, e;
+    }
+	t0 := time.Nanoseconds();
+    for i := 0; i < workers; i++ {
+    	id := fmt.Sprintf("%d", i); 
+        go taskspec.task(id, signal, clients[i], iterations);
+    }
+    for i := 0; i < workers; i++ { <-signal }
+    delta = time.Nanoseconds() - t0;
+    for i := 0; i < workers; i++ { clients[i].Quit(); }
+    
+    if printReport {report ("concurrent " + taskspec.name, delta, iterations*workers);}
+    
+    return;
+}
+
+func makeConcurrentClients(workers int) (clients []redis.Client, err os.Error) {
+    clients = make([]redis.Client, workers);
+    for i := 0; i < workers; i++ {
+		spec := redis.DefaultSpec().Db(13);
+		client, e := redis.NewSynchClientWithSpec (spec);
+		if e != nil {
+			log.Stderr ("Error creating client for worker: ", e);
+			return nil, e;
+		}
+		clients[i] = client;
+    }
+    return;
+}
+
 func report (cmd string, delta int64, cnt int) {
 	fmt.Printf("---\n");
 	fmt.Printf(fmt.Sprintf("cmd: %s\n", cmd));
 	fmt.Printf(fmt.Sprintf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/1000000));
 }
 
-func main ()  {
-	cnt := 20000;
-	workers := 50;
-	
-	doConcurrent (cnt/workers, workers);
-}
-func doConcurrent (cnt int, workers int) os.Error {
+// ----------------------------------------------------------------------------
+// redis tasks
+// ----------------------------------------------------------------------------
 
-	fmt.Printf("\n\n=== Bench synchclient ================ %d Concurrent Clients -- %d opts each --- \n", workers, cnt);
-	fmt.Println ();
-	var delta int64;
-	
-	delta= doConcurrentPing (cnt, workers);
-	report ("concurrent PING", delta, cnt*workers);
-	
-	delta= doConcurrentIncr (cnt, workers);
-	report ("concurrent INCR", delta, cnt*workers);
-	
-	delta= doConcurrentSet (cnt, workers);
-	report ("concurrent SET", delta, cnt*workers);
-	
-	delta= doConcurrentGet (cnt, workers);
-	report ("concurrent GET", delta, cnt*workers);
-	
-	delta= doConcurrentLpush (cnt, workers);
-	report ("concurrent LPUSH", delta, cnt*workers);
-	
-	delta= doConcurrentRpush (cnt, workers);
-	report ("concurrent RPUSH", delta, cnt*workers);
-	
-	return nil;	
-}
-func makeConcurrentClients(workers int) (clients []redis.Client) {
-    clients = make([]redis.Client, workers);
-    for i := 0; i < workers; i++ {
-		spec := redis.DefaultSpec().Db(13);
-		client, _ := redis.NewSynchClientWithSpec (spec);
-		clients[i] = client;
-    }
-    return;
-}
-func doConcurrentPing (cnt int, workers int) (delta int64)  {
-
-    signal := make(chan int);  // Buffering optional but sensible.
-    clients := makeConcurrentClients(workers);
-	t0 := time.Nanoseconds();
-    for i := 0; i < workers; i++ {
-        go doPing2 (signal, clients[i], cnt);
-    }
-    for i := 0; i < workers; i++ { <-signal }
-    for i := 0; i < workers; i++ { clients[i].Quit(); }
-    return time.Nanoseconds() - t0;
-}
-func doConcurrentIncr (cnt int, workers int) (delta int64)  {
-
-    signal := make(chan int);  // Buffering optional but sensible.
-    clients := makeConcurrentClients(workers);
-	t0 := time.Nanoseconds();
-    for i := 0; i < workers; i++ {
-        go doIncr2 (signal, clients[i], cnt);
-    }
-    for i := 0; i < workers; i++ { <-signal }
-    for i := 0; i < workers; i++ { clients[i].Quit(); }
-    return time.Nanoseconds() - t0;
-}
-func doConcurrentSet (cnt int, workers int) (delta int64)  {
-
-    signal := make(chan int);  // Buffering optional but sensible.
-    clients := makeConcurrentClients(workers);
-	t0 := time.Nanoseconds();
-    for i := 0; i < workers; i++ {
-        go doSet2 (signal, clients[i], cnt);
-    }
-    for i := 0; i < workers; i++ { <-signal }
-    for i := 0; i < workers; i++ { clients[i].Quit(); }
-    return time.Nanoseconds() - t0;
-}
-func doConcurrentGet (cnt int, workers int) (delta int64)  {
-
-    signal := make(chan int);  // Buffering optional but sensible.
-    clients := makeConcurrentClients(workers);
-	t0 := time.Nanoseconds();
-    for i := 0; i < workers; i++ {
-        go doGet2 (signal, clients[i], cnt);
-    }
-    for i := 0; i < workers; i++ { <-signal }
-    for i := 0; i < workers; i++ { clients[i].Quit(); }
-    return time.Nanoseconds() - t0;
-}
-func doConcurrentRpush (cnt int, workers int) (delta int64)  {
-
-    signal := make(chan int);  // Buffering optional but sensible.
-    clients := makeConcurrentClients(workers);
-	t0 := time.Nanoseconds();
-    for i := 0; i < workers; i++ {
-        go doRpush2 (signal, clients[i], cnt);
-    }
-    for i := 0; i < workers; i++ { <-signal }
-    for i := 0; i < workers; i++ { clients[i].Quit(); }
-    return time.Nanoseconds() - t0;
-}
-func doConcurrentLpush (cnt int, workers int) (delta int64)  {
-
-    signal := make(chan int);  // Buffering optional but sensible.
-    clients := makeConcurrentClients(workers);
-	t0 := time.Nanoseconds();
-    for i := 0; i < workers; i++ {
-        go doLpush2 (signal, clients[i], cnt);
-    }
-    for i := 0; i < workers; i++ { <-signal }
-    for i := 0; i < workers; i++ { clients[i].Quit(); }
-    return time.Nanoseconds() - t0;
-}
-
-func doPing2 (signal chan int, client redis.Client, cnt int)  {
+func doPing (id string, signal chan int, client redis.Client, cnt int)  {
 	for i:=0;i<cnt;i++ { 
 		client.Ping();
 	}
 	signal <- 1;
 }
-func doIncr2 (signal chan int, client redis.Client, cnt int)  {
-	key := "ctr";
+func doIncr (id string, signal chan int, client redis.Client, cnt int)  {
+	key := "ctr-" + id;
 	for i:=0;i<cnt;i++ { 
 		client.Incr(key);
 	}
 	signal <- 1;
 }
-func doSet2 (signal chan int, client redis.Client, cnt int)  {
-	key := "ctr";
+func doDecr (id string, signal chan int, client redis.Client, cnt int)  {
+	key := "ctr-" + id;
+	for i:=0;i<cnt;i++ { 
+		client.Decr(key);
+	}
+	signal <- 1;
+}
+func doSet (id string, signal chan int, client redis.Client, cnt int)  {
+	key := "set-" + id;
 	value := strings.Bytes("foo");
 	for i:=0;i<cnt;i++ { 
 		client.Set(key, value);
 	}
 	signal <- 1;
 }
-func doGet2 (signal chan int, client redis.Client, cnt int)  {
-	key := "ctr";
+func doGet (id string, signal chan int, client redis.Client, cnt int)  {
+	key := "set-" + id;
 	for i:=0;i<cnt;i++ { 
 		client.Get(key);
 	}
 	signal <- 1;
 }
-func doLpush2 (signal chan int, client redis.Client, cnt int)  {
-	key := "list-L";
+func doLpush (id string, signal chan int, client redis.Client, cnt int)  {
+	key := "list-L-" + id;
 	value := strings.Bytes("foo");
 	for i:=0;i<cnt;i++ { 
 		client.Lpush(key, value);
 	}
 	signal <- 1;
 }
-func doRpush2 (signal chan int, client redis.Client, cnt int)  {
-	key := "list-R";
+func doLpop (id string, signal chan int, client redis.Client, cnt int)  {
+	key := "list-L-" + id;
+	for i:=0;i<cnt;i++ { 
+		client.Lpop(key);
+	}
+	signal <- 1;
+}
+
+func doRpush (id string, signal chan int, client redis.Client, cnt int)  {
+	key := "list-R-" + id;
 	value := strings.Bytes("foo");
 	for i:=0;i<cnt;i++ { 
 		client.Rpush(key, value);
+	}
+	signal <- 1;
+}
+func doRpop (id string, signal chan int, client redis.Client, cnt int)  {
+	key := "list-R" + id;
+	for i:=0;i<cnt;i++ { 
+		client.Rpop(key);
 	}
 	signal <- 1;
 }

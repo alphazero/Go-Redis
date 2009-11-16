@@ -24,6 +24,7 @@ import (
 	"bytes";
 	"fmt";
 	"strconv";
+	"log";
 )
 
 type synchClient struct {
@@ -36,6 +37,13 @@ type synchClient struct {
 func NewSynchClient () (c Client, err os.Error){
 	spec := DefaultSpec();
 	c, err = NewSynchClientWithSpec(spec);
+	if err != nil { 
+		log.Stderr("NewSynchClientWithSpec raised error: ", err);
+	}
+	if c == nil {
+		log.Stderr("NewSynchClientWithSpec returned nil Client.");
+		err = os.NewError("NewSynchClientWithSpec returned nil Client.");
+	}
 	return;
 }
 
@@ -45,6 +53,10 @@ func NewSynchClient () (c Client, err os.Error){
 func NewSynchClientWithSpec (spec *ConnectionSpec) (c Client, err os.Error) {
 	_c := new(synchClient);
 	_c.conn, err = NewSyncConnection (spec);
+	if err != nil {
+		log.Stderr("NewSyncConnection() raised error: ", err);
+		return nil, err;
+	}
 	return _c, nil;
 }
 
@@ -187,6 +199,14 @@ func (c *synchClient) Info () (result map[string] string, err Error){
 
 // Redis PING command.
 func (c *synchClient) Ping () (err Error){
+	if c == nil {
+		log.Stderr("FAULT in synchclient.Ping(): why is c nil?");
+		return NewError(SYSTEM_ERR, "c *synchClient is NIL!");
+	}
+	else if c.conn == nil {
+		log.Stderr("FAULT in synchclient.Ping(): why is c.conn nil?");
+		return NewError(SYSTEM_ERR, "c.conn *SynchConnection is NIL!");
+	}
 	_, err = c.conn.ServiceRequest(&PING);
 	return;
 }

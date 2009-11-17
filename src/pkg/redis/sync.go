@@ -24,10 +24,10 @@ import (
 
 // Timer
 //
-// start a new time that will signal on the returned
+// start a new timer that will signal on the returned
 // channel when the specified ns (timeout in nanoseconds)
 // have passsed.  If ns < 0, function returns immediately
-// with nil.  Otherwise, the call can select on the channel
+// with nil.  Otherwise, the caller can select on the channel
 // and will recieve an item after timeout.  If the timer
 // itself was interrupted during sleep, the value in channel
 // will be 0-time-elapsed.  Otherwise, for normal operation,

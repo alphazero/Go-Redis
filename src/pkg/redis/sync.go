@@ -34,6 +34,19 @@ import (
 // it will return time elapsed in ns (which hopefully is very
 // close to the specified ns.
 //
+// Example:
+//
+//	tasksignal := DoSomethingWhileIWait ();  // could take a while..
+//
+//	timeout := redis.NewTimer(1000*800);
+//
+//	select {
+//		case <-tasksignal: 
+//			out.Printf("Task completed!\n");
+//		case to := <-timeout:
+//			out.Printf("Timedout waiting for task.  %d\n", to);
+//	}
+
 
 func NewTimer (ns int64) (signal <-chan int64) {
     if ns <= 0 {

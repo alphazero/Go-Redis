@@ -66,3 +66,113 @@ func NewTimer (ns int64) (signal <-chan int64) {
     }();
     return c;
 }
+
+// Signaling
+//
+// Signal interface defines the semantics of simple signaling between
+// a sending and awaiting party, with timeout support.
+//
+type Signal interface {
+	// Used to send the signal to the waiting party
+	Send();
+	
+	// Used by the waiting party.  This call will block until
+	// the Send() method has been invoked.
+	Wait();
+	
+	// Used by the waiting party.  This call will block until
+	// either the Send() method has been invoked, or, an interrupt
+	// occurs, or, the timeout duration passes.
+	//
+	// out param timedout is true if the period expired before
+	// signal was received.  
+	//
+	// out param interrupted is true if an interrupt occurred.
+	//
+	// timedout and interrupted are mutually exclusive.
+	// 
+	WaitFor (timeout int64) (timedout bool, interrupted bool);
+}
+
+// signal wraps a channel and implements the Signal interface.
+//
+type signal struct {
+	c chan byte;
+}
+
+// Creates a new Signal
+//
+// Usage exmple:
+//
+//  The sending party -- here it also creates the signal but that
+// can happen elsewhere and passed to it.
+//
+//	func DoSomethingAndSignalOnCompletion (ns int64) (redis.Signal) {
+//		s := redis.NewSignal();
+//   	go func () {
+//			out.Printf("I'm going to sleep for %d nseconds ...\n", ns);
+//			time.Sleep(ns);
+//			out.Printf("the sleeper has awakened!\n");
+//			s.Send();
+//		}();
+//		return s;
+//	}
+//
+// elsewhere, the waiting party gets a signal (here by making a call to 
+// the above func) and then first waits using 
+//
+//	func useSignal(t int64) {
+//
+//		// returns a signal
+//		s := DoSomethingSignalOnCompletion(1000*1000);
+//		
+//		// wait on signal or timeout
+//
+//		tout, nsinterrupt := s.WaitFor (t);
+//		if tout {
+//			out.Printf("Timedout waiting for task.  interrupted: %v\n", nsinterrupt);
+//
+//			out.Printf("Will wait until the signal is sent ...\n");
+//
+//			// will block indefinitely until signal is sent
+//			s.Wait();  
+//
+//			out.Printf("... alright - its done\n");
+//		}
+//		else {
+//			out.Printf("Have signal task is completed!\n");
+//		}
+//	}
+//
+
+
+func NewSignal () Signal {
+	c := make(chan byte);
+	return &signal{c};
+}
+
+// implementation of Signal.Wait()
+//
+func (s *signal) Wait () {
+	<-s.c;
+	return;
+}
+
+// implementation of Signal.WaitFor(int64)
+//
+func (s *signal) WaitFor (timeout int64) (timedout bool, interrupted bool){
+	timer := NewTimer(timeout);
+	select {
+		case <-s.c: 
+		case to := <-timer:
+			if to < 0 { interrupted = true; }
+			else { timedout = true; }
+	}
+	return;
+} 
+
+// implementation of Signal.Send()
+//
+func (s *signal) Send () {
+	s.c<-1;
+}

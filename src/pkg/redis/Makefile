@@ -10,8 +10,8 @@ REDIS_FILES=\
 	connection.go\
 	synchclient.go\
 
-redis.$(O): $(REDIS_FILES)
-	$(GC) -o redis.$(O) $(REDIS_FILES)
+$(TARG).$(O): $(REDIS_FILES)
+	$(GC) -o $(TARG).$(O) $(REDIS_FILES)
         
 include $(GOROOT)/src/Make.pkg
 

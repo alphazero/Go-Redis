@@ -22,6 +22,42 @@ import (
 // synchronization utilities.
 // ----------------------------------------------------------------------------
 
+// ----------------------------------------------------------------------------
+// Future objects
+//
+// TODO: test and document me.
+
+type Value interface {}
+
+type FutureValue interface {
+	Set (v Value);
+	Get () Value;
+	GetWithTimeout(ns int64) (v Value, ok bool);
+}
+
+type _futureval struct {
+	s Signal;
+	v Value;
+}
+func NewFutureValue () (future FutureValue){
+	s := NewSignal();
+	return &_futureval{s, nil}
+}
+func (fv *_futureval) Set(value Value) {
+	fv.v = value;
+}
+func (fv *_futureval) Get() (Value) {
+	fv.s.Wait();
+	return fv.v;
+}
+func (fv *_futureval) GetWithTimeout(ns int64) (v Value, ok bool) {
+	timedout, interrupted := fv.s.WaitFor(ns);
+	if timedout || interrupted {
+		return nil, false;
+	}
+	return fv.v, true;
+}
+// ----------------------------------------------------------------------------
 // Timer
 //
 // start a new timer that will signal on the returned
@@ -67,6 +103,7 @@ func NewTimer (ns int64) (signal <-chan int64) {
     return c;
 }
 
+// ----------------------------------------------------------------------------
 // Signaling
 //
 // Signal interface defines the semantics of simple signaling between
@@ -127,17 +164,9 @@ type signal struct {
 //		s := DoSomethingSignalOnCompletion(1000*1000);
 //		
 //		// wait on signal or timeout
-//
 //		tout, nsinterrupt := s.WaitFor (t);
 //		if tout {
 //			out.Printf("Timedout waiting for task.  interrupted: %v\n", nsinterrupt);
-//
-//			out.Printf("Will wait until the signal is sent ...\n");
-//
-//			// will block indefinitely until signal is sent
-//			s.Wait();  
-//
-//			out.Printf("... alright - its done\n");
 //		}
 //		else {
 //			out.Printf("Have signal task is completed!\n");

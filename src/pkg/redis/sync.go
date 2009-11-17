@@ -45,6 +45,7 @@ func NewFutureValue () (future FutureValue){
 }
 func (fv *_futureval) Set(value Value) {
 	fv.v = value;
+	fv.s.Send();
 }
 func (fv *_futureval) Get() (Value) {
 	fv.s.Wait();

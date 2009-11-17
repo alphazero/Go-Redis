@@ -59,7 +59,9 @@ func NewTimer (ns int64) (signal <-chan int64) {
     	if e != nil { 
     		t = 0 - (time.Nanoseconds() - t);
     	}
-    	t = time.Nanoseconds() - t;
+    	else {
+    		t = time.Nanoseconds() - t;
+    	}
     	c<- t;
     }();
     return c;

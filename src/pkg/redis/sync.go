@@ -16,48 +16,224 @@ package redis
 
 import (
 	"time";
+	"log";
 )
 
 // ----------------------------------------------------------------------------
 // synchronization utilities.
 // ----------------------------------------------------------------------------
 
-// ----------------------------------------------------------------------------
-// Future objects
+// result and result channel
 //
-// TODO: test and document me.
-
-type Value interface {}
-
-type FutureValue interface {
-	Set (v Value);
-	Get () Value;
-	GetWithTimeout(ns int64) (v Value, ok bool);
+// result defines a basic struct that either holds a generic (interface{}) reference
+// or an Error reference. It is used to generically send and receive future results
+// through channels.
+ 
+type result struct{
+	v interface{};
+	e Error;
 }
 
-type _futureval struct {
-	s Signal;
-	v Value;
+// creates a result struct using the provided references 
+// and sends it on the specified channel.
+
+func send (c chan result, v interface{}, e Error) {
+	c<- result{v, e};
 }
-func NewFutureValue () (future FutureValue){
-	s := NewSignal();
-	return &_futureval{s, nil}
-}
-func (fv *_futureval) Set(value Value) {
-	fv.v = value;
-	fv.s.Send();
-}
-func (fv *_futureval) Get() (Value) {
-	fv.s.Wait();
-	return fv.v;
-}
-func (fv *_futureval) GetWithTimeout(ns int64) (v Value, ok bool) {
-	timedout, interrupted := fv.s.WaitFor(ns);
-	if timedout || interrupted {
-		return nil, false;
+
+// blocks on the channel until a result is received.
+// If the received result reference's e (error) field is not null,
+// it will return it.  
+
+func receive (c chan result) (v interface{}, error Error) {
+	fv:= <-c;
+	if fv.e != nil {
+		error = fv.e;
 	}
-	return fv.v, true;
+	else if fv.v == nil {
+		// ? should we allow nil results?
+	}
+	else {
+		v = fv.v;
+	}
+	return;
 }
+// using a timer blocks on the channel until a result is received.
+// or timeout period expires.
+// if timedout, returns ok==false.  
+// otherwise,
+// If the received result reference's e (error) field is not null,
+// it will return it.
+//
+// For now presumably a nil result is OK and if error is nil, the return
+// value v is the intended result, even if nil.  
+// TODO: think this through a bit more
+
+func tryReceive (c chan result, ns int64) (v interface{}, error Error, ok bool){
+	timer := NewTimer(ns);
+	select {
+		case fv:= <-c: 
+			ok = true;
+			if fv.e != nil {
+				error = fv.e;
+			}
+			else if fv.v == nil {
+				// ? should we allow nil results?
+			}
+			else {
+				v = fv.v;
+			}
+		case to := <-timer:
+			if debug() { log.Stderr("resultchan.TryGet() -- timedout waiting for futurevaluechan | timeout after ", to);}
+	}
+	return;
+} 
+
+// ------------------
+// Future? interfaces very much in line with the Future<?> of Java.
+// These variants all expose the same set of semantics in a type-safe manner.
+//
+// We're only exposing the getters on these future objects as references to
+// these interfaces are returned to redis users.  Same considerations also
+// inform the decision to limit the exposure of the newFuture? methods to the
+// package.
+//
+// Also note that while the current implementation does not enforce this, the
+// Future? references can only be used until a value, or an error is obtained.
+// If a value is obtained from a Future? reference, any further calls to Get()
+// will block indefinitely.  It is OK, of course, to use TryGet(..) repeatedly
+// until it returns with a true 'ok' return out param.
+
+// FutureResult
+//
+// A generic future.  All type-safe Futures support this interface
+//
+type FutureResult interface {
+	onError (Error);
+}
+
+// FutureBytes (for []byte)
+//
+type FutureBytes interface {
+//	onError (Error);
+	set ([]byte);	
+	Get () (vale []byte, error Error);
+	TryGet (timeout int64) (value []byte, error Error, ok bool);
+}
+type _byteslicefuture chan result;
+func newFutureBytes () FutureBytes { return make(_byteslicefuture, 1); }
+func (fvc _byteslicefuture) onError (e Error) { send (fvc, nil, e); }
+func (fvc _byteslicefuture) set(v []byte) { send (fvc, v, nil); }
+func (fvc _byteslicefuture) Get() (v []byte, error Error) {
+	gv, err := receive (fvc);
+	if err != nil {return nil, err;}
+	return gv.([]byte), err;
+}
+func (fvc _byteslicefuture) TryGet (ns int64) (v []byte, error Error, ok bool){
+	gv, err, ok := tryReceive(fvc, ns);
+	if !ok {return nil, nil, ok;}
+	if err != nil {return nil, err, ok;}
+	return gv.([]byte), err, ok;
+}
+
+// FutureBytesArray (for [][]byte)
+//
+type FutureBytesArray interface {
+//	onError (Error);
+	set ([][]byte);	
+	Get () (vale [][]byte, error Error);
+	TryGet (timeout int64) (value [][]byte, error Error, ok bool);
+}
+type _bytearrayslicefuture chan result;
+func newFutureBytesArray () FutureBytesArray { return make(_bytearrayslicefuture, 1); }
+func (fvc _bytearrayslicefuture) onError (e Error) { send (fvc, nil, e); }
+func (fvc _bytearrayslicefuture) set(v [][]byte) { send (fvc, v, nil); }
+func (fvc _bytearrayslicefuture) Get() (v [][]byte, error Error) {
+	gv, err := receive (fvc);
+	if err != nil {return nil, err;}
+	return gv.([][]byte), err;
+}
+func (fvc _bytearrayslicefuture) TryGet (ns int64) (v [][]byte, error Error, ok bool){
+	gv, err, ok := tryReceive(fvc, ns);
+	if !ok {return nil, nil, ok;}
+	if err != nil {return nil, err, ok;}
+	return gv.([][]byte), err, ok;
+}
+
+// FutureBool
+//
+type FutureBool interface {
+//	onError (Error);
+	set (bool);	
+	Get () (val bool, error Error);
+	TryGet (timeout int64) (value bool, error Error, ok bool);
+}
+type _boolfuture chan result;
+func newFutureBool () FutureBool { return make(_boolfuture, 1); }
+func (fvc _boolfuture) onError (e Error) { send (fvc, nil, e); }
+func (fvc _boolfuture) set(v bool) { send (fvc, v, nil); }
+func (fvc _boolfuture) Get() (v bool, error Error) {
+	gv, err := receive (fvc);
+	if err != nil {return false, err;}
+	return gv.(bool), err;
+}
+func (fvc _boolfuture) TryGet (ns int64) (v bool, error Error, ok bool){
+	gv, err, ok := tryReceive(fvc, ns);
+	if !ok {return false, nil, ok;}
+	if err != nil {return false, err, ok;}
+	return gv.(bool), err, ok;
+}
+
+// ------------------
+// FutureString
+//
+type FutureString interface {
+//	onError (execErr Error);
+	set (v string);	
+	Get () (string, Error);
+	TryGet (timeout int64) (value string, error Error, ok bool);
+}
+type _futurestring chan result;
+func newFutureString () FutureString { return make(_futurestring, 1); }
+func (fvc _futurestring) onError (e Error) { send (fvc, nil, e); }
+func (fvc _futurestring) set(v string) { send (fvc, v, nil); }
+func (fvc _futurestring) Get() (v string, error Error) {
+	gv, err := receive (fvc);
+	if err != nil {return "", err;}
+	return gv.(string), err;
+}
+func (fvc _futurestring) TryGet (ns int64) (v string, error Error, ok bool){
+	gv, err, ok := tryReceive(fvc, ns);
+	if !ok {return "", nil, ok;}
+	if err != nil {return "", err, ok;}
+	return gv.(string), err, ok;
+}
+
+// ------------------
+// FutureInt64
+//
+type FutureInt64 interface {
+//	onError (execErr Error);
+	set (v int64);	
+	Get () (int64, Error);
+	TryGet (timeout int64) (value int64, error Error, ok bool);
+}
+type _futureint64 chan result;
+func newFutureInt64 () FutureInt64 { return make(_futureint64, 1); }
+func (fvc _futureint64) onError (e Error) { send (fvc, nil, e); }
+func (fvc _futureint64) set(v int64) { send (fvc, v, nil); }
+func (fvc _futureint64) Get() (v int64, error Error) {
+	gv, err := receive (fvc);
+	if err != nil {return -1, err;}
+	return gv.(int64), err;
+}
+func (fvc _futureint64) TryGet (ns int64) (v int64, error Error, ok bool){
+	gv, err, ok := tryReceive(fvc, ns);
+	if !ok {return -1, nil, ok;}
+	if err != nil {return -1, err, ok;}
+	return gv.(int64), err, ok;
+}
+
 // ----------------------------------------------------------------------------
 // Timer
 //
@@ -174,7 +350,6 @@ type signal struct {
 //		}
 //	}
 //
-
 
 func NewSignal () Signal {
 	c := make(chan byte);

@@ -21,6 +21,7 @@ package redis
 import (
 	"os";
 	"fmt";
+	"log";
 )
 // ----------------------------------------------------------------------------
 // ERRORS
@@ -102,5 +103,17 @@ func NewErrorWithCause(cat ErrorCategory, msg string, cause os.Error) Error {
 	e.msg = msg;
 	e.category = cat;
 	e.cause = cause;
+	return e;
+}
+
+// ----------------
+// impl. utils
+//
+// a utility function for various components
+//
+func withError (e Error) Error {
+	if debug() {
+		log.Stderr(e);
+	}
 	return e;
 }

@@ -38,10 +38,10 @@ func NewSynchClient () (c Client, err os.Error){
 	spec := DefaultSpec();
 	c, err = NewSynchClientWithSpec(spec);
 	if err != nil { 
-		log.Stderr("NewSynchClientWithSpec raised error: ", err);
+		if debug() {log.Stderr("NewSynchClientWithSpec raised error: ", err);}
 	}
 	if c == nil {
-		log.Stderr("NewSynchClientWithSpec returned nil Client.");
+		if debug() { log.Stderr("NewSynchClientWithSpec returned nil Client.");}
 		err = os.NewError("NewSynchClientWithSpec returned nil Client.");
 	}
 	return;
@@ -54,17 +54,13 @@ func NewSynchClientWithSpec (spec *ConnectionSpec) (c Client, err os.Error) {
 	_c := new(synchClient);
 	_c.conn, err = NewSyncConnection (spec);
 	if err != nil {
-		log.Stderr("NewSyncConnection() raised error: ", err);
+		if debug() {log.Stderr("NewSyncConnection() raised error: ", err);}
 		return nil, err;
 	}
 	return _c, nil;
 }
 
 /** ----------------- REDIS INTERFACE ------------- **/
-/** ----------------- G E N E R A T E ------------- **/
-
-
-
 
 // Redis GET command.
 func (c *synchClient) Get (arg0 string) (result []byte, err Error){
@@ -85,7 +81,6 @@ func (c *synchClient) Type (arg0 string) (result KeyType, err Error){
 	resp, err = c.conn.ServiceRequest(&TYPE, arg0bytes);
 	if err == nil {result = GetKeyType(resp.GetStringValue());}
 	return result, err;
-
 }
 
 // Redis SET command.

@@ -14,19 +14,24 @@
 //
 
 /*
-	Package redis defines the interfaces for Redis clients.  
+	Package redis defines the interfaces for Redis clients. 
 */
 package redis
 
+import (
+	"flag";
+)
 
 // ----------------------------------------------------------------------------
-// Interfaces
+// Types
 // ----------------------------------------------------------------------------
 
 // Redis 'KeyType'
+//
 type KeyType byte;
 
 // Known Redis key types
+//
 const (
 	RT_NONE 	KeyType = iota;
 	RT_STRING;
@@ -36,6 +41,7 @@ const (
 )
 
 // Returns KeyType by name
+//
 func GetKeyType (typename string) (keytype KeyType) {
 	switch {
 	case typename == "none": keytype =  RT_NONE;
@@ -46,6 +52,21 @@ func GetKeyType (typename string) (keytype KeyType) {
 	}
 	return;
 }
+
+// Not yet used -- TODO: decide if returning status (say for Set) for non error cases 
+// really buys us anything beyond (useless) consistency.
+//
+type Status bool;
+const (
+	OK 	 bool	= true;	 	
+	PONG 		= true;		
+	ERR 		= false;
+)
+
+// ----------------------------------------------------------------------------
+// Interfaces
+// ----------------------------------------------------------------------------
+
 
 // The synchronous call semantics Client interface.
 //
@@ -366,11 +387,64 @@ type Client interface {
 	Lastsave () (result int64, err Error);
 }
 
-// Asynchronous call semantics client interface.
-//
-// TBD.
 
-type Pipeline interface {
+// The asynchronous call semantics client interface.
+//
+//  WIP:  what the usage will look like
+//
+//	func usingRedisAsync () Error {
+//		spec := DefaultConnectionSpec();
+//		pipeline := NewRedisPipeline(spec);
+//		
+//		// futureBytes is a FutureBytes
+//		futureBytes, reqErr := pipline.Get("my-key");
+//		if reqErr != nil { return withError (reqErr); }
+//		
+//		// ....
+//		
+//		[]byte, execErr := futureBytes.Get();
+//		if execErr != nil { return withError (execErr); }
+//		
+//		// or using timeouts
+//		
+//		timeout := 1000000; // 1 msec
+//		[]byte, execErr, ok := futureBytes.TryGet (timeout);
+//		if !ok { 
+//			// we timedout 
+//		}
+//		else {
+//			if execErr != nil { return withError (execErr); }
+//		}
+//	}
+
+type AsyncClient interface {
+
+// THESE ARE WIP/TEMP ... SUBJECT TO CHANGE.
+//
+//	Info () (FutureInfo, Error);
+	Exists (key string) (FutureBool, Error);
+//	Sismembers (key string) (FutureBytesArray, Error);
+//	Incr (key string) (FutureInt64, Error);
+//	Randomkey () (FutureString, Error);
+	Get (key string) (FutureBytes, Error);
 }
 
+// ----------------------------------------------------------------------------
+// package initiatization and internal ops and flags
+// ----------------------------------------------------------------------------
+
+// ----------------
+// flags
+//
+// go-redis will make use of command line flags where available.  flag names
+// for this package are all prefixed by "redis:" to prevent possible name collisions.
+//
+func init () { flag.Parse(); }
+
+// redis:d
+//
+// global debug flag for redis package components.
+// 
+var _debug *bool = flag.Bool ("redis:d", false, "debug flag for go-redis"); // TEMP: should default to false
+func debug() bool { return *_debug; }
 

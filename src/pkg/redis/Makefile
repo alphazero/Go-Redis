@@ -10,6 +10,7 @@ REDIS_FILES=\
 	protocol.go\
 	connection.go\
 	synchclient.go\
+    asynchclient.go\
 
 $(TARG).$(O): $(REDIS_FILES)
 	$(GC) -o $(TARG).$(O) $(REDIS_FILES)

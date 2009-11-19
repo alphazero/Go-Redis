@@ -445,6 +445,6 @@ func init () { flag.Parse(); }
 //
 // global debug flag for redis package components.
 // 
-var _debug *bool = flag.Bool ("redis:d", false, "debug flag for go-redis"); // TEMP: should default to false
+var _debug *bool = flag.Bool ("redis:d", true, "debug flag for go-redis"); // TEMP: should default to false
 func debug() bool { return *_debug; }
 

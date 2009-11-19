@@ -12,15 +12,13 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 //
-
-/*
-*/
 package redis
 
 import (
 //	"reflect";
 	"net";
 	"fmt";
+	"strconv";
 	"os";
 	"io";
 	"bufio";
@@ -32,6 +30,13 @@ const (
 	LOCALHOST = "127.0.0.1";
 )
 
+// various default sizes for the connections
+// 
+const(
+	defaultReqChanSize = 1500000;
+	defaultRespChanSize int64 = 1000000;
+)
+
 // ----------------------------------------------------------------------------
 // Connection ConnectionSpec
 // ----------------------------------------------------------------------------
@@ -39,10 +44,11 @@ const (
 // Defines the set of parameters that are used by the client connections
 //
 type ConnectionSpec struct {
-	host string;
-	port int;
-	password string;
-	db 	int;
+	host		string;
+	port		int;
+	password	string;
+	db			int;
+	
 }
 
 // Creates a ConnectionSpec using default settings.
@@ -60,7 +66,6 @@ func DefaultSpec () *ConnectionSpec {
 
 // Sets the db for connection spec and returns the reference
 // Note that you should not this after you have already connected.
-//
 func (spec *ConnectionSpec) Db(db int) *ConnectionSpec {
 	spec.db = db;
 	return spec;
@@ -68,7 +73,6 @@ func (spec *ConnectionSpec) Db(db int) *ConnectionSpec {
 
 // Sets the host for connection spec and returns the reference
 // Note that you should not this after you have already connected.
-//
 func (spec *ConnectionSpec) Host(host string) *ConnectionSpec {
 	spec.host = host;
 	return spec;
@@ -76,7 +80,6 @@ func (spec *ConnectionSpec) Host(host string) *ConnectionSpec {
 
 // Sets the port for connection spec and returns the reference
 // Note that you should not this after you have already connected.
-//
 func (spec *ConnectionSpec) Port(port int) *ConnectionSpec {
 	spec.port = port;
 	return spec;
@@ -84,15 +87,65 @@ func (spec *ConnectionSpec) Port(port int) *ConnectionSpec {
 
 // Sets the password for connection spec and returns the reference
 // Note that you should not this after you have already connected.
-//
 func (spec *ConnectionSpec) Password(password string) *ConnectionSpec {
 	spec.password = password;
 	return spec;
 }
 
+// return the address as string.
 func (spec *ConnectionSpec) Addr () string {
-	return fmt.Sprintf("%s:%d", spec.host, spec.port);
+	return spec.host + ":" + strconv.Itoa(int(spec.port));
+//	return fmt.Sprintf("%s:%d", spec.host, spec.port);
 }
+
+// ----------------------------------------------------------------------------
+// Generic Conn handle and methods
+// ----------------------------------------------------------------------------
+
+// General control structure used by connections.
+//
+type syncConnHDL struct {
+	spec 	*ConnectionSpec;
+	conn 	net.Conn;
+	reader 	*bufio.Reader;
+}
+
+// Creates and opens a new connection to server per ConnectionSpec.
+// The new connection is wrapped by a new syncConnHDL with its bufio.Reader
+// delegating to the net.Conn's reader. 
+//
+func newConnHDL (spec *ConnectionSpec) (hdl *syncConnHDL, err os.Error) {
+	here := "newConnHDL";
+
+	hdl = new(syncConnHDL);
+	if hdl == nil { 
+		return nil, withNewError (fmt.Sprintf("%s(): failed to allocate syncConnHDL", here));
+	}
+	
+	addr := spec.Addr();
+	conn, e := net.Dial(TCP, "", addr);
+	switch {
+		case e != nil:
+			err = withOsError (fmt.Sprintf("%s(): could not open connection", here), e);
+		case conn == nil:
+			err = withNewError (fmt.Sprintf("%s(): net.Dial returned nil, nil (?)", here));
+		default:
+			hdl.conn = conn;
+			hdl.reader = bufio.NewReader(conn);	
+			if debug() {log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);}
+	}
+	return hdl, err;
+}
+
+// closes the syncConnHDL's net.Conn connection.
+// Is public so that syncConnHDL struct can be used as SyncConnection (TODO: review that.)
+//
+func (hdl syncConnHDL) Close() os.Error {
+	err := hdl.conn.Close();
+	if debug() {log.Stdout ("[Go-Redis] Closed connection: ", hdl);}
+	return err;
+}
+
 
 // ----------------------------------------------------------------------------
 // Connection SyncConnection
@@ -106,102 +159,45 @@ type SyncConnection interface {
 	Close () os.Error;
 }
 
-// General control structure used by connections.
-//
-type _connection struct {
-	spec 	*ConnectionSpec;
-	conn 	net.Conn;
-	reader 	*bufio.Reader;
-}
-func (hdl _connection) Close() os.Error {
-	err := hdl.conn.Close();
-	if debug() {log.Stdout ("[Go-Redis] Closed connection: ", hdl);}
-	return err;
+// Creates a new SyncConnection using the provided ConnectionSpec
+func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
+	return newConnHDL (spec);
 }
 
 // Implementation of SyncConnection.ServiceRequest.
 //
-func (c _connection) ServiceRequest (cmd *Command, args ...) (resp Response, err Error) {
+func (chdl *syncConnHDL) ServiceRequest (cmd *Command, args ...) (resp Response, err Error) {
+	here := "syncConnHDL.ServiceRequest";
+	errmsg := "";
+	ok := false;
+	buff, e := CreateRequestBytes(cmd, args);
+	if e == nil {
+		e = sendRequest(chdl.conn, buff);
+		if e == nil {
+			resp, e = GetResponse(chdl.reader, cmd);
+			if e == nil {
+				if resp.IsError() {
+					redismsg := fmt.Sprintf(" [%s]: %s", cmd.Code, resp.GetMessage());
+					err = NewRedisError(redismsg);
+				}
+				ok = true;
+			}
+			else { errmsg = fmt.Sprintf("%s(%s): failed to get response", here, cmd.Code); }
+		}
+		else { errmsg = fmt.Sprintf("%s(%s): failed to send request", here, cmd.Code); }
+	}
+	else { errmsg = fmt.Sprintf("%s(%s): failed to create request buffer", here, cmd.Code); } 
 	
-	// TODO: need to consider errors here -- assuming it is always ok to write to Buffer ...
-	buff, e1 := CreateRequestBytes(cmd, args);
-	if e1 != nil {
-		if debug() {log.Stderr("[Go-Redis] ERROR [", cmd.Code, "] :","CreateRequestBytes(): failed to get response", e1);}
-		return nil, NewErrorWithCause(SYSTEM_ERR, "ServiceRequest(): failed to create request buffer", e1);
+	if !ok {
+		return resp, withError(NewErrorWithCause(SYSTEM_ERR, errmsg, e)); // log it on debug
 	}
 	
-	e2 := sendRequest(c.conn, buff);
-	if e2 != nil {
-		if debug() {log.Stderr("[Go-Redis] ERROR [", cmd.Code, "] :","sendRequest(): failed to send request", e2);}
-		return nil, NewErrorWithCause(SYSTEM_ERR, "ServiceRequest(): failed to send request", e2);
-	}
-	
-	resp, e3 := GetResponse(c.reader, cmd);
-	if e3 != nil {
-		if debug() {log.Stderr("[Go-Redis] ERROR [", cmd.Code, "] :","GetResponse(): failed to get response", e3);}
-		return nil, NewErrorWithCause(SYSTEM_ERR, "ServiceRequest(): failed to get response", e3);
-	}
-	
-	if resp.IsError() {
-		if debug() {log.Stderr("[Go-Redis] REDIS ERROR [", cmd.Code, "] :",resp.GetMessage());}
-		return nil, NewRedisError(resp.GetMessage());
-	}
-	return;
-}
-
-// Creates and opens a new SyncConnection.
-//
-func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
-	hdl := new(_connection);
-	if hdl == nil { 
-		errmsg := "in NewSyncConnection(): Failed to allocate a new _connection";
-		if debug() {log.Stderr(errmsg);}
-		return nil, os.NewError (errmsg);
-	}
-	addr := spec.Addr();
-	hdl.conn, err = net.Dial(TCP, "", addr);
-	switch {
-		case err != nil:
-			err = NewErrorWithCause(SYSTEM_ERR, "Could not open connection", err);
-			if debug() {log.Stderr(err);}
-		case hdl.conn == nil:
-			err = NewError(SYSTEM_ERR, "Could not open connection");
-			if debug() {log.Stderr(err);}
-		default:
-			if debug() {log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);}
-			hdl.reader = bufio.NewReader(hdl.conn);	
-			c = hdl;
-	}
-	return;
-}
-func newConnection (spec *ConnectionSpec) (c *_connection, err os.Error) {
-	hdl := new(_connection);
-	if hdl == nil { 
-		errmsg := "in NewSyncConnection(): Failed to allocate a new _connection";
-		if debug() {log.Stderr(errmsg);}
-		return nil, os.NewError (errmsg);
-	}
-	addr := spec.Addr();
-	hdl.conn, err = net.Dial(TCP, "", addr);
-	switch {
-		case err != nil:
-			err = NewErrorWithCause(SYSTEM_ERR, "Could not open connection", err);
-			if debug() {log.Stderr(err);}
-		case hdl.conn == nil:
-			err = NewError(SYSTEM_ERR, "Could not open connection");
-			if debug() {log.Stderr(err);}
-		default:
-			if debug() {log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);}
-			hdl.reader = bufio.NewReader(hdl.conn);	
-			c = hdl;
-	}
 	return;
 }
 
 // ----------------------------------------------------------------------------
 // Asynchronous connections
 // ----------------------------------------------------------------------------
-
 
 // Defines the service contract supported by asynchronous (Request/FutureReply)
 // connections.
@@ -210,98 +206,115 @@ type AsyncConnection interface {
 	QueueRequest (cmd *Command, args ...) (*PendingResponse, Error);
 }
 
+// Handle to a future response
+type PendingResponse struct {
+	future interface{}
+}
+
+// Creates and opens a new AsyncConnection and starts the goroutines for 
+// request and response processing
+
+func NewAsynchConnection (spec *ConnectionSpec) (AsyncConnection, os.Error) {
+	async, err:= newAsyncHDL(spec);
+	go async.processRequests();
+	go async.processResponses();
+	return async, err;
+}
+
+// Defines the data corresponding to a requested service call through the
+// QueueRequest method of AsyncConnection
+
 type pendingRequest struct {
-	cmd *Command;
-//	args *reflect.StructValue;
-//	args interface{};
-	outbuff []byte;
-	future interface{};
+	cmd			*Command;
+	outbuff		[]byte;
+	future		interface{};
 }
 
 // control structure used by asynch connections.
-//
-type _async_connection struct {
-	super 		*_connection;
+
+type asyncConnHDL struct {
+	super			*syncConnHDL;
 	pending_reqs 	chan *pendingRequest;
 	pending_resps 	chan *pendingRequest;	
 	
-//	req_handler  chan interface{};
-//	resp_handler chan interface{};
+	/*
+	// TODO: we'll need these so the go routines can coordinate (on lifecycle and error
+	// events) with the AsyncConnection	
+	
+	req_handler  chan interface{};
+	resp_handler chan interface{};
+	*/
 }
 
-// Creates and opens a new SyncConnection.
-//
-func NewAsynchConnection (spec *ConnectionSpec) (c AsyncConnection, err os.Error) {
-	hdl := new(_async_connection);
-	if hdl == nil { 
-		errmsg := "in NewAsynchConnection(): Failed to allocate a new _async_connection";
-		if debug() {log.Stderr(errmsg);}
-		return nil, os.NewError (errmsg);
-	}
-	super, serr := newConnection (spec);
-	if serr != nil {
-		if debug () { log.Stderr(serr); }
-		return nil, serr;
-	}
-	hdl.super = super;
-	hdl.pending_reqs = make (chan *pendingRequest, 1000000);
-	hdl.pending_resps = make (chan *pendingRequest, 1000000);
+// Creates a new asyncConnHDL with a new syncConnHDL as its delegated 'super'.
+// Note it does not start the processing goroutines for the channels.
 
-	go hdl.processRequests();
-	go hdl.processResponses();
-			
-	return hdl, nil;
-}
-
-func (c _async_connection) processRequests ()  {
-	if debug () {log.Stdout("processing requests for connection: ", c);}
-	for {
-		if debug() {log.Stdout("==>> process requests: ==>> about to TAKE FROM pending REQ ...");}
-		req := <-c.pending_reqs;
-		if debug() {log.Stdout("==>> process requests: ==>> ... TOOK cmd", req.cmd.Code, "args", req.outbuff);}
-		
-//		buff, e := CreateRequestBytes(req.cmd, req.args);
-//		if e!=nil {
-//			log.Stderr("PROBLEM: ", e);
-//		}
-		sendRequest(c.super.conn, req.outbuff);
-		if debug() {log.Stdout("==>> process requests: ==>> sent request");}
-		req.outbuff = nil;
-		
-		if debug() {log.Stdout("==>> process requests: ==>> about to QUEUE TO PENDING ...");}
-		c.pending_resps<- req;
-		if debug() {log.Stdout("==>> process requests: ==>> queued to pending responses");}
-	}
-}
-
-func (c _async_connection) processResponses () {
-	if debug () {log.Stdout("processing responses for connection: ", c);}
-	for {
-		if debug() {log.Stdout("<<== process response: about to TAKE FROM CHANNEL ...");}
-		req := <-c.pending_resps;
-		if debug() {log.Stdout("<<== process response: ... TOOK pending request for:  ", req);}
-		
-		reader := c.super.reader;
-		cmd := req.cmd;
-		
-		r, e3 := GetResponse (reader, cmd);
-		if e3!= nil {
-			log.Stderr("<<== <PROBLEM!!>", e3);
-			// this is a SYSTEM_ERR, such as broken connection, etc.
-			// TDB: connection must handle this, but right now doesn't
-			
+func newAsyncHDL (spec *ConnectionSpec) (async *asyncConnHDL, err os.Error) {
+	here := "newAsynConnHDL";
+	super, err := newConnHDL (spec);
+	if err == nil {
+		async = new(asyncConnHDL);
+		if async != nil { 
+			async.super = super;
+			async.pending_reqs = make (chan *pendingRequest, defaultReqChanSize);
+			async.pending_resps = make (chan *pendingRequest, defaultRespChanSize);
 		}
+		else {
+			return nil, withNewError (fmt.Sprintf("%s(): failed to allocate asyncConnHDL", here));
+		}
+	}
+	else {
+		return nil, withOsError (fmt.Sprintf("%s(): Error creating syncConnHDL", here), err);
+	}
+			
+	return;
+}
+
+// (as of now) used by a goroutine to process pending requests.
+
+func (c *asyncConnHDL) processRequests ()  {
+	if debug () {log.Stdout("begin processing requests for connection: ", c);}
+	for {
+		req := <-c.pending_reqs;
+		e := sendRequest(c.super.conn, req.outbuff);
+		if e == nil {
+			req.outbuff = nil;
+			c.pending_resps<- req;
+		}
+		else {
+			// TODO: need a way for this goroutines to gracefully shutdown
+			// and let the owning connection know there are network issues
+			// & TBD
+			log.Stderr("<BUG> lazy programmer hasn't addressed failures in processRequests goroutine");
+			break;
+		}
+	}
+	if debug () {log.Stdout("stopped processing requests for connection: ", c);}
+}
+
+// (as of now) used by a goroutine to process pending responses.
+
+func (c *asyncConnHDL) processResponses () {
+	if debug () {log.Stdout("begin processing responses for connection: ", c);}
+	for {
+		req:= <-c.pending_resps;
+		reader:= c.super.reader;
+		cmd:= req.cmd;
+		
+		r, e3:= GetResponse (reader, cmd);
+		if e3!= nil {
+			log.Stderr("<BUG> lazy programmer hasn't addressed failures in processResponses goroutine");
+			break;
+		}
+		
 		if r.IsError() {
 			errorResponse := NewRedisError(r.GetMessage());
-			if debug() {log.Stdout("<<== process responses", errorResponse);}
 			req.future.(FutureResult).onError(errorResponse);
 		}
 		else {
-			switch cmd.RespType { // this is actually the raw response type ...
+			switch cmd.RespType {
 			case BOOLEAN:
-				if debug() {log.Stdout("<<== process responses: about to SET on future ...");}
 				req.future.(FutureBool).set(r.GetBooleanValue());
-				if debug() {log.Stdout("<<== process responses: ... DID SET on future");}
 
 			case BULK: 			
 				req.future.(FutureBytes).set(r.GetBulkData());
@@ -323,37 +336,30 @@ func (c _async_connection) processResponses () {
 			}
 		}
 	}
+	if debug () {log.Stdout("stopped processing responses for connection: ", c);}
 }
 
-type PendingResponse struct {
-	future interface{}
-}
-type _asyncResponse struct {
-	future interface {}
-}
-func (asr _asyncResponse) getFutureResult() (FutureResult) {
-	return asr.future.(FutureResult);
-}
-func (c _async_connection) QueueRequest (cmd *Command, v ...) (*PendingResponse, Error) {
+// Implementation of AsyncConnection.QueueRequest;
+
+func (c *asyncConnHDL) QueueRequest (cmd *Command, v ...) (*PendingResponse, Error) {
+	here := "syncConnHDL.ServiceRequest";
 
 	// create the pending request
 	//
 	buff, e1 := CreateRequestBytes(cmd, v);
 	if e1 != nil {
-		error := NewErrorWithCause(SYSTEM_ERR, "Failed to create request bytes", e1);
-		if debug() { log.Stderr(error); }
-		return nil, error;
+		errmsg:= fmt.Sprintf("%s(%s): failed to create request bytes", here, cmd.Code);	
+		return nil, withError (NewErrorWithCause(SYSTEM_ERR, errmsg, e1));
 	}
+	
 	request := new (pendingRequest);
 	request.cmd = cmd;
 	request.outbuff = buff;
-
 	
 	// create its specific future type
 	switch cmd.RespType {
 		case BOOLEAN:
 			request.future = newFutureBool();
-			if debug() {log.Stderr("QueueRequest: request.future", request.future);}
 		case BULK: 			
 			request.future = newFutureBytes();
 		case MULTI_BULK:	
@@ -380,26 +386,41 @@ func (c _async_connection) QueueRequest (cmd *Command, v ...) (*PendingResponse,
 	return response, nil ;
 }
 
-
 // ----------------------------------------------------------------------------
 // internal ops
 // ----------------------------------------------------------------------------
 
-//func (hdl _connection) sendRequest (writer io.Writer, data []byte) os.Error {
-func sendRequest (writer io.Writer, data []byte) os.Error {
-	if debug() { log.Stdout("sendRequest: data size", len(data), "data:", data);}
-	if writer == nil {
-		log.Stderr ("sendRequest invoked with NIL writer!");
-		return os.NewError("<BUG> illegal argument in sendRequest: nil writer.");
+
+// Either writes all the bytes or it fails and returns an error
+//
+func sendRequest (w io.Writer, data []byte) (e os.Error) {
+	here := "syncConnHDL.sendRequest";
+	if w == nil {
+		return withNewError (fmt.Sprintf("<BUG> in %s(): nil Writer", here));
 	}
-	n, e1 := writer.Write(data);
-	if e1 != nil {
-		log.Stderr ("error on Write: ", e1);
+	
+	n, e := w.Write(data);
+	if e != nil {
+		var msg string;
+		switch {
+		case e == os.EAGAIN:		
+			// socket timeout -- don't handle that yet but may in future ..
+			msg = fmt.Sprintf("%s(): timeout (os.EAGAIN) error on Write", here);
+		default:
+			// anything else
+			msg = fmt.Sprintf("%s(): error on Write", here);
+		}
+		return withOsError(msg, e);
 	}
+	
+	// doc isn't too clear but the underlying netFD may return n<len(data) AND
+	// e == nil, but that's precisely what we're testing for here.  
+	// presumably we can try sending the remaining bytes but that is precisely
+	// what netFD.Write is doing (and it couldn't) so ...
 	if n < len(data) {
-		log.Stderr ("didn't write the whole data: ", n);
-		return os.NewError("<BUG> lazy programmer didn't finish sendRequest...");
+		msg := fmt.Sprintf("%s(): connection Write wrote %d bytes only.", here, n);
+		return withNewError(msg);
 	}
-	return e1;
+	return;
 }
 

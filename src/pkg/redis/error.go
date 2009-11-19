@@ -112,8 +112,14 @@ func NewErrorWithCause(cat ErrorCategory, msg string, cause os.Error) Error {
 // a utility function for various components
 //
 func withError (e Error) Error {
-	if debug() {
-		log.Stderr(e);
-	}
+	if debug() { log.Stderr(e); }
 	return e;
+}
+func withNewError (m string) os.Error {
+	e:= os.NewError(m);
+	if debug() { log.Stderr(e); }
+	return e;
+}
+func withOsError (m string, cause os.Error) os.Error {
+	return withNewError(fmt.Sprintf("%s [cause: %s]", m, cause));
 }

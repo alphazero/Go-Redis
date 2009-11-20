@@ -65,11 +65,26 @@ func init () {
 //
 // TODO: tedious but need to check for errors on all buffer writes ..
 //
-func CreateRequestBytes (cmd *Command, v ...) ([]byte, os.Error) {
 
-	args := reflect.NewValue(v).(*reflect.StructValue);
+func copySlice(src []byte, dst []byte) {
+	for i := 0; i < len(dst); i++ {
+		dst[i] = src[i]
+	}
+}
+
+func CreateRequestBytes2 (cmd *Command, args [][]byte) ([]byte, os.Error) {
+
+//	vargs:= reflect.NewValue(v).(*reflect.StructValue);
+//	var args [][]byte;
+//	if cmd.ReqType != NO_ARG {
+//		var ok bool;
+//		args, ok = ToByteSliceArray(vargs);
+//		if !ok {
+//			return nil, withNewError(cmd.Code + " << Could not convert v... to [][]bytes!");
+//		}
+//	}
+
 	cmd_bytes := strings.Bytes(cmd.Code);
-	
 	buffer := bytes.NewBuffer(cmd_bytes);
 
 	switch cmd.ReqType {
@@ -78,9 +93,7 @@ func CreateRequestBytes (cmd *Command, v ...) ([]byte, os.Error) {
 	
 	case KEY:
 		buffer.Write(WHITESPACE);	
-		key, ok_0 := GetByteArrayAtIndex (args, 0);
-		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
-		buffer.Write(key);
+		buffer.Write(args[0]);
 		
 	case 
 		KEY_KEY, 
@@ -88,90 +101,206 @@ func CreateRequestBytes (cmd *Command, v ...) ([]byte, os.Error) {
 		KEY_SPEC:
 		
 		buffer.Write(WHITESPACE);	
-		key, ok_0 := GetByteArrayAtIndex (args, 0);
-		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
-		buffer.Write(key);
+		buffer.Write(args[0]);
 		buffer.Write(WHITESPACE);	
-		key2, ok_1 := GetByteArrayAtIndex (args, 1);
-		if !ok_1 { return nil, os.NewError("<BUG> Error on getting varg v 1 in CreateRequestBytes");}
-		buffer.Write(key2);
+		buffer.Write(args[1]);
 	
 	case KEY_NUM_NUM:
 	
 		buffer.Write(WHITESPACE);	
-		key, ok_0 := GetByteArrayAtIndex (args, 0);
-		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
-		buffer.Write(key);
+		buffer.Write(args[0]);
 		buffer.Write(WHITESPACE);	
-		num1, ok_1 := GetByteArrayAtIndex (args, 1);
-		if !ok_1 { return nil, os.NewError("<BUG> Error on getting varg v 1 in CreateRequestBytes");}
-		buffer.Write(num1);
+		buffer.Write(args[1]);
 		buffer.Write(WHITESPACE);	
-		num2, ok_2 := GetByteArrayAtIndex (args, 2);
-		if !ok_2 { return nil, os.NewError("<BUG> Error on getting varg v 2 in CreateRequestBytes");}
-		buffer.Write(num2);
+		buffer.Write(args[2]);
 	
 	case KEY_VALUE:
 	
 		buffer.Write(WHITESPACE);	
-		key, ok_0 := GetByteArrayAtIndex (args, 0);
-		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
-		buffer.Write(key);
+		buffer.Write(args[0]);
 		buffer.Write(WHITESPACE);
-		value, ok_1 := GetByteArrayAtIndex (args, 1);;
-		if !ok_1 { return nil, os.NewError("<BUG> Error on getting varg v 1 in CreateRequestBytes");}
-		len := fmt.Sprintf("%d", len(value));
+		len := fmt.Sprintf("%d", len(args[1]));
 		buffer.Write(strings.Bytes(len)); 
 		buffer.Write(CRLF);
-		buffer.Write(value);
+		buffer.Write(args[1]);
 	
 	case 
 		KEY_IDX_VALUE,
 		KEY_KEY_VALUE:
 		
 		buffer.Write(WHITESPACE);	
-		key, ok_0 := GetByteArrayAtIndex (args, 0);
-		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
-		buffer.Write(key);
+		buffer.Write(args[0]);
 		buffer.Write(WHITESPACE);
-		key_or_idx, ok_1 := GetByteArrayAtIndex (args, 1);
-		if !ok_1 { return nil, os.NewError("<BUG> Error on getting varg v 1 in CreateRequestBytes");}
-		buffer.Write(key_or_idx);
+		buffer.Write(args[1]);
 		buffer.Write(WHITESPACE);
-		value, ok_2 := GetByteArrayAtIndex (args, 2);;
-		if !ok_2 { return nil, os.NewError("<BUG> Error on getting varg v 2 in CreateRequestBytes");}
-		len := fmt.Sprintf("%d", len(value));
+		len := fmt.Sprintf("%d", len(args[2]));
 		buffer.Write(strings.Bytes(len)); 
 		buffer.Write(CRLF);
-		buffer.Write(value);
+		buffer.Write(args[2]);
 		
 	case KEY_CNT_VALUE:
 		
 		buffer.Write(WHITESPACE);	
-		key, ok_0 := GetByteArrayAtIndex (args, 0);
-		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
-		buffer.Write(key);
+		buffer.Write(args[0]);
 		buffer.Write(WHITESPACE);
-		cnt, ok_1 := GetByteArrayAtIndex (args, 2);
-		if !ok_1 { return nil, os.NewError("<BUG> Error on getting varg v 1 in CreateRequestBytes");}
-		buffer.Write(cnt);
+		buffer.Write(args[2]);
 		buffer.Write(WHITESPACE);
-		value, ok_2 := GetByteArrayAtIndex (args, 1);;
-		if !ok_2 { return nil, os.NewError("<BUG> Error on getting varg v 2 in CreateRequestBytes");}
-		len := fmt.Sprintf("%d", len(value));
+		len := fmt.Sprintf("%d", len(args[1]));
 		buffer.Write(strings.Bytes(len)); 
 		buffer.Write(CRLF);
-		buffer.Write(value);
+		buffer.Write(args[1]);
 		
 	case MULTI_KEY:
 
 		buffer.Write(WHITESPACE);	
-		keycnt, ok_0 := GetByteArrayLen (args);	
+//		keycnt, ok_0 := GetByteArrayLen (vargs);	
+		keycnt:= len(args);	
+//		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
+		for i:=0;i<keycnt; i++ {
+			buffer.Write(args[i]);
+			buffer.Write(WHITESPACE);	
+		}
+	}
+	
+	buffer.Write(CRLF);	
+	
+	return buffer.Bytes(), nil;
+}
+func CreateRequestBytes (cmd *Command, v ...) ([]byte, os.Error) {
+
+	vargs:= reflect.NewValue(v).(*reflect.StructValue);
+	var args [][]byte;
+	if cmd.ReqType != NO_ARG {
+		var ok bool;
+		args, ok = ToByteSliceArray(vargs);
+		if !ok {
+			return nil, withNewError(cmd.Code + " << Could not convert v... to [][]bytes!");
+		}
+//		fmt.Printf("CreateRequestBytes(): \nargs len: %d\nargs:%s", len(args), args);
+	}
+
+	cmd_bytes := strings.Bytes(cmd.Code);
+	buffer := bytes.NewBuffer(cmd_bytes);
+
+	switch cmd.ReqType {
+
+	case NO_ARG:
+	
+	case KEY:
+		buffer.Write(WHITESPACE);	
+//		key, ok_0 := GetByteArrayAtIndex (vargs, 0);
+//		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
+//		buffer.Write(key);
+		buffer.Write(args[0]);
+		
+	case 
+		KEY_KEY, 
+		KEY_NUM, 
+		KEY_SPEC:
+		
+		buffer.Write(WHITESPACE);	
+//		key, ok_0 := GetByteArrayAtIndex (vargs, 0);
+//		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
+//		buffer.Write(key);
+		buffer.Write(args[0]);
+		buffer.Write(WHITESPACE);	
+//		key2:= args[1];
+//		key2, ok_1 := GetByteArrayAtIndex (vargs, 1);
+//		if !ok_1 { return nil, os.NewError("<BUG> Error on getting varg v 1 in CreateRequestBytes");}
+//		buffer.Write(key2);
+		buffer.Write(args[1]);
+	
+	case KEY_NUM_NUM:
+	
+		buffer.Write(WHITESPACE);	
+//		key, ok_0 := GetByteArrayAtIndex (vargs, 0);
+//		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
+//		buffer.Write(key);
+		buffer.Write(args[0]);
+		buffer.Write(WHITESPACE);	
+//		num1, ok_1 := GetByteArrayAtIndex (vargs, 1);
+//		if !ok_1 { return nil, os.NewError("<BUG> Error on getting varg v 1 in CreateRequestBytes");}
+//		buffer.Write(num1);
+		buffer.Write(args[1]);
+		buffer.Write(WHITESPACE);	
+//		num2, ok_2 := GetByteArrayAtIndex (vargs, 2);
+//		if !ok_2 { return nil, os.NewError("<BUG> Error on getting varg v 2 in CreateRequestBytes");}
+//		buffer.Write(num2);
+		buffer.Write(args[2]);
+	
+	case KEY_VALUE:
+	
+		buffer.Write(WHITESPACE);	
+//		key, ok_0 := GetByteArrayAtIndex (vargs, 0);
+//		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
+//		buffer.Write(key);
+		buffer.Write(args[0]);
+		buffer.Write(WHITESPACE);
+//		value, ok_1 := GetByteArrayAtIndex (vargs, 1);
+//		if !ok_1 { return nil, os.NewError("<BUG> Error on getting varg v 1 in CreateRequestBytes");}
+//		len := fmt.Sprintf("%d", len(value));
+		len := fmt.Sprintf("%d", len(args[1]));
+		buffer.Write(strings.Bytes(len)); 
+		buffer.Write(CRLF);
+//		buffer.Write(value);
+		buffer.Write(args[1]);
+	
+	case 
+		KEY_IDX_VALUE,
+		KEY_KEY_VALUE:
+		
+		buffer.Write(WHITESPACE);	
+//		key, ok_0 := GetByteArrayAtIndex (vargs, 0);
+//		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
+//		buffer.Write(key);
+		buffer.Write(args[0]);
+		buffer.Write(WHITESPACE);
+//		key_or_idx, ok_1 := GetByteArrayAtIndex (vargs, 1);
+//		if !ok_1 { return nil, os.NewError("<BUG> Error on getting varg v 1 in CreateRequestBytes");}
+//		buffer.Write(key_or_idx);
+		buffer.Write(args[1]);
+		buffer.Write(WHITESPACE);
+//		value, ok_2 := GetByteArrayAtIndex (vargs, 2);;
+//		if !ok_2 { return nil, os.NewError("<BUG> Error on getting varg v 2 in CreateRequestBytes");}
+//		len := fmt.Sprintf("%d", len(value));
+		len := fmt.Sprintf("%d", len(args[2]));
+		buffer.Write(strings.Bytes(len)); 
+		buffer.Write(CRLF);
+//		buffer.Write(value);
+		buffer.Write(args[2]);
+		
+	case KEY_CNT_VALUE:
+		
+		buffer.Write(WHITESPACE);	
+//		key, ok_0 := GetByteArrayAtIndex (vargs, 0);
+//		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
+//		buffer.Write(key);
+		buffer.Write(args[0]);
+		buffer.Write(WHITESPACE);
+//		cnt, ok_1 := GetByteArrayAtIndex (vargs, 2);
+//		if !ok_1 { return nil, os.NewError("<BUG> Error on getting varg v 1 in CreateRequestBytes");}
+//		buffer.Write(cnt);
+		buffer.Write(args[2]);
+		buffer.Write(WHITESPACE);
+//		value, ok_2 := GetByteArrayAtIndex (vargs, 1);;
+//		if !ok_2 { return nil, os.NewError("<BUG> Error on getting varg v 2 in CreateRequestBytes");}
+//		len := fmt.Sprintf("%d", len(value));
+		len := fmt.Sprintf("%d", len(args[1]));
+		buffer.Write(strings.Bytes(len)); 
+		buffer.Write(CRLF);
+//		buffer.Write(value);
+		buffer.Write(args[1]);
+		
+	case MULTI_KEY:
+
+		buffer.Write(WHITESPACE);	
+		keycnt, ok_0 := GetByteArrayLen (vargs);	
 		if !ok_0 { return nil, os.NewError("<BUG> Error on getting varg v 0 in CreateRequestBytes");}
 		for i:=0;i<keycnt; i++ {
-			key, ok := GetByteArrayAtIndex (args, i);
-			if !ok { return nil, os.NewError(fmt.Sprintf("<BUG> Error on getting varg v %d in CreateRequestBytes", i));}
-			buffer.Write(key);
+//			key, ok := GetByteArrayAtIndex (vargs, i);
+//			if !ok { return nil, os.NewError(fmt.Sprintf("<BUG> Error on getting varg v %d in CreateRequestBytes", i));}
+//			buffer.Write(key);
+			buffer.Write(args[i]);
 			buffer.Write(WHITESPACE);	
 		}
 	}
@@ -211,9 +340,11 @@ func GetResponse (reader *bufio.Reader, cmd *Command) (resp Response, err os.Err
 // ----------------------------------------------------------------------------
 
 func getStatusResponse (conn *bufio.Reader, cmd *Command) (resp Response, e os.Error) {
+//	fmt.Printf("getStatusResponse: about to read line for %s\n", cmd.Code);
 	buff, error, fault := readLine(conn);
 	if fault == nil {
 		line := bytes.NewBuffer(buff).String();
+//		fmt.Printf("getStatusResponse: %s\n", line);
 		resp = newStatusResponse(line, error);
 	}
 	return resp, fault;

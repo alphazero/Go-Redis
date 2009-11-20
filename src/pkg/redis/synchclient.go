@@ -67,7 +67,7 @@ func (c *synchClient) Get (arg0 string) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&GET, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&GET, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -78,7 +78,7 @@ func (c *synchClient) Type (arg0 string) (result KeyType, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&TYPE, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&TYPE, [][]byte{arg0bytes});
 	if err == nil {result = GetKeyType(resp.GetStringValue());}
 	return result, err;
 }
@@ -88,7 +88,7 @@ func (c *synchClient) Set (arg0 string, arg1 []byte) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
-	_, err = c.conn.ServiceRequest(&SET, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&SET, [][]byte{arg0bytes, arg1bytes});
 	return;
 }
 /*****
@@ -97,7 +97,7 @@ func (c *synchClient) Set (arg0 string, arg1 string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 
-	_, err = c.conn.ServiceRequest(&SET, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&SET, [][]byte{arg0bytes, arg1bytes});
 	return result, err;
 }
 
@@ -106,7 +106,7 @@ func (c *synchClient) Set (arg0 string, arg1 int64) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
-	_, err = c.conn.ServiceRequest(&SET, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&SET, [][]byte{arg0bytes, arg1bytes});
 	return result, err;
 }
 
@@ -115,14 +115,14 @@ func (c *synchClient) Set (arg0 string, arg1 io.ReadWriter) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := convertSerializableToBytes????????(arg1);
 
-	_, err = c.conn.ServiceRequest(&SET, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&SET, [][]byte{arg0bytes, arg1bytes});
 	return result, err;
 }
 ******/
 
 // Redis SAVE command.
 func (c *synchClient) Save () (err Error){
-	_, err = c.conn.ServiceRequest(&SAVE);
+	_, err = c.conn.ServiceRequest(&SAVE, [][]byte{});
 	return;
 
 }
@@ -137,7 +137,7 @@ func (c *synchClient) Keys (arg0 string) (result []string, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&KEYS, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&KEYS, [][]byte{arg0bytes});
 	if err == nil {
 		result = strings.Split(bytes.NewBuffer(resp.GetBulkData()).String(), " ", 0);
 	}
@@ -150,7 +150,7 @@ func (c *synchClient) Sort (arg0 string) (result redis.Sort, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SORT, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&SORT, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetMultiBulkData();}
 	return result, err;
 
@@ -161,7 +161,7 @@ func (c *synchClient) Exists (arg0 string) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&EXISTS, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&EXISTS, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -172,14 +172,14 @@ func (c *synchClient) Rename (arg0 string, arg1 string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 
-	_, err = c.conn.ServiceRequest(&RENAME, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&RENAME, [][]byte{arg0bytes, arg1bytes});
 	return;
 }
 
 // Redis INFO command.
 func (c *synchClient) Info () (result map[string] string, err Error){
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&INFO);
+	resp, err = c.conn.ServiceRequest(&INFO, [][]byte{});
 	if err == nil {
 		infoStr := bytes.NewBuffer(resp.GetBulkData()).String();
 		infoItems := strings.Split(infoStr, "\r\n", 0);
@@ -202,7 +202,7 @@ func (c *synchClient) Ping () (err Error){
 		log.Stderr("FAULT in synchclient.Ping(): why is c.conn nil?");
 		return NewError(SYSTEM_ERR, "c.conn *SynchConnection is NIL!");
 	}
-	_, err = c.conn.ServiceRequest(&PING);
+	_, err = c.conn.ServiceRequest(&PING, [][]byte{});
 	return;
 }
 
@@ -219,7 +219,7 @@ func (c *synchClient) Setnx (arg0 string, arg1 []byte) (result bool, err Error){
 	arg1bytes := arg1;
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SETNX, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SETNX, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -231,7 +231,7 @@ func (c *synchClient) Setnx (arg0 string, arg1 io.ReadWriter) (result bool, err 
 	arg1bytes := convertSerializableToBytes????????(arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SETNX, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SETNX, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -243,7 +243,7 @@ func (c *synchClient) Setnx (arg0 string, arg1 string) (result bool, err Error){
 	arg1bytes := strings.Bytes (arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SETNX, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SETNX, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -255,7 +255,7 @@ func (c *synchClient) Setnx (arg0 string, arg1 int64) (result bool, err Error){
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SETNX, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SETNX, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -268,7 +268,7 @@ func (c *synchClient) Getset (arg0 string, arg1 []byte) (result []byte, err Erro
 	arg1bytes := arg1;
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&GETSET, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&GETSET, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -281,7 +281,7 @@ func (c *synchClient) Getset (arg0 string, arg1 string) (result []byte, err Erro
 	arg1bytes := strings.Bytes (arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&GETSET, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&GETSET, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -293,7 +293,7 @@ func (c *synchClient) Getset (arg0 string, arg1 int64) (result []byte, err Error
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&GETSET, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&GETSET, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -305,7 +305,7 @@ func (c *synchClient) Getset (arg0 string, arg1 io.ReadWriter) (result []byte, e
 	arg1bytes := convertSerializableToBytes????????(arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&GETSET, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&GETSET, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -318,7 +318,7 @@ func (c *synchClient) Mget (arg0 string, arg1 []string) (result [][]byte, err Er
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&MGET, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&MGET, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetMultiBulkData();}
 	return result, err;
 
@@ -330,7 +330,7 @@ func (c *synchClient) Incr (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&INCR, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&INCR, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 
@@ -342,7 +342,7 @@ func (c *synchClient) Incrby (arg0 string, arg1 int64) (result int64, err Error)
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&INCRBY, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&INCRBY, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 
@@ -353,7 +353,7 @@ func (c *synchClient) Decr (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&DECR, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&DECR, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 
@@ -365,7 +365,7 @@ func (c *synchClient) Decrby (arg0 string, arg1 int64) (result int64, err Error)
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&DECRBY, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&DECRBY, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 
@@ -376,7 +376,7 @@ func (c *synchClient) Del (arg0 string) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&DEL, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&DEL, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -385,7 +385,7 @@ func (c *synchClient) Del (arg0 string) (result bool, err Error){
 // Redis RANDOMKEY command.
 func (c *synchClient) Randomkey () (result string, err Error){
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&RANDOMKEY);
+	resp, err = c.conn.ServiceRequest(&RANDOMKEY, [][]byte{});
 	if err == nil {result = resp.GetStringValue();}
 	return result, err;
 
@@ -397,7 +397,7 @@ func (c *synchClient) Renamenx (arg0 string, arg1 string) (result bool, err Erro
 	arg1bytes := strings.Bytes (arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&RENAMENX, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&RENAMENX, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -406,7 +406,7 @@ func (c *synchClient) Renamenx (arg0 string, arg1 string) (result bool, err Erro
 // Redis DBSIZE command.
 func (c *synchClient) Dbsize () (result int64, err Error){
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&DBSIZE);
+	resp, err = c.conn.ServiceRequest(&DBSIZE, [][]byte{});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 
@@ -418,7 +418,7 @@ func (c *synchClient) Expire (arg0 string, arg1 int64) (result bool, err Error){
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&EXPIRE, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&EXPIRE, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -429,7 +429,7 @@ func (c *synchClient) Ttl (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&TTL, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&TTL, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 
@@ -440,7 +440,7 @@ func (c *synchClient) Rpush (arg0 string, arg1 []byte) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
-	_, err = c.conn.ServiceRequest(&RPUSH, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&RPUSH, [][]byte{arg0bytes, arg1bytes});
 	return;
 }
 
@@ -450,7 +450,7 @@ func (c *synchClient) Rpush (arg0 string, arg1 io.ReadWriter) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := convertSerializableToBytes????????(arg1);
 
-	_, err = c.conn.ServiceRequest(&RPUSH, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&RPUSH, [][]byte{arg0bytes, arg1bytes});
 	return result, err;
 
 }
@@ -460,7 +460,7 @@ func (c *synchClient) Rpush (arg0 string, arg1 string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 
-	_, err = c.conn.ServiceRequest(&RPUSH, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&RPUSH, [][]byte{arg0bytes, arg1bytes});
 	return result, err;
 
 }
@@ -470,7 +470,7 @@ func (c *synchClient) Rpush (arg0 string, arg1 int64) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
-	_, err = c.conn.ServiceRequest(&RPUSH, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&RPUSH, [][]byte{arg0bytes, arg1bytes});
 	return result, err;
 
 }
@@ -480,7 +480,7 @@ func (c *synchClient) Lpush (arg0 string, arg1 []byte) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
-	_, err = c.conn.ServiceRequest(&LPUSH, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&LPUSH, [][]byte{arg0bytes, arg1bytes});
 	return;
 }
 
@@ -491,7 +491,7 @@ func (c *synchClient) Lpush (arg0 string, arg1 io.ReadWriter) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := convertSerializableToBytes????????(arg1);
 
-	_, err = c.conn.ServiceRequest(&LPUSH, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&LPUSH, [][]byte{arg0bytes, arg1bytes});
 	return;
 }
 
@@ -500,7 +500,7 @@ func (c *synchClient) Lpush (arg0 string, arg1 int64) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
-	_, err = c.conn.ServiceRequest(&LPUSH, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&LPUSH, [][]byte{arg0bytes, arg1bytes});
 	return;
 }
 
@@ -509,7 +509,7 @@ func (c *synchClient) Lpush (arg0 string, arg1 string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 
-	_, err = c.conn.ServiceRequest(&LPUSH, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&LPUSH, [][]byte{arg0bytes, arg1bytes});
 	return;
 }
 **/
@@ -520,7 +520,7 @@ func (c *synchClient) Lset (arg0 string, arg1 int64, arg2 []byte) (err Error){
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := arg2;
 
-	_, err = c.conn.ServiceRequest(&LSET, arg0bytes, arg1bytes, arg2bytes);
+	_, err = c.conn.ServiceRequest(&LSET, [][]byte{arg0bytes, arg1bytes, arg2bytes});
 	return;
 }
 
@@ -563,7 +563,7 @@ func (c *synchClient) Lrem (arg0 string, arg1 []byte, arg2 int64) (result int64,
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&LREM, arg0bytes, arg1bytes, arg2bytes);
+	resp, err = c.conn.ServiceRequest(&LREM, [][]byte{arg0bytes, arg1bytes, arg2bytes});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 
@@ -615,7 +615,7 @@ func (c *synchClient) Llen (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&LLEN, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&LLEN, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 
@@ -628,7 +628,7 @@ func (c *synchClient) Lrange (arg0 string, arg1 int64, arg2 int64) (result [][]b
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&LRANGE, arg0bytes, arg1bytes, arg2bytes);
+	resp, err = c.conn.ServiceRequest(&LRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes});
 	if err == nil {result = resp.GetMultiBulkData();}
 	return result, err;
 
@@ -640,7 +640,7 @@ func (c *synchClient) Ltrim (arg0 string, arg1 int64, arg2 int64) (err Error){
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
 
-	_, err = c.conn.ServiceRequest(&LTRIM, arg0bytes, arg1bytes, arg2bytes);
+	_, err = c.conn.ServiceRequest(&LTRIM, [][]byte{arg0bytes, arg1bytes, arg2bytes});
 	return;
 }
 
@@ -650,7 +650,7 @@ func (c *synchClient) Lindex (arg0 string, arg1 int64) (result []byte, err Error
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&LINDEX, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&LINDEX, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -661,7 +661,7 @@ func (c *synchClient) Lpop (arg0 string) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&LPOP, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&LPOP, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -672,7 +672,7 @@ func (c *synchClient) Rpop (arg0 string) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&RPOP, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&RPOP, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -684,7 +684,7 @@ func (c *synchClient) Rpoplpush (arg0 string, arg1 string) (result []byte, err E
 	arg1bytes := strings.Bytes (arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&RPOPLPUSH, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&RPOPLPUSH, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -696,7 +696,7 @@ func (c *synchClient) Sadd (arg0 string, arg1 []byte) (result bool, err Error){
 	arg1bytes := arg1;
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SADD, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SADD, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -709,7 +709,7 @@ func (c *synchClient) Sadd (arg0 string, arg1 io.ReadWriter) (result bool, err E
 	arg1bytes := convertSerializableToBytes????????(arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SADD, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SADD, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -721,7 +721,7 @@ func (c *synchClient) Sadd (arg0 string, arg1 int64) (result bool, err Error){
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SADD, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SADD, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -733,7 +733,7 @@ func (c *synchClient) Sadd (arg0 string, arg1 string) (result bool, err Error){
 	arg1bytes := strings.Bytes (arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SADD, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SADD, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -746,7 +746,7 @@ func (c *synchClient) Srem (arg0 string, arg1 []byte) (result bool, err Error){
 	arg1bytes := arg1;
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SREM, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SREM, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -759,7 +759,7 @@ func (c *synchClient) Srem (arg0 string, arg1 string) (result bool, err Error){
 	arg1bytes := strings.Bytes (arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SREM, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SREM, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -771,7 +771,7 @@ func (c *synchClient) Srem (arg0 string, arg1 int64) (result bool, err Error){
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SREM, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SREM, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -783,7 +783,7 @@ func (c *synchClient) Srem (arg0 string, arg1 io.ReadWriter) (result bool, err E
 	arg1bytes := convertSerializableToBytes????????(arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SREM, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SREM, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -796,7 +796,7 @@ func (c *synchClient) Sismember (arg0 string, arg1 []byte) (result bool, err Err
 	arg1bytes := arg1;
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SISMEMBER, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SISMEMBER, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -809,7 +809,7 @@ func (c *synchClient) Sismember (arg0 string, arg1 io.ReadWriter) (result bool, 
 	arg1bytes := convertSerializableToBytes????????(arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SISMEMBER, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SISMEMBER, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -821,7 +821,7 @@ func (c *synchClient) Sismember (arg0 string, arg1 int64) (result bool, err Erro
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SISMEMBER, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SISMEMBER, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -833,7 +833,7 @@ func (c *synchClient) Sismember (arg0 string, arg1 string) (result bool, err Err
 	arg1bytes := strings.Bytes (arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SISMEMBER, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SISMEMBER, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -847,7 +847,7 @@ func (c *synchClient) Smove (arg0 string, arg1 string, arg2 []byte) (result bool
 	arg2bytes := arg2;
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SMOVE, arg0bytes, arg1bytes, arg2bytes);
+	resp, err = c.conn.ServiceRequest(&SMOVE, [][]byte{arg0bytes, arg1bytes, arg2bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -899,7 +899,7 @@ func (c *synchClient) Scard (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SCARD, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&SCARD, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 
@@ -919,7 +919,7 @@ func (c *synchClient) Sinter (arg0 string, arg1 []string) (result [][]byte, err 
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SINTER, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SINTER, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetMultiBulkData();}
 	return result, err;
 
@@ -930,7 +930,7 @@ func (c *synchClient) Sinterstore (arg0 string, arg1 []string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
-	_, err = c.conn.ServiceRequest(&SINTERSTORE, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&SINTERSTORE, [][]byte{arg0bytes, arg1bytes});
 	return;
 }
 
@@ -940,7 +940,7 @@ func (c *synchClient) Sunion (arg0 string, arg1 []string) (result [][]byte, err 
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SUNION, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SUNION, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetMultiBulkData();}
 	return result, err;
 
@@ -951,7 +951,7 @@ func (c *synchClient) Sunionstore (arg0 string, arg1 []string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
-	_, err = c.conn.ServiceRequest(&SUNIONSTORE, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&SUNIONSTORE, [][]byte{arg0bytes, arg1bytes});
 	return;
 }
 
@@ -961,7 +961,7 @@ func (c *synchClient) Sdiff (arg0 string, arg1 []string) (result [][]byte, err E
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SDIFF, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&SDIFF, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetMultiBulkData();}
 	return result, err;
 
@@ -972,7 +972,7 @@ func (c *synchClient) Sdiffstore (arg0 string, arg1 []string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
-	_, err = c.conn.ServiceRequest(&SDIFFSTORE, arg0bytes, arg1bytes);
+	_, err = c.conn.ServiceRequest(&SDIFFSTORE, [][]byte{arg0bytes, arg1bytes});
 	return;
 }
 
@@ -981,7 +981,7 @@ func (c *synchClient) Smembers (arg0 string) (result [][]byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SMEMBERS, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&SMEMBERS, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetMultiBulkData();}
 	return result, err;
 
@@ -992,7 +992,7 @@ func (c *synchClient) Srandmember (arg0 string) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&SRANDMEMBER, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&SRANDMEMBER, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -1005,7 +1005,7 @@ func (c *synchClient) Zadd (arg0 string, arg1 float64, arg2 []byte) (result bool
 	arg2bytes := arg2;
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZADD, arg0bytes, arg1bytes, arg2bytes);
+	resp, err = c.conn.ServiceRequest(&ZADD, [][]byte{arg0bytes, arg1bytes, arg2bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -1058,7 +1058,7 @@ func (c *synchClient) Zrem (arg0 string, arg1 []byte) (result bool, err Error){
 	arg1bytes := arg1;
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZREM, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&ZREM, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -1071,7 +1071,7 @@ func (c *synchClient) Zrem (arg0 string, arg1 io.ReadWriter) (result bool, err E
 	arg1bytes := convertSerializableToBytes????????(arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZREM, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&ZREM, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -1083,7 +1083,7 @@ func (c *synchClient) Zrem (arg0 string, arg1 int64) (result bool, err Error){
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZREM, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&ZREM, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -1095,7 +1095,7 @@ func (c *synchClient) Zrem (arg0 string, arg1 string) (result bool, err Error){
 	arg1bytes := strings.Bytes (arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZREM, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&ZREM, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -1107,7 +1107,7 @@ func (c *synchClient) Zcard (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZCARD, arg0bytes);
+	resp, err = c.conn.ServiceRequest(&ZCARD, [][]byte{arg0bytes});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 
@@ -1119,7 +1119,7 @@ func (c *synchClient) Zscore (arg0 string, arg1 []byte) (result float64, err Err
 	arg1bytes := arg1;
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZSCORE, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&ZSCORE, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {
 		buff := resp.GetBulkData();
 		fnum, oserr := strconv.Atof64(bytes.NewBuffer(buff).String());
@@ -1139,7 +1139,7 @@ func (c *synchClient) Zscore (arg0 string, arg1 io.ReadWriter) (result float64, 
 	arg1bytes := convertSerializableToBytes????????(arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZSCORE, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&ZSCORE, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -1151,7 +1151,7 @@ func (c *synchClient) Zscore (arg0 string, arg1 int64) (result float64, err Erro
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZSCORE, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&ZSCORE, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -1163,7 +1163,7 @@ func (c *synchClient) Zscore (arg0 string, arg1 string) (result float64, err Err
 	arg1bytes := strings.Bytes (arg1);
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZSCORE, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&ZSCORE, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBulkData();}
 	return result, err;
 
@@ -1177,7 +1177,7 @@ func (c *synchClient) Zrange (arg0 string, arg1 int64, arg2 int64) (result [][]b
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZRANGE, arg0bytes, arg1bytes, arg2bytes);
+	resp, err = c.conn.ServiceRequest(&ZRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes});
 	if err == nil {result = resp.GetMultiBulkData();}
 	return result, err;
 
@@ -1190,7 +1190,7 @@ func (c *synchClient) Zrevrange (arg0 string, arg1 int64, arg2 int64) (result []
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZREVRANGE, arg0bytes, arg1bytes, arg2bytes);
+	resp, err = c.conn.ServiceRequest(&ZREVRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes});
 	if err == nil {result = resp.GetMultiBulkData();}
 	return result, err;
 
@@ -1203,7 +1203,7 @@ func (c *synchClient) Zrangebyscore (arg0 string, arg1 float64, arg2 float64) (r
 	arg2bytes := strings.Bytes (fmt.Sprintf("%e", arg2));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&ZRANGEBYSCORE, arg0bytes, arg1bytes, arg2bytes);
+	resp, err = c.conn.ServiceRequest(&ZRANGEBYSCORE, [][]byte{arg0bytes, arg1bytes, arg2bytes});
 	if err == nil {result = resp.GetMultiBulkData();}
 	return result, err;
 
@@ -1211,13 +1211,13 @@ func (c *synchClient) Zrangebyscore (arg0 string, arg1 float64, arg2 float64) (r
 
 // Redis FLUSHDB command.
 func (c *synchClient) Flushdb () (err Error){
-	_, err = c.conn.ServiceRequest(&FLUSHDB);
+	_, err = c.conn.ServiceRequest(&FLUSHDB, [][]byte{});
 	return;
 }
 
 // Redis FLUSHALL command.
 func (c *synchClient) Flushall () (err Error){
-	_, err = c.conn.ServiceRequest(&FLUSHALL);
+	_, err = c.conn.ServiceRequest(&FLUSHALL, [][]byte{});
 	return;
 }
 
@@ -1227,7 +1227,7 @@ func (c *synchClient) Move (arg0 string, arg1 int64) (result bool, err Error){
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&MOVE, arg0bytes, arg1bytes);
+	resp, err = c.conn.ServiceRequest(&MOVE, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {result = resp.GetBooleanValue();}
 	return result, err;
 
@@ -1235,14 +1235,14 @@ func (c *synchClient) Move (arg0 string, arg1 int64) (result bool, err Error){
 
 // Redis BGSAVE command.
 func (c *synchClient) Bgsave () (err Error){
-	_, err = c.conn.ServiceRequest(&BGSAVE);
+	_, err = c.conn.ServiceRequest(&BGSAVE, [][]byte{});
 	return;
 }
 
 // Redis LASTSAVE command.
 func (c *synchClient) Lastsave () (result int64, err Error){
 	var resp Response;
-	resp, err = c.conn.ServiceRequest(&LASTSAVE);
+	resp, err = c.conn.ServiceRequest(&LASTSAVE, [][]byte{});
 	if err == nil {result = resp.GetNumberValue();}
 	return result, err;
 

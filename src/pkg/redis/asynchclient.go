@@ -65,17 +65,33 @@ func NewAsynchClientWithSpec (spec *ConnectionSpec) (c AsyncClient, err os.Error
 // ----------------------- aync interface
 
 
+func (c *async) Incr (arg0 string) (result FutureInt64, err Error) {
+	arg0bytes := strings.Bytes (arg0);
+
+	resp, err := c.conn.QueueRequest(&INCR, [][]byte{arg0bytes});
+	if err == nil {result = resp.future.(FutureInt64);}
+	return result, err;
+}
 func (c *async) Get (arg0 string) (result FutureBytes, err Error) {
 	arg0bytes := strings.Bytes (arg0);
 
-	resp, err := c.conn.QueueRequest(&GET, arg0bytes);
+	resp, err := c.conn.QueueRequest(&GET, [][]byte{arg0bytes});
 	if err == nil {result = resp.future.(FutureBytes);}
 	return result, err;
+}
+func (c *async) Set (arg0 string, arg1 []byte) (result FutureString, err Error) {
+//	log.Stdout("asynchClient.Set: about to issue request SET for: ", arg0);
+	arg0bytes := strings.Bytes (arg0);
+	arg1bytes := arg1;
+
+	resp, err:= c.conn.QueueRequest(&SET, [][]byte{arg0bytes, arg1bytes});
+	if err == nil {result = resp.future.(FutureString);}
+	return;
 }
 func (c *async) Exists (arg0 string) (result FutureBool, err Error) {
 	arg0bytes := strings.Bytes (arg0);
 
-	resp, err := c.conn.QueueRequest(&EXISTS, arg0bytes);
+	resp, err := c.conn.QueueRequest(&EXISTS, [][]byte{arg0bytes});
 	if err == nil {result = resp.future.(FutureBool);}
 	return result, err;
 

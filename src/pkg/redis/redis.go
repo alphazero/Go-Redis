@@ -20,6 +20,7 @@ package redis
 
 import (
 	"flag";
+	"runtime";
 )
 
 // ----------------------------------------------------------------------------
@@ -427,6 +428,8 @@ type AsyncClient interface {
 //	Incr (key string) (FutureInt64, Error);
 //	Randomkey () (FutureString, Error);
 	Get (key string) (FutureBytes, Error);
+	Incr (key string) (FutureInt64, Error);
+	Set (key string, arg1 []byte) (FutureString, Error);
 }
 
 // ----------------------------------------------------------------------------
@@ -439,12 +442,15 @@ type AsyncClient interface {
 // go-redis will make use of command line flags where available.  flag names
 // for this package are all prefixed by "redis:" to prevent possible name collisions.
 //
-func init () { flag.Parse(); }
+func init () { 
+	runtime.GOMAXPROCS(2);
+	flag.Parse(); 
+}
 
 // redis:d
 //
 // global debug flag for redis package components.
 // 
-var _debug *bool = flag.Bool ("redis:d", true, "debug flag for go-redis"); // TEMP: should default to false
+var _debug *bool = flag.Bool ("redis:d", false, "debug flag for go-redis"); // TEMP: should default to false
 func debug() bool { return *_debug; }
 

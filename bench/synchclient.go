@@ -35,8 +35,7 @@ func doOne (cnt int) os.Error {
 	if client == nil {  return failedTest ("NewSynchClient returned nil!"); }
 
 	client.Flushdb();
-	
-	
+		
 	delta = doPing(client, cnt);
 	report ("PING", delta, cnt);
 	

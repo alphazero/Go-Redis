@@ -15,7 +15,6 @@
 package redis
 
 import (
-//	"reflect";
 	"net";
 	"fmt";
 	"strconv";
@@ -23,20 +22,39 @@ import (
 	"io";
 	"bufio";
 	"log";
+//	"reflect";
+//	"time";
 )
 
 const (
 	TCP = "tcp";
 	LOCALHOST = "127.0.0.1";
+	ns1Sec = 1000000;
+	ns1MSec = 1000;
 )
 
 // various default sizes for the connections
-// 
+// exported for user convenience if nedded
 const(
-	defaultReqChanSize = 1500000;
-	defaultRespChanSize int64 = 1000000;
+	DefaultReqChanSize			= 10000;
+	DefaultRespChanSize			= 10000;
+	
+	DefaultTCPReadBuffSize		= 1024 * 512;
+	DefaultTCPWriteBuffSize		= 1024 * 512;
+	DefaultTCPReadTimeoutNSecs	= ns1Sec * 10;
+	DefaultTCPWriteTimeoutNSecs	= ns1Sec * 10;
+	DefaultTCPLinger			= -1;
+	DefaultTCPKeepalive			= true;
 )
 
+// Redis specific default settings
+// exported for user convenience if nedded
+const (
+	DefaultRedisPassword = "";
+	DefaultRedisDB = 0;
+	DefaultRedisPort = 6379;
+	DefaultRedisHost = LOCALHOST;
+)
 // ----------------------------------------------------------------------------
 // Connection ConnectionSpec
 // ----------------------------------------------------------------------------
@@ -48,20 +66,30 @@ type ConnectionSpec struct {
 	port		int;
 	password	string;
 	db			int;
-	
+	// tcp specific sspecs
+	rBufSize	int;
+	wBufSize	int;
+	rTimeout	int64;
+	wTimeout	int64;
+	keepalive	bool;
+	lingerspec	int; // -n: finish io; 0: discard, +n: wait for n secs to finish
 }
 
 // Creates a ConnectionSpec using default settings.
-// host is localhost
-// port is 6379
-// no password is specified (so no AUTH on connect)
-// no db is specified (so no SELECT on connect)
-//
+// using the DefaultXXX consts of redis package.
 func DefaultSpec () *ConnectionSpec {
-	spec := new (ConnectionSpec);
-	spec.host = LOCALHOST;
-	spec.port = 6379;
-	return spec;
+	return &ConnectionSpec {
+		DefaultRedisHost,
+		DefaultRedisPort,
+		DefaultRedisPassword,
+		DefaultRedisDB,
+		DefaultTCPReadBuffSize,
+		DefaultTCPWriteBuffSize,
+		DefaultTCPReadTimeoutNSecs,
+		DefaultTCPWriteTimeoutNSecs,
+		DefaultTCPKeepalive,
+		DefaultTCPLinger
+	};
 }
 
 // Sets the db for connection spec and returns the reference
@@ -117,26 +145,40 @@ type syncConnHDL struct {
 func newConnHDL (spec *ConnectionSpec) (hdl *syncConnHDL, err os.Error) {
 	here := "newConnHDL";
 
-	hdl = new(syncConnHDL);
-	if hdl == nil { 
+	if hdl = new(syncConnHDL); hdl == nil { 
 		return nil, withNewError (fmt.Sprintf("%s(): failed to allocate syncConnHDL", here));
 	}
-	
-	addr := spec.Addr();
-	conn, e := net.Dial(TCP, "", addr);
+	addr := spec.Addr(); 
+	raddr, e:= net.ResolveTCPAddr(addr); 
+	if e != nil {
+		return nil, withNewError (fmt.Sprintf("%s(): failed to resolve remote address %s", here, addr));
+	}	
+	conn, e:= net.DialTCP(TCP, nil, raddr);
 	switch {
 		case e != nil:
 			err = withOsError (fmt.Sprintf("%s(): could not open connection", here), e);
 		case conn == nil:
 			err = withNewError (fmt.Sprintf("%s(): net.Dial returned nil, nil (?)", here));
 		default:
+			configureConn(conn, spec);
 			hdl.conn = conn;
-			hdl.reader = bufio.NewReader(conn);	
+			hdl.reader = bufio.NewReader(conn);
 			if debug() {log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);}
 	}
 	return hdl, err;
 }
 
+func configureConn (conn *net.TCPConn, spec *ConnectionSpec) {
+	// these two -- the most important -- are causing problems on my osx/64
+	// where a "service unavailable" pops up in the async reads 
+	// but we absolutely need to be able to use timeouts.
+//			conn.SetReadTimeout(spec.rTimeout);	
+//			conn.SetWriteTimeout(spec.wTimeout);	
+	conn.SetLinger(spec.lingerspec);
+	conn.SetKeepAlive(spec.keepalive);
+	conn.SetReadBuffer(spec.rBufSize);
+	conn.SetWriteBuffer(spec.wBufSize);
+}
 // closes the syncConnHDL's net.Conn connection.
 // Is public so that syncConnHDL struct can be used as SyncConnection (TODO: review that.)
 //
@@ -155,7 +197,8 @@ func (hdl syncConnHDL) Close() os.Error {
 // connections.
 
 type SyncConnection interface {
-	ServiceRequest (cmd *Command, args ...) (Response, Error);
+//	ServiceRequest (cmd *Command, args ...) (Response, Error);
+	ServiceRequest (cmd *Command, args [][]byte) (Response, Error);
 	Close () os.Error;
 }
 
@@ -166,11 +209,11 @@ func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
 
 // Implementation of SyncConnection.ServiceRequest.
 //
-func (chdl *syncConnHDL) ServiceRequest (cmd *Command, args ...) (resp Response, err Error) {
+func (chdl *syncConnHDL) ServiceRequest (cmd *Command, args [][]byte) (resp Response, err Error) {
 	here := "syncConnHDL.ServiceRequest";
 	errmsg := "";
 	ok := false;
-	buff, e := CreateRequestBytes(cmd, args);
+	buff, e := CreateRequestBytes2 (cmd, args);  // 2<<<
 	if e == nil {
 		e = sendRequest(chdl.conn, buff);
 		if e == nil {
@@ -203,7 +246,8 @@ func (chdl *syncConnHDL) ServiceRequest (cmd *Command, args ...) (resp Response,
 // connections.
 
 type AsyncConnection interface {
-	QueueRequest (cmd *Command, args ...) (*PendingResponse, Error);
+//	QueueRequest (cmd *Command, args ...) (*PendingResponse, Error);
+	QueueRequest (cmd *Command, args [][]byte) (*PendingResponse, Error);
 }
 
 // Handle to a future response
@@ -226,7 +270,7 @@ func NewAsynchConnection (spec *ConnectionSpec) (AsyncConnection, os.Error) {
 
 type pendingRequest struct {
 	cmd			*Command;
-	outbuff		[]byte;
+	outbuff		*[]byte;
 	future		interface{};
 }
 
@@ -256,8 +300,8 @@ func newAsyncHDL (spec *ConnectionSpec) (async *asyncConnHDL, err os.Error) {
 		async = new(asyncConnHDL);
 		if async != nil { 
 			async.super = super;
-			async.pending_reqs = make (chan *pendingRequest, defaultReqChanSize);
-			async.pending_resps = make (chan *pendingRequest, defaultRespChanSize);
+			async.pending_reqs = make (chan *pendingRequest, DefaultReqChanSize);
+			async.pending_resps = make (chan *pendingRequest, DefaultRespChanSize);
 		}
 		else {
 			return nil, withNewError (fmt.Sprintf("%s(): failed to allocate asyncConnHDL", here));
@@ -276,7 +320,7 @@ func (c *asyncConnHDL) processRequests ()  {
 	if debug () {log.Stdout("begin processing requests for connection: ", c);}
 	for {
 		req := <-c.pending_reqs;
-		e := sendRequest(c.super.conn, req.outbuff);
+		e := sendRequest(c.super.conn, *req.outbuff);
 		if e == nil {
 			req.outbuff = nil;
 			c.pending_resps<- req;
@@ -304,6 +348,7 @@ func (c *asyncConnHDL) processResponses () {
 		r, e3:= GetResponse (reader, cmd);
 		if e3!= nil {
 			log.Stderr("<BUG> lazy programmer hasn't addressed failures in processResponses goroutine");
+			log.Stderr(e3);
 			break;
 		}
 		
@@ -326,7 +371,7 @@ func (c *asyncConnHDL) processResponses () {
 				req.future.(FutureInt64).set(r.GetNumberValue());
 
 			case STATUS:		
-				req.future.(FutureString).set(r.GetStringValue());
+				req.future.(FutureString).set(r.GetMessage());
 
 			case STRING:		
 				req.future.(FutureString).set(r.GetStringValue());
@@ -341,12 +386,21 @@ func (c *asyncConnHDL) processResponses () {
 
 // Implementation of AsyncConnection.QueueRequest;
 
-func (c *asyncConnHDL) QueueRequest (cmd *Command, v ...) (*PendingResponse, Error) {
+func (c *asyncConnHDL) QueueRequest (cmd *Command, args [][]byte) (*PendingResponse, Error) {
 	here := "syncConnHDL.ServiceRequest";
 
 	// create the pending request
-	//
-	buff, e1 := CreateRequestBytes(cmd, v);
+//	vargs:= reflect.NewValue(v).(*reflect.StructValue);
+//	var args [][]byte;
+//	if cmd.ReqType != NO_ARG {
+//		var ok bool;
+//		args, ok = ToByteSliceArray(vargs);
+//		if !ok {
+//			return nil, NewError(SYSTEM_ERR, cmd.Code + " << Could not convert v... to [][]bytes!");
+//		}
+//	}
+
+	buff, e1 := CreateRequestBytes2(cmd, args);
 	if e1 != nil {
 		errmsg:= fmt.Sprintf("%s(%s): failed to create request bytes", here, cmd.Code);	
 		return nil, withError (NewErrorWithCause(SYSTEM_ERR, errmsg, e1));
@@ -354,7 +408,7 @@ func (c *asyncConnHDL) QueueRequest (cmd *Command, v ...) (*PendingResponse, Err
 	
 	request := new (pendingRequest);
 	request.cmd = cmd;
-	request.outbuff = buff;
+	request.outbuff = &buff;
 	
 	// create its specific future type
 	switch cmd.RespType {
@@ -381,7 +435,7 @@ func (c *asyncConnHDL) QueueRequest (cmd *Command, v ...) (*PendingResponse, Err
 	// send it to the pending requests channel to queue the request
 	//
 	c.pending_reqs<- request;
-	
+
 	// done.
 	return response, nil ;
 }

@@ -25,6 +25,18 @@ import (
 //	(independent) little package as using Go reflection is quite tedious.
 // ----------------------------------------------------------------------------
 
+func ToByteSliceArray (v *reflect.StructValue) (bsa [][]byte, ok bool) {
+	n:= v.NumField();
+	bsa = make([][]byte, n);
+	for i:=0; i<n; i++ {
+		bsa[i], ok = GetByteArrayAtIndex (v, i);
+		if !ok {
+			if debug() {}
+			break;
+		}
+	}
+	return;
+}
 // TODO: document me
 //
 func GetByteArrayAtIndex(v *reflect.StructValue, i int) (arr []byte, ok bool){

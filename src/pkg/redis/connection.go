@@ -22,6 +22,8 @@ import (
 	"io";
 	"bufio";
 	"log";
+//	CV "container/vector";
+
 //	"reflect";
 //	"time";
 )
@@ -36,11 +38,11 @@ const (
 // various default sizes for the connections
 // exported for user convenience if nedded
 const(
-	DefaultReqChanSize			= 10000;
-	DefaultRespChanSize			= 10000;
+	DefaultReqChanSize			= 100000;
+	DefaultRespChanSize			= 100000;
 	
-	DefaultTCPReadBuffSize		= 1024 * 512;
-	DefaultTCPWriteBuffSize		= 1024 * 512;
+	DefaultTCPReadBuffSize		= 1024 * 256;
+	DefaultTCPWriteBuffSize		= 1024 * 256;
 	DefaultTCPReadTimeoutNSecs	= ns1Sec * 10;
 	DefaultTCPWriteTimeoutNSecs	= ns1Sec * 10;
 	DefaultTCPLinger			= -1;
@@ -162,7 +164,7 @@ func newConnHDL (spec *ConnectionSpec) (hdl *syncConnHDL, err os.Error) {
 		default:
 			configureConn(conn, spec);
 			hdl.conn = conn;
-			hdl.reader = bufio.NewReader(conn);
+			hdl.reader, e = bufio.NewReaderSize(conn, 4096);
 			if debug() {log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);}
 	}
 	return hdl, err;
@@ -260,7 +262,8 @@ type PendingResponse struct {
 
 func NewAsynchConnection (spec *ConnectionSpec) (AsyncConnection, os.Error) {
 	async, err:= newAsyncHDL(spec);
-	go async.processRequests();
+//	go async.processRequests();
+	go async.batchProcessRequestsI (spec);
 	go async.processResponses();
 	return async, err;
 }
@@ -314,12 +317,53 @@ func newAsyncHDL (spec *ConnectionSpec) (async *asyncConnHDL, err os.Error) {
 	return;
 }
 
-// (as of now) used by a goroutine to process pending requests.
+func (c *asyncConnHDL) batchProcessRequestsI (spec *ConnectionSpec)  {
+	if debug () {log.Stdout("begin processing requests for connection [using glued-writes]: ", c);}
 
+	maxbytes := spec.wBufSize/2;
+	buff, e := bufio.NewWriterSize(c.super.conn, maxbytes);
+	if e!= nil {
+		log.Stderr("<BUG> lazy programmer >> ERROR in processRequests goroutine");
+	}
+	for {
+		bytecnt := 0;
+		itemcnt := len(c.pending_reqs);
+		flush := false;
+		for itemcnt > 0 {
+			flush = true;
+			req := <-c.pending_reqs;
+			e := sendRequest(buff, *req.outbuff);
+			bytecnt += len(*req.outbuff);
+			if e == nil {
+				req.outbuff = nil;
+				c.pending_resps<- req;
+			}
+			else {
+				// put it back for now ...
+				log.Stderr("<BUG> lazy programmer >> ERROR in processRequests goroutine -req requeued");
+				c.pending_reqs<- req;
+				break;
+			}
+			itemcnt = len(c.pending_reqs);
+			if bytecnt > maxbytes { // i know ..
+				break;
+			}
+		}
+		if flush { buff.Flush(); fmt.Printf(""); /* magic */}
+		else { fmt.Printf(""); /* magic */ }
+	}
+	if debug () {log.Stdout("stopped processing requests for connection: ", c);}
+}
+
+// (as of now) used by a goroutine to process pending requests.
 func (c *asyncConnHDL) processRequests ()  {
 	if debug () {log.Stdout("begin processing requests for connection: ", c);}
 	for {
 		req := <-c.pending_reqs;
+		itemcnt := len(c.pending_reqs);
+		if itemcnt > 0 {
+			log.Stdout (">>> still in channel: ", itemcnt);
+		}
 		e := sendRequest(c.super.conn, *req.outbuff);
 		if e == nil {
 			req.outbuff = nil;

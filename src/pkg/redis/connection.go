@@ -22,10 +22,6 @@ import (
 	"io";
 	"bufio";
 	"log";
-//	CV "container/vector";
-
-//	"reflect";
-//	"time";
 )
 
 const (
@@ -355,30 +351,30 @@ func (c *asyncConnHDL) batchProcessRequestsI (spec *ConnectionSpec)  {
 	if debug () {log.Stdout("stopped processing requests for connection: ", c);}
 }
 
-// (as of now) used by a goroutine to process pending requests.
-func (c *asyncConnHDL) processRequests ()  {
-	if debug () {log.Stdout("begin processing requests for connection: ", c);}
-	for {
-		req := <-c.pending_reqs;
-		itemcnt := len(c.pending_reqs);
-		if itemcnt > 0 {
-			log.Stdout (">>> still in channel: ", itemcnt);
-		}
-		e := sendRequest(c.super.conn, *req.outbuff);
-		if e == nil {
-			req.outbuff = nil;
-			c.pending_resps<- req;
-		}
-		else {
-			// TODO: need a way for this goroutines to gracefully shutdown
-			// and let the owning connection know there are network issues
-			// & TBD
-			log.Stderr("<BUG> lazy programmer hasn't addressed failures in processRequests goroutine");
-			break;
-		}
-	}
-	if debug () {log.Stdout("stopped processing requests for connection: ", c);}
-}
+//// (as of now) used by a goroutine to process pending requests.
+//func (c *asyncConnHDL) processRequests ()  {
+//	if debug () {log.Stdout("begin processing requests for connection: ", c);}
+//	for {
+//		req := <-c.pending_reqs;
+//		itemcnt := len(c.pending_reqs);
+//		if itemcnt > 0 {
+//			log.Stdout (">>> still in channel: ", itemcnt);
+//		}
+//		e := sendRequest(c.super.conn, *req.outbuff);
+//		if e == nil {
+//			req.outbuff = nil;
+//			c.pending_resps<- req;
+//		}
+//		else {
+//			// TODO: need a way for this goroutines to gracefully shutdown
+//			// and let the owning connection know there are network issues
+//			// & TBD
+//			log.Stderr("<BUG> lazy programmer hasn't addressed failures in processRequests goroutine");
+//			break;
+//		}
+//	}
+//	if debug () {log.Stdout("stopped processing requests for connection: ", c);}
+//}
 
 // (as of now) used by a goroutine to process pending responses.
 
@@ -432,17 +428,6 @@ func (c *asyncConnHDL) processResponses () {
 
 func (c *asyncConnHDL) QueueRequest (cmd *Command, args [][]byte) (*PendingResponse, Error) {
 	here := "syncConnHDL.ServiceRequest";
-
-	// create the pending request
-//	vargs:= reflect.NewValue(v).(*reflect.StructValue);
-//	var args [][]byte;
-//	if cmd.ReqType != NO_ARG {
-//		var ok bool;
-//		args, ok = ToByteSliceArray(vargs);
-//		if !ok {
-//			return nil, NewError(SYSTEM_ERR, cmd.Code + " << Could not convert v... to [][]bytes!");
-//		}
-//	}
 
 	buff, e1 := CreateRequestBytes2(cmd, args);
 	if e1 != nil {

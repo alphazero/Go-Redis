@@ -22,6 +22,7 @@ import (
 	"io";
 	"bufio";
 	"log";
+//	"time";
 )
 
 const (
@@ -279,12 +280,11 @@ type asyncRequestInfo struct {
 	stat		arErrStat;
 	cmd			*Command;
 	outbuff		*[]byte;
-}
-type asyncRequest struct {
-	aref		*asyncRequestInfo;
-	cmd			*Command;
-	outbuff		*[]byte;
 	future		interface{};
+}
+
+type asyncRequest struct {
+	ref		*asyncRequestInfo;
 }
 
 // control structure used by asynch connections.
@@ -294,6 +294,7 @@ type asyncConnHdl struct {
 	pending_reqs 	chan *asyncRequest;
 	pending_resps 	chan *asyncRequest;	
 	
+	nextid			int64;
 	/*
 	// TODO: we'll need these so the go routines can coordinate (on lifecycle and error
 	// events) with the AsyncConnection	
@@ -326,7 +327,11 @@ func newAsyncConnHdl (spec *ConnectionSpec) (async *asyncConnHdl, err os.Error) 
 			
 	return;
 }
-
+func (c *asyncConnHdl) nextId () (id int64) {
+	id = c.nextid;
+	c.nextid++;
+	return;
+}
 func (c *asyncConnHdl) batchProcessRequests (spec *ConnectionSpec)  {
 	if debug () {log.Stdout("begin processing requests for connection [using glued-writes]: ", c);}
 
@@ -342,14 +347,16 @@ func (c *asyncConnHdl) batchProcessRequests (spec *ConnectionSpec)  {
 		for itemcnt > 0 {
 			flush = true;
 			req := <-c.pending_reqs;
-			e := sendRequest(buff, *req.outbuff);
-			bytecnt += len(*req.outbuff);
+			req.ref.id = c.nextId();
+			e := sendRequest(buff, *req.ref.outbuff);
+			bytecnt += len(*req.ref.outbuff);
 			if e == nil {
-				req.outbuff = nil;
+				req.ref.outbuff = nil;
 				c.pending_resps<- req;
 			}
 			else {
 				// put it back for now ...
+				// really should set its ref's stat to faulted 
 				log.Stderr("<BUG> lazy programmer >> ERROR in processRequests goroutine -req requeued");
 				c.pending_reqs<- req;
 				break;
@@ -370,7 +377,7 @@ func (c *asyncConnHdl) processResponses () {
 	for {
 		req:= <-c.pending_resps;
 		reader:= c.super.reader;
-		cmd:= req.cmd;
+		cmd:= req.ref.cmd;
 		
 		r, e3:= GetResponse (reader, cmd);
 		if e3!= nil {
@@ -381,27 +388,27 @@ func (c *asyncConnHdl) processResponses () {
 		
 		if r.IsError() {
 			errorResponse := NewRedisError(r.GetMessage());
-			req.future.(FutureResult).onError(errorResponse);
+			req.ref.future.(FutureResult).onError(errorResponse);
 		}
 		else {
 			switch cmd.RespType {
 			case BOOLEAN:
-				req.future.(FutureBool).set(r.GetBooleanValue());
+				req.ref.future.(FutureBool).set(r.GetBooleanValue());
 
 			case BULK: 			
-				req.future.(FutureBytes).set(r.GetBulkData());
+				req.ref.future.(FutureBytes).set(r.GetBulkData());
 
 			case MULTI_BULK:	
-				req.future.(FutureBytesArray).set(r.GetMultiBulkData());
+				req.ref.future.(FutureBytesArray).set(r.GetMultiBulkData());
 
 			case NUMBER:			
-				req.future.(FutureInt64).set(r.GetNumberValue());
+				req.ref.future.(FutureInt64).set(r.GetNumberValue());
 
 			case STATUS:		
-				req.future.(FutureString).set(r.GetMessage());
+				req.ref.future.(FutureString).set(r.GetMessage());
 
 			case STRING:		
-				req.future.(FutureString).set(r.GetStringValue());
+				req.ref.future.(FutureString).set(r.GetStringValue());
 
 		//	case VIRTUAL:		// FutureString?
 		//	    resp, err = getVirtualResponse ();
@@ -416,41 +423,37 @@ func (c *asyncConnHdl) processResponses () {
 func (c *asyncConnHdl) QueueRequest (cmd *Command, args [][]byte) (*PendingResponse, Error) {
 	here := "connHdl.ServiceRequest";
 
+	// create its specific future type
+	// we need to do this now since we're handing a ref back to the caller
+	var future interface{};
+	switch cmd.RespType {
+		case BOOLEAN:
+			future = newFutureBool();
+		case BULK: 			
+			future = newFutureBytes();
+		case MULTI_BULK:	
+			future = newFutureBytesArray();
+		case NUMBER:			
+			future = newFutureInt64();
+		case STATUS:		
+			future = newFutureString();
+		case STRING:		
+			future = newFutureString();
+	}
 	buff, e1 := CreateRequestBytes(cmd, args);
 	if e1 != nil {
 		errmsg:= fmt.Sprintf("%s(%s): failed to create request bytes", here, cmd.Code);	
 		return nil, withError (NewErrorWithCause(SYSTEM_ERR, errmsg, e1));
 	}
-	
-	request := new (asyncRequest);
-	request.cmd = cmd;
-	request.outbuff = &buff;
-	
-	// create its specific future type
-	switch cmd.RespType {
-		case BOOLEAN:
-			request.future = newFutureBool();
-		case BULK: 			
-			request.future = newFutureBytes();
-		case MULTI_BULK:	
-			request.future = newFutureBytesArray();
-		case NUMBER:			
-			request.future = newFutureInt64();
-		case STATUS:		
-			request.future = newFutureString();
-		case STRING:		
-			request.future = newFutureString();
-	}
+
+	// create the request and send its ref to the pending requests 
+	request := &asyncRequestInfo{0, 0, cmd, &buff, future};
+	reqref  := &asyncRequest{request};
+	c.pending_reqs<- reqref;
 	
 	// create pending response to be returned to caller
 	// both point to the same future
-	//	
-	response := new(PendingResponse);
-	response.future = request.future;
-	
-	// send it to the pending requests channel to queue the request
-	//
-	c.pending_reqs<- request;
+	response := &PendingResponse{request.future};
 
 	// done.
 	return response, nil ;

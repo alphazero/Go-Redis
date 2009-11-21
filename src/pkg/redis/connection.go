@@ -130,21 +130,21 @@ func (spec *ConnectionSpec) Addr () string {
 
 // General control structure used by connections.
 //
-type syncConnHDL struct {
+type connHdl struct {
 	spec 	*ConnectionSpec;
 	conn 	net.Conn;
 	reader 	*bufio.Reader;
 }
 
 // Creates and opens a new connection to server per ConnectionSpec.
-// The new connection is wrapped by a new syncConnHDL with its bufio.Reader
+// The new connection is wrapped by a new connHdl with its bufio.Reader
 // delegating to the net.Conn's reader. 
 //
-func newConnHDL (spec *ConnectionSpec) (hdl *syncConnHDL, err os.Error) {
+func newConnHDL (spec *ConnectionSpec) (hdl *connHdl, err os.Error) {
 	here := "newConnHDL";
 
-	if hdl = new(syncConnHDL); hdl == nil { 
-		return nil, withNewError (fmt.Sprintf("%s(): failed to allocate syncConnHDL", here));
+	if hdl = new(connHdl); hdl == nil { 
+		return nil, withNewError (fmt.Sprintf("%s(): failed to allocate connHdl", here));
 	}
 	addr := spec.Addr(); 
 	raddr, e:= net.ResolveTCPAddr(addr); 
@@ -177,10 +177,10 @@ func configureConn (conn *net.TCPConn, spec *ConnectionSpec) {
 	conn.SetReadBuffer(spec.rBufSize);
 	conn.SetWriteBuffer(spec.wBufSize);
 }
-// closes the syncConnHDL's net.Conn connection.
-// Is public so that syncConnHDL struct can be used as SyncConnection (TODO: review that.)
+// closes the connHdl's net.Conn connection.
+// Is public so that connHdl struct can be used as SyncConnection (TODO: review that.)
 //
-func (hdl syncConnHDL) Close() os.Error {
+func (hdl connHdl) Close() os.Error {
 	err := hdl.conn.Close();
 	if debug() {log.Stdout ("[Go-Redis] Closed connection: ", hdl);}
 	return err;
@@ -207,11 +207,11 @@ func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
 
 // Implementation of SyncConnection.ServiceRequest.
 //
-func (chdl *syncConnHDL) ServiceRequest (cmd *Command, args [][]byte) (resp Response, err Error) {
-	here := "syncConnHDL.ServiceRequest";
+func (chdl *connHdl) ServiceRequest (cmd *Command, args [][]byte) (resp Response, err Error) {
+	here := "connHdl.ServiceRequest";
 	errmsg := "";
 	ok := false;
-	buff, e := CreateRequestBytes2 (cmd, args);  // 2<<<
+	buff, e := CreateRequestBytes (cmd, args);  // 2<<<
 	if e == nil {
 		e = sendRequest(chdl.conn, buff);
 		if e == nil {
@@ -240,6 +240,14 @@ func (chdl *syncConnHDL) ServiceRequest (cmd *Command, args [][]byte) (resp Resp
 // Asynchronous connections
 // ----------------------------------------------------------------------------
 
+type arErrStat byte;
+const (
+    _       arErrStat = iota;
+    inierr;
+    snderr;
+    rcverr;
+)
+
 // Defines the service contract supported by asynchronous (Request/FutureReply)
 // connections.
 
@@ -257,17 +265,23 @@ type PendingResponse struct {
 // request and response processing
 
 func NewAsynchConnection (spec *ConnectionSpec) (AsyncConnection, os.Error) {
-	async, err:= newAsyncHDL(spec);
-//	go async.processRequests();
-	go async.batchProcessRequestsI (spec);
+	async, err:= newAsyncConnHdl(spec);
+	go async.batchProcessRequests (spec);
 	go async.processResponses();
 	return async, err;
 }
 
 // Defines the data corresponding to a requested service call through the
 // QueueRequest method of AsyncConnection
-
-type pendingRequest struct {
+// not used yet.
+type asyncRequestInfo struct {
+	id			int64;
+	stat		arErrStat;
+	cmd			*Command;
+	outbuff		*[]byte;
+}
+type asyncRequest struct {
+	aref		*asyncRequestInfo;
 	cmd			*Command;
 	outbuff		*[]byte;
 	future		interface{};
@@ -275,10 +289,10 @@ type pendingRequest struct {
 
 // control structure used by asynch connections.
 
-type asyncConnHDL struct {
-	super			*syncConnHDL;
-	pending_reqs 	chan *pendingRequest;
-	pending_resps 	chan *pendingRequest;	
+type asyncConnHdl struct {
+	super			*connHdl;
+	pending_reqs 	chan *asyncRequest;
+	pending_resps 	chan *asyncRequest;	
 	
 	/*
 	// TODO: we'll need these so the go routines can coordinate (on lifecycle and error
@@ -289,31 +303,31 @@ type asyncConnHDL struct {
 	*/
 }
 
-// Creates a new asyncConnHDL with a new syncConnHDL as its delegated 'super'.
+// Creates a new asyncConnHdl with a new connHdl as its delegated 'super'.
 // Note it does not start the processing goroutines for the channels.
 
-func newAsyncHDL (spec *ConnectionSpec) (async *asyncConnHDL, err os.Error) {
+func newAsyncConnHdl (spec *ConnectionSpec) (async *asyncConnHdl, err os.Error) {
 	here := "newAsynConnHDL";
 	super, err := newConnHDL (spec);
 	if err == nil {
-		async = new(asyncConnHDL);
+		async = new(asyncConnHdl);
 		if async != nil { 
 			async.super = super;
-			async.pending_reqs = make (chan *pendingRequest, DefaultReqChanSize);
-			async.pending_resps = make (chan *pendingRequest, DefaultRespChanSize);
+			async.pending_reqs = make (chan *asyncRequest, DefaultReqChanSize);
+			async.pending_resps = make (chan *asyncRequest, DefaultRespChanSize);
 		}
 		else {
-			return nil, withNewError (fmt.Sprintf("%s(): failed to allocate asyncConnHDL", here));
+			return nil, withNewError (fmt.Sprintf("%s(): failed to allocate asyncConnHdl", here));
 		}
 	}
 	else {
-		return nil, withOsError (fmt.Sprintf("%s(): Error creating syncConnHDL", here), err);
+		return nil, withOsError (fmt.Sprintf("%s(): Error creating connHdl", here), err);
 	}
 			
 	return;
 }
 
-func (c *asyncConnHDL) batchProcessRequestsI (spec *ConnectionSpec)  {
+func (c *asyncConnHdl) batchProcessRequests (spec *ConnectionSpec)  {
 	if debug () {log.Stdout("begin processing requests for connection [using glued-writes]: ", c);}
 
 	maxbytes := spec.wBufSize/2;
@@ -351,34 +365,7 @@ func (c *asyncConnHDL) batchProcessRequestsI (spec *ConnectionSpec)  {
 	if debug () {log.Stdout("stopped processing requests for connection: ", c);}
 }
 
-//// (as of now) used by a goroutine to process pending requests.
-//func (c *asyncConnHDL) processRequests ()  {
-//	if debug () {log.Stdout("begin processing requests for connection: ", c);}
-//	for {
-//		req := <-c.pending_reqs;
-//		itemcnt := len(c.pending_reqs);
-//		if itemcnt > 0 {
-//			log.Stdout (">>> still in channel: ", itemcnt);
-//		}
-//		e := sendRequest(c.super.conn, *req.outbuff);
-//		if e == nil {
-//			req.outbuff = nil;
-//			c.pending_resps<- req;
-//		}
-//		else {
-//			// TODO: need a way for this goroutines to gracefully shutdown
-//			// and let the owning connection know there are network issues
-//			// & TBD
-//			log.Stderr("<BUG> lazy programmer hasn't addressed failures in processRequests goroutine");
-//			break;
-//		}
-//	}
-//	if debug () {log.Stdout("stopped processing requests for connection: ", c);}
-//}
-
-// (as of now) used by a goroutine to process pending responses.
-
-func (c *asyncConnHDL) processResponses () {
+func (c *asyncConnHdl) processResponses () {
 	if debug () {log.Stdout("begin processing responses for connection: ", c);}
 	for {
 		req:= <-c.pending_resps;
@@ -426,16 +413,16 @@ func (c *asyncConnHDL) processResponses () {
 
 // Implementation of AsyncConnection.QueueRequest;
 
-func (c *asyncConnHDL) QueueRequest (cmd *Command, args [][]byte) (*PendingResponse, Error) {
-	here := "syncConnHDL.ServiceRequest";
+func (c *asyncConnHdl) QueueRequest (cmd *Command, args [][]byte) (*PendingResponse, Error) {
+	here := "connHdl.ServiceRequest";
 
-	buff, e1 := CreateRequestBytes2(cmd, args);
+	buff, e1 := CreateRequestBytes(cmd, args);
 	if e1 != nil {
 		errmsg:= fmt.Sprintf("%s(%s): failed to create request bytes", here, cmd.Code);	
 		return nil, withError (NewErrorWithCause(SYSTEM_ERR, errmsg, e1));
 	}
 	
-	request := new (pendingRequest);
+	request := new (asyncRequest);
 	request.cmd = cmd;
 	request.outbuff = &buff;
 	
@@ -477,7 +464,7 @@ func (c *asyncConnHDL) QueueRequest (cmd *Command, args [][]byte) (*PendingRespo
 // Either writes all the bytes or it fails and returns an error
 //
 func sendRequest (w io.Writer, data []byte) (e os.Error) {
-	here := "syncConnHDL.sendRequest";
+	here := "connHdl.sendRequest";
 	if w == nil {
 		return withNewError (fmt.Sprintf("<BUG> in %s(): nil Writer", here));
 	}

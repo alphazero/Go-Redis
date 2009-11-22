@@ -159,9 +159,16 @@ func newConnHDL (spec *ConnectionSpec) (hdl *connHdl, err os.Error) {
 			err = withNewError (fmt.Sprintf("%s(): net.Dial returned nil, nil (?)", here));
 		default:
 			configureConn(conn, spec);
+			hdl.spec = spec;
 			hdl.conn = conn;
-			hdl.reader, e = bufio.NewReaderSize(conn, 4096);
-			if debug() {log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);}
+			bufsize := 4096;
+			hdl.reader, e = bufio.NewReaderSize(conn, bufsize);
+			if e != nil {
+				err = withNewError (fmt.Sprintf("%s(): bufio.NewReaderSize (%d) error", here, bufsize));
+			}
+			else {
+				if debug() {log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);}
+			}
 	}
 	return hdl, err;
 }
@@ -266,7 +273,7 @@ type PendingResponse struct {
 
 func NewAsynchConnection (spec *ConnectionSpec) (AsyncConnection, os.Error) {
 	async, err:= newAsyncConnHdl(spec);
-	go async.batchProcessRequests (spec);
+	go async.batchProcessRequests ();
 	go async.processResponses();
 	return async, err;
 }
@@ -292,6 +299,7 @@ type asyncRequest *asyncRequestInfo;
 
 type asyncConnHdl struct {
 	super			*connHdl;
+	writer			*bufio.Writer;
 	pending_reqs 	chan asyncRequest;
 	pending_resps 	chan asyncRequest;	
 	
@@ -315,13 +323,23 @@ func newAsyncConnHdl (spec *ConnectionSpec) (async *asyncConnHdl, err os.Error) 
 		async = new(asyncConnHdl);
 		if async != nil { 
 			async.super = super;
-			async.pending_reqs = make (chan asyncRequest, DefaultReqChanSize);
-			async.pending_resps = make (chan asyncRequest, DefaultRespChanSize);
-		}
+			async.writer, err = bufio.NewWriterSize(super.conn, spec.wBufSize);
+			if err == nil {
+				async.pending_reqs = make (chan asyncRequest, DefaultReqChanSize);
+				async.pending_resps = make (chan asyncRequest, DefaultRespChanSize);
+				
+				if debug() {
+					fmt.Printf("newAsyncConnHdl:\n\tasyncConnHdl:%+v\n\tsuper:%+v\n", async, super);
+				}
+			} 
+			else {
+				return nil, withOsError (fmt.Sprintf("%s(): NewWriterSize(%d) error", here, spec.wBufSize), err);
+			}
+		} 
 		else {
 			return nil, withNewError (fmt.Sprintf("%s(): failed to allocate asyncConnHdl", here));
 		}
-	}
+	} 
 	else {
 		return nil, withOsError (fmt.Sprintf("%s(): Error creating connHdl", here), err);
 	}
@@ -333,44 +351,60 @@ func (c *asyncConnHdl) nextId () (id int64) {
 	c.nextid++;
 	return;
 }
-func (c *asyncConnHdl) batchProcessRequests (spec *ConnectionSpec)  {
+
+// TODO: error processing
+func (c *asyncConnHdl) batchProcessRequests ()  {
 	if debug () {log.Stdout("begin processing requests for connection [using glued-writes]: ", c);}
 
-	maxbytes := spec.wBufSize/2;
-	buff, e := bufio.NewWriterSize(c.super.conn, maxbytes);
-	if e!= nil {
-		log.Stderr("<BUG> lazy programmer >> ERROR in processRequests goroutine");
-	}
+	var err os.Error;
+	var errmsg string;
+	
 	for {
 		bytecnt := 0;
-		itemcnt := len(c.pending_reqs);
-		flush := false;
-		for itemcnt > 0 {
-			flush = true;
-			req := <-c.pending_reqs;
-			req.id = c.nextId();
-			e := sendRequest(buff, *req.outbuff);
-			bytecnt += len(*req.outbuff);
-			if e == nil {
-				req.outbuff = nil;
-				c.pending_resps<- req;
+		blen, err:= c.processAsyncRequest ();
+		if err != nil {
+			errmsg = fmt.Sprintf("processAsyncRequest error in initial phase");
+			goto proc_error;
+		}
+		bytecnt += blen;
+
+		for len(c.pending_reqs) > 0 {
+			blen, err = c.processAsyncRequest ();
+			if err != nil {
+				errmsg = fmt.Sprintf("processAsyncRequest error in batch phase");
+				goto proc_error;
 			}
-			else {
-				// put it back for now ...
-				// really should set its ref's stat to faulted 
-				log.Stderr("<BUG> lazy programmer >> ERROR in processRequests goroutine -req requeued");
-				c.pending_reqs<- req;
-				break;
-			}
-			itemcnt = len(c.pending_reqs);
-			if bytecnt > maxbytes { // i know ..
+			bytecnt += blen;
+			if bytecnt > c.super.spec.wBufSize { // i know ..
 				break;
 			}
 		}
-		if flush { buff.Flush(); fmt.Printf(""); /* magic */}
-		else { fmt.Printf(""); /* magic */ }
+		c.writer.Flush();
 	}
+	
+	proc_error:
+		log.Stderr (errmsg, err);
+		// TODO: send signal to the conn control
+	
 	if debug () {log.Stdout("stopped processing requests for connection: ", c);}
+}
+
+// TODO: error processing
+func (c *asyncConnHdl) processAsyncRequest () (blen int, e os.Error) {
+	req := <-c.pending_reqs;
+	req.id = c.nextId();
+	blen = len(*req.outbuff);
+	e = sendRequest(c.writer, *req.outbuff);
+	if e==nil {
+		req.outbuff = nil;
+		c.pending_resps<- req;
+	}
+	else {
+		log.Stderr("<BUG> lazy programmer >> ERROR in processRequest goroutine -req requeued");
+		// TODO: set stat on future & inform conn control and put it in fauls
+		c.pending_reqs<- req;
+	}
+	return;
 }
 
 func (c *asyncConnHdl) processResponses () {

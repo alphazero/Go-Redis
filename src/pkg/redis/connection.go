@@ -22,6 +22,7 @@ import (
 	"io";
 	"bufio";
 	"log";
+//	"time";
 )
 
 const (
@@ -35,13 +36,13 @@ const (
 // exported for user convenience if nedded
 const(
 	DefaultReqChanSize			= 100000;
-	DefaultRespChanSize			= 100000;
+	DefaultRespChanSize			= 1000000;
 	
 	DefaultTCPReadBuffSize		= 1024 * 256;
 	DefaultTCPWriteBuffSize		= 1024 * 256;
 	DefaultTCPReadTimeoutNSecs	= ns1Sec * 10;
 	DefaultTCPWriteTimeoutNSecs	= ns1Sec * 10;
-	DefaultTCPLinger			= -1;
+	DefaultTCPLinger			= 0;
 	DefaultTCPKeepalive			= true;
 )
 
@@ -64,13 +65,16 @@ type ConnectionSpec struct {
 	port		int;
 	password	string;
 	db			int;
-	// tcp specific sspecs
+	// tcp specific specs
 	rBufSize	int;
 	wBufSize	int;
 	rTimeout	int64;
 	wTimeout	int64;
 	keepalive	bool;
 	lingerspec	int; // -n: finish io; 0: discard, +n: wait for n secs to finish
+	// async specs
+	reqChanCap int;
+	rspChanCap  int; 
 }
 
 // Creates a ConnectionSpec using default settings.
@@ -86,7 +90,9 @@ func DefaultSpec () *ConnectionSpec {
 		DefaultTCPReadTimeoutNSecs,
 		DefaultTCPWriteTimeoutNSecs,
 		DefaultTCPKeepalive,
-		DefaultTCPLinger
+		DefaultTCPLinger,
+		DefaultReqChanSize,
+		DefaultRespChanSize
 	};
 }
 
@@ -325,11 +331,14 @@ func newAsyncConnHdl (spec *ConnectionSpec) (async *asyncConnHdl, err os.Error) 
 			async.super = super;
 			async.writer, err = bufio.NewWriterSize(super.conn, spec.wBufSize);
 			if err == nil {
-				async.pending_reqs = make (chan asyncRequest, DefaultReqChanSize);
-				async.pending_resps = make (chan asyncRequest, DefaultRespChanSize);
+				async.pending_reqs = make (chan asyncRequest, spec.reqChanCap);
+				async.pending_resps = make (chan asyncRequest, spec.rspChanCap);
 				
 				if debug() {
-					fmt.Printf("newAsyncConnHdl:\n\tasyncConnHdl:%+v\n\tsuper:%+v\n", async, super);
+					fmt.Printf("newAsyncConnHdl:\n");
+					fmt.Printf("\tasyncConnHdl:%+v\n", async);
+					fmt.Printf("\tsuper:%+v\n", super);
+					fmt.Printf("\tspec:%+v\n", spec);
 				}
 			} 
 			else {
@@ -369,15 +378,19 @@ func (c *asyncConnHdl) batchProcessRequests ()  {
 		bytecnt += blen;
 
 		for len(c.pending_reqs) > 0 {
+			// blen == 0 means processAsyncRequest flushed
 			blen, err = c.processAsyncRequest ();
 			if err != nil {
 				errmsg = fmt.Sprintf("processAsyncRequest error in batch phase");
 				goto proc_error;
 			}
-			bytecnt += blen;
-			if bytecnt > c.super.spec.wBufSize { // i know ..
-				break;
+			if (blen > 0) {
+				bytecnt += blen;
+				if bytecnt > c.super.spec.wBufSize { // i know ..
+					break;
+				}
 			}
+			else { bytecnt = 0; }
 		}
 		c.writer.Flush();
 	}
@@ -397,7 +410,13 @@ func (c *asyncConnHdl) processAsyncRequest () (blen int, e os.Error) {
 	e = sendRequest(c.writer, *req.outbuff);
 	if e==nil {
 		req.outbuff = nil;
-		c.pending_resps<- req;
+		select {
+		case c.pending_resps <- req:
+		default:
+			c.writer.Flush();  
+			c.pending_resps<- req;
+			blen = 0;
+		}
 	}
 	else {
 		log.Stderr("<BUG> lazy programmer >> ERROR in processRequest goroutine -req requeued");

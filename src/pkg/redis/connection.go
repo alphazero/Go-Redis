@@ -17,19 +17,18 @@ package redis
 import (
 	"net";
 	"fmt";
-	"strconv";
 	"os";
 	"io";
 	"bufio";
 	"log";
-//	"time";
+	"time";
 )
 
 const (
 	TCP = "tcp";
 	LOCALHOST = "127.0.0.1";
-	ns1Sec = 1000000;
-	ns1MSec = 1000;
+	ns1MSec = 1000000;
+	ns1Sec = ns1MSec * 1000;
 )
 
 // various default sizes for the connections
@@ -44,6 +43,7 @@ const(
 	DefaultTCPWriteTimeoutNSecs	= ns1Sec * 10;
 	DefaultTCPLinger			= 0;
 	DefaultTCPKeepalive			= true;
+	DefaultHeartbeatSecs		= 1;
 )
 
 // Redis specific default settings
@@ -75,6 +75,8 @@ type ConnectionSpec struct {
 	// async specs
 	reqChanCap int;
 	rspChanCap  int; 
+	// 
+	heartbeat	int64; // 0 means no heartbeat
 }
 
 // Creates a ConnectionSpec using default settings.
@@ -92,7 +94,8 @@ func DefaultSpec () *ConnectionSpec {
 		DefaultTCPKeepalive,
 		DefaultTCPLinger,
 		DefaultReqChanSize,
-		DefaultRespChanSize
+		DefaultRespChanSize,
+		DefaultHeartbeatSecs
 	};
 }
 
@@ -125,9 +128,9 @@ func (spec *ConnectionSpec) Password(password string) *ConnectionSpec {
 }
 
 // return the address as string.
-func (spec *ConnectionSpec) Addr () string {
-	return spec.host + ":" + strconv.Itoa(int(spec.port));
-//	return fmt.Sprintf("%s:%d", spec.host, spec.port);
+func (spec *ConnectionSpec) Heartbeat (seconds int64) *ConnectionSpec {
+	spec.heartbeat = seconds;
+	return spec;
 }
 
 // ----------------------------------------------------------------------------
@@ -146,13 +149,13 @@ type connHdl struct {
 // The new connection is wrapped by a new connHdl with its bufio.Reader
 // delegating to the net.Conn's reader. 
 //
-func newConnHDL (spec *ConnectionSpec) (hdl *connHdl, err os.Error) {
-	here := "newConnHDL";
+func newConnHdl (spec *ConnectionSpec) (hdl *connHdl, err os.Error) {
+	here := "newConnHdl";
 
 	if hdl = new(connHdl); hdl == nil { 
 		return nil, withNewError (fmt.Sprintf("%s(): failed to allocate connHdl", here));
 	}
-	addr := spec.Addr(); 
+	addr := fmt.Sprintf("%s:%d", spec.host, spec.port); 
 	raddr, e:= net.ResolveTCPAddr(addr); 
 	if e != nil {
 		return nil, withNewError (fmt.Sprintf("%s(): failed to resolve remote address %s", here, addr));
@@ -215,7 +218,7 @@ type SyncConnection interface {
 
 // Creates a new SyncConnection using the provided ConnectionSpec
 func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
-	return newConnHDL (spec);
+	return newConnHdl (spec);
 }
 
 // Implementation of SyncConnection.ServiceRequest.
@@ -261,11 +264,23 @@ const (
     rcverr;
 )
 
+type ctlsignal byte;
+const (
+	_			ctlsignal = iota;
+	// control
+	start;
+	pause;
+	stop;
+	// events
+	ready;
+	working;
+	faulted;
+)
+
 // Defines the service contract supported by asynchronous (Request/FutureReply)
 // connections.
 
 type AsyncConnection interface {
-//	QueueRequest (cmd *Command, args ...) (*PendingResponse, Error);
 	QueueRequest (cmd *Command, args [][]byte) (*PendingResponse, Error);
 }
 
@@ -277,10 +292,13 @@ type PendingResponse struct {
 // Creates and opens a new AsyncConnection and starts the goroutines for 
 // request and response processing
 
-func NewAsynchConnection (spec *ConnectionSpec) (AsyncConnection, os.Error) {
-	async, err:= newAsyncConnHdl(spec);
-	go async.batchProcessRequests ();
-	go async.processResponses();
+func NewAsynchConnection (spec *ConnectionSpec) (conn AsyncConnection, err os.Error) {
+	var async *asyncConnHdl;
+	if async, err = newAsyncConnHdl(spec); err == nil { 
+		go async.batchProcessRequests ();
+		go async.processResponses();
+		go async.heartbeat();
+	}
 	return async, err;
 }
 
@@ -295,20 +313,14 @@ type asyncRequestInfo struct {
 	future		interface{};
 	error		Error;
 }
-
-//type asyncRequest struct {
-//	ref		*asyncRequestInfo;
-//}
 type asyncRequest *asyncRequestInfo;
 
 // control structure used by asynch connections.
-
 type asyncConnHdl struct {
 	super			*connHdl;
 	writer			*bufio.Writer;
 	pending_reqs 	chan asyncRequest;
-	pending_resps 	chan asyncRequest;	
-	
+	pending_resps 	chan asyncRequest;
 	nextid			int64;
 	/*
 	// TODO: we'll need these so the go routines can coordinate (on lifecycle and error
@@ -323,9 +335,9 @@ type asyncConnHdl struct {
 // Note it does not start the processing goroutines for the channels.
 
 func newAsyncConnHdl (spec *ConnectionSpec) (async *asyncConnHdl, err os.Error) {
-	here := "newAsynConnHDL";
-	super, err := newConnHDL (spec);
-	if err == nil {
+//	here := "newAsynConnHDL";
+	super, err := newConnHdl (spec);
+	if err == nil && super != nil {
 		async = new(asyncConnHdl);
 		if async != nil { 
 			async.super = super;
@@ -334,31 +346,68 @@ func newAsyncConnHdl (spec *ConnectionSpec) (async *asyncConnHdl, err os.Error) 
 				async.pending_reqs = make (chan asyncRequest, spec.reqChanCap);
 				async.pending_resps = make (chan asyncRequest, spec.rspChanCap);
 				
-				if debug() {
-					fmt.Printf("newAsyncConnHdl:\n");
-					fmt.Printf("\tasyncConnHdl:%+v\n", async);
-					fmt.Printf("\tsuper:%+v\n", super);
-					fmt.Printf("\tspec:%+v\n", spec);
-				}
+				return;
 			} 
-			else {
-				return nil, withOsError (fmt.Sprintf("%s(): NewWriterSize(%d) error", here, spec.wBufSize), err);
-			}
+			else { super.conn.Close(); }
+		} 
+	} 
+	// fall through here on errors only
+	if err == nil { err =  os.NewError("Error creating asyncConnHdl"); } 
+	return nil, err;
+}
+
+func (c *asyncConnHdl) QueueRequest (cmd *Command, args [][]byte) (*PendingResponse, Error) {
+	var future interface{};
+	switch cmd.RespType {
+		case BOOLEAN:
+			future = newFutureBool();
+		case BULK: 			
+			future = newFutureBytes();
+		case MULTI_BULK:	
+			future = newFutureBytesArray();
+		case NUMBER:			
+			future = newFutureInt64();
+		case STATUS:		
+			future = newFutureString();
+		case STRING:		
+			future = newFutureString();
+	}
+	
+	// kickoff the process
+//	go func() {
+		request := &asyncRequestInfo{0, 0, cmd, nil, future, nil};
+		buff, e1 := CreateRequestBytes(cmd, args);
+		if e1 == nil {
+			request.outbuff = &buff;
+			c.pending_reqs<- request;
 		} 
 		else {
-			return nil, withNewError (fmt.Sprintf("%s(): failed to allocate asyncConnHdl", here));
+			errmsg:= fmt.Sprintf("Failed to create asynchrequest - %s aborted", cmd.Code);	
+			request.stat = inierr;
+			request.error = NewErrorWithCause(SYSTEM_ERR, errmsg, e1);
+			request.future.(FutureResult).onError(request.error);		
 		}
-	} 
-	else {
-		return nil, withOsError (fmt.Sprintf("%s(): Error creating connHdl", here), err);
-	}
-			
-	return;
+//	}();
+	
+	// done.
+	return &PendingResponse {future}, nil;
 }
-func (c *asyncConnHdl) nextId () (id int64) {
-	id = c.nextid;
-	c.nextid++;
-	return;
+
+// ----------------------------------------------------------------------------
+// aync handlers
+// ----------------------------------------------------------------------------
+
+func (c *asyncConnHdl) heartbeat ()  {
+	ticker := time.NewTicker (ns1Sec * c.super.spec.heartbeat);
+	var async AsyncConnection = c;
+	for {
+		<- ticker.C;
+//		select {
+//		case <-ticker.C:
+			async.QueueRequest(&PING, [][]byte{});
+//		case signal := <- ctl
+//		}
+	}
 }
 
 // TODO: error processing
@@ -473,42 +522,12 @@ func (c *asyncConnHdl) processResponses () {
 }
 
 
-func (c *asyncConnHdl) QueueRequest (cmd *Command, args [][]byte) (*PendingResponse, Error) {
-	var future interface{};
-	switch cmd.RespType {
-		case BOOLEAN:
-			future = newFutureBool();
-		case BULK: 			
-			future = newFutureBytes();
-		case MULTI_BULK:	
-			future = newFutureBytesArray();
-		case NUMBER:			
-			future = newFutureInt64();
-		case STATUS:		
-			future = newFutureString();
-		case STRING:		
-			future = newFutureString();
-	}
-	
-	// kickoff the process
-//	go func() {
-		request := &asyncRequestInfo{0, 0, cmd, nil, future, nil};
-		buff, e1 := CreateRequestBytes(cmd, args);
-		if e1 == nil {
-			request.outbuff = &buff;
-			c.pending_reqs<- request;
-		} 
-		else {
-			errmsg:= fmt.Sprintf("Failed to create asynchrequest - %s aborted", cmd.Code);	
-			request.stat = inierr;
-			request.error = NewErrorWithCause(SYSTEM_ERR, errmsg, e1);
-			request.future.(FutureResult).onError(request.error);		
-		}
-//	}();
-	
-	// done.
-	return &PendingResponse {future}, nil;
+func (c *asyncConnHdl) nextId () (id int64) {
+	id = c.nextid;
+	c.nextid++;
+	return;
 }
+
 
 // ----------------------------------------------------------------------------
 // internal ops

@@ -39,13 +39,6 @@ type async struct {
 func NewAsynchClient () (c AsyncClient, err os.Error){
 	spec := DefaultSpec();
 	c, err = NewAsynchClientWithSpec(spec);
-	if err != nil { 
-		if debug() {log.Stderr("NewAsynchClientWithSpec raised error: ", err);}
-	}
-	if c == nil {
-		if debug() { log.Stderr("NewSynchClientWithSpec returned nil Client.");}
-		err = os.NewError("NewSynchClientWithSpec returned nil Client.");
-	}
 	return;
 }
 

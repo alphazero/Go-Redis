@@ -27,7 +27,7 @@ func doOne (cnt int) os.Error {
 	var delta int64;
 	spec := redis.DefaultSpec().Db(13);
 	
-	fmt.Printf("\n\n=== Bench synchclient ================ 1 Client -- %d opts --- %s\n", cnt, spec.Addr());
+	fmt.Printf("\n\n=== Bench synchclient ================ 1 Client -- %d opts --- \n", cnt );
 	fmt.Println ();
 	
 	client, e := redis.NewSynchClientWithSpec (spec);

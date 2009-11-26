@@ -20,7 +20,7 @@ package redis
 
 import (
 	"flag";
-	"runtime";
+//	"runtime";
 )
 
 // ----------------------------------------------------------------------------
@@ -443,7 +443,7 @@ type AsyncClient interface {
 // for this package are all prefixed by "redis:" to prevent possible name collisions.
 //
 func init () { 
-	runtime.GOMAXPROCS(2);
+//	runtime.GOMAXPROCS(2);
 	flag.Parse(); 
 }
 

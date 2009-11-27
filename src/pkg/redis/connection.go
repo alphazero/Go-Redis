@@ -411,38 +411,36 @@ func (c *asyncConnHdl) worker (id int, name string, task workerTask, ctl workerC
 	
 	// todo: add startup hook for worker
 	
-	await_start:
-		log.Stdout(name, "_worker: await_start.");
+	await_signal:
+		log.Stdout(name, "_worker: await_signal.");
 		signal = <- ctl;
 	
 	on_interrupt: 
 		log.Stdout(name, "_worker: on_interrupt: ", signal);
 		switch signal {
 		case stop:  goto before_stop;
-		case pause: goto await_start;
+		case pause: goto await_signal;
 		case start: goto work;
 		}
 				
 	work:
 //		log.Stdout(name, "_worker: work!");
-		for {
-			select {
-			case signal = <-ctl:
-				goto on_interrupt;
-			default:
-				is, stat := task(c, ctl);  // todo is a task context type
-				if stat == nil { log.Stderr("<BUG> nil stat from worker ", name); }
-				if stat.code != ok { 
-					log.Stdout(name, "_worker: task error!");
-					tstat = stat;
-					goto on_error;  
-				}
-				else if is != nil { 
-					signal = *is;
-					goto on_interrupt; 
-				}
-				goto work;
+		select {
+		case signal = <-ctl:
+			goto on_interrupt;
+		default:
+			is, stat := task(c, ctl);  // todo is a task context type
+			if stat == nil { log.Stderr("<BUG> nil stat from worker ", name); }
+			if stat.code != ok { 
+				log.Stdout(name, "_worker: task error!");
+				tstat = stat;
+				goto on_error;  
 			}
+			else if is != nil { 
+				signal = *is;
+				goto on_interrupt; 
+			}
+			goto work;
 		}
 	
 	on_error:
@@ -450,7 +448,7 @@ func (c *asyncConnHdl) worker (id int, name string, task workerTask, ctl workerC
 		// TODO: log it, send it, and go back to wait_start:
 		log.Stderr (name, "_worker task raised error: ", tstat);
 		fb<-workerStatus{id, faulted, tstat, &ctl};
-		goto await_start;
+		goto await_signal;
 		
 	before_stop:
 		log.Stdout(name, "_worker: before_stop!");

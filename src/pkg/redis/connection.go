@@ -394,7 +394,7 @@ func (c *asyncConnHdl) startup ()  {
 	go c.worker (heartbeatworker, "heartbeat", heartbeatTask, c.heartbeatCtl, c.feedback); 
 	c.heartbeatCtl<- start;
 	
-	go c.worker (heartbeatworker, "request-processor", reqProcessingTask, c.reqProcCtl, c.feedback); 
+	go c.worker (heartbeatworker, "request-processor", reqProcessingTask2, c.reqProcCtl, c.feedback); 
 	c.reqProcCtl<- start;
 	
 	go c.worker (heartbeatworker, "response-processor", rspProcessingTask, c.rspProcCtl, c.feedback); 
@@ -416,7 +416,7 @@ func (c *asyncConnHdl) worker (id int, name string, task workerTask, ctl workerC
 		signal = <- ctl;
 	
 	on_interrupt: 
-		log.Stdout(name, "_worker: on_interrupt: ", signal);
+//		log.Stdout(name, "_worker: on_interrupt: ", signal);
 		switch signal {
 		case stop:  goto before_stop;
 		case pause: goto await_signal;
@@ -520,7 +520,7 @@ func heartbeatTask (c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *ta
 			return nil, &taskStatus {error, re}; 
 		}
 		else if !ok {
-			log.Stderr ("Warning: Heartbeat timeout on get PING response.")
+//			log.Stderr ("Warning: Heartbeat timeout on get PING response.")
 		}
 	case sig := <- ctl:
 		return &sig, &ok_status;
@@ -593,51 +593,125 @@ func rspProcessingTask (c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te
 // call to processAsyncRequest potentially does a blocking write to the pending
 // responses channel and can not be interrupted.
 
-func reqProcessingTask (c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
+//func reqProcessingTask (c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
+//
+//	select {
+//	case sig := <- ctl:
+//		// interrupted
+//		return &sig, &ok_status;
+//	default:
+//	}
+//	
+//	var err		os.Error;
+//	var errmsg	string;
+//	
+//	bytecnt := 0;
+//	bufsize := c.super.spec.wBufSize;
+//	
+//	blen, err:= c.processAsyncRequest ();
+//	if err != nil {
+//		errmsg = fmt.Sprintf("processAsyncRequest error in initial phase");
+//		goto proc_error;
+//	}
+//	bytecnt += blen;
+//	for len(c.pendingReqs) > 0 && bytecnt < bufsize {
+//		// blen == 0 means processAsyncRequest flushed
+//		blen, err = c.processAsyncRequest ();
+//		if err != nil {
+//			errmsg = fmt.Sprintf("processAsyncRequest error in batch phase");
+//			goto proc_error;
+//		}
+//		if (blen > 0) {
+//			bytecnt += blen;
+//		}
+//		else { bytecnt = 0; }
+//	}
+//	c.writer.Flush();
+//	return nil, &ok_status;
+//	
+//	proc_error:
+//		log.Stderr (errmsg, err);
+//		return nil, &taskStatus {snderr, err};
+//}
+//func (c *asyncConnHdl) processAsyncRequest () (blen int, e os.Error) {
+//	req := <-c.pendingReqs;
+//	req.id = c.nextId();
+//	blen = len(*req.outbuff);
+//	e = sendRequest(c.writer, *req.outbuff);
+//	if e==nil {
+//		req.outbuff = nil;
+//		select {
+//		case c.pendingResps <- req:
+//		default:
+//			c.writer.Flush();  
+//			c.pendingResps<- req;
+//			blen = 0;
+//		}
+//	}
+//	else {
+//		log.Stderr("<BUG> lazy programmer >> ERROR in processRequest goroutine -req requeued for now");
+//		// TODO: set stat on future & inform conn control and put it in fauls
+//		c.pendingReqs<- req;
+//	}
+//	return;
+//}
 
-	select {
-	case sig := <- ctl:
-		// interrupted
-		return &sig, &ok_status;
-	default:
-	}
-	
+// Pending further tests, this addresses bug in earlier version
+// and can be interrupted
+
+func reqProcessingTask2 (c *asyncConnHdl, ctl workerCtl) (ic *interrupt_code, ts *taskStatus) {
+
 	var err		os.Error;
 	var errmsg	string;
 	
 	bytecnt := 0;
-	blen, err:= c.processAsyncRequest ();
-	if err != nil {
-		errmsg = fmt.Sprintf("processAsyncRequest error in initial phase");
-		goto proc_error;
-	}
-	bytecnt += blen;
-
-	for len(c.pendingReqs) > 0 {
-		// blen == 0 means processAsyncRequest flushed
-		blen, err = c.processAsyncRequest ();
+	blen	:= 0;
+	bufsize := c.super.spec.wBufSize;
+	var	sig interrupt_code;
+	
+	select {
+	case req := <-c.pendingReqs:
+		blen, err:= c.processAsyncRequest2 (req);
 		if err != nil {
-			errmsg = fmt.Sprintf("processAsyncRequest error in batch phase");
+			errmsg = fmt.Sprintf("processAsyncRequest error in initial phase");
 			goto proc_error;
 		}
-		if (blen > 0) {
-			bytecnt += blen;
-			if bytecnt > c.super.spec.wBufSize { // i know ..
-				break;
-			}
-		}
-		else { bytecnt = 0; }
+		bytecnt += blen;
+	case sig := <- ctl:
+		return &sig, &ok_status;
 	}
-	c.writer.Flush();
-	return nil, &ok_status;
+	
+	for bytecnt < bufsize {
+		select {
+		case req := <-c.pendingReqs:
+			blen, err = c.processAsyncRequest2 (req);
+			if err != nil {
+				errmsg = fmt.Sprintf("processAsyncRequest error in batch phase");
+				goto proc_error;
+			}
+			if (blen > 0) { bytecnt += blen; }
+			else { bytecnt = 0; }
+
+		case sig = <-ctl:
+			ic = &sig;
+			goto done;
+		
+		default:
+			goto done;
+		}	
+	}
+	
+	done:
+		c.writer.Flush();
+		return ic, &ok_status;
 	
 	proc_error:
 		log.Stderr (errmsg, err);
 		return nil, &taskStatus {snderr, err};
 }
-// TODO: error processing
-func (c *asyncConnHdl) processAsyncRequest () (blen int, e os.Error) {
-	req := <-c.pendingReqs;
+
+func (c *asyncConnHdl) processAsyncRequest2 (req asyncReqPtr) (blen int, e os.Error) {
+//	req := <-c.pendingReqs;
 	req.id = c.nextId();
 	blen = len(*req.outbuff);
 	e = sendRequest(c.writer, *req.outbuff);
@@ -698,7 +772,7 @@ func (c *asyncConnHdl) QueueRequest (cmd *Command, args [][]byte) (*PendingRespo
 		case STRING:		
 			future = newFutureString();
 	}
-
+//go func() {
 	request := &asyncRequestInfo{0, 0, cmd, nil, future, nil};
 	buff, e1 := CreateRequestBytes(cmd, args);
 	if e1 == nil {
@@ -713,7 +787,7 @@ func (c *asyncConnHdl) QueueRequest (cmd *Command, args [][]byte) (*PendingRespo
 		
 		return nil, request.error; // remove if restoring go
 	}
-	
+//}();	
 	// done.
 	return &PendingResponse {future}, nil;
 }

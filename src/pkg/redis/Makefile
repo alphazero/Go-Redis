@@ -3,7 +3,7 @@ include $(GOROOT)/src/Make.$(GOARCH)
 TARG=redis
 GOFILES=\
 	reflect.go\
-	sync.go\
+	future.go\
 	specification.go\
 	error.go\
 	redis.go\

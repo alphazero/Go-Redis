@@ -429,8 +429,8 @@ type AsyncClient interface {
 //	Randomkey () (FutureString, Error);
 	Get (key string) (FutureBytes, Error);
 	Incr (key string) (FutureInt64, Error);
-	Set (key string, arg1 []byte) (FutureString, Error);
-//	Ping (key string, arg1 []byte) (Error);
+	Set (key string, arg1 []byte) (FutureBool, Error);
+	Ping () (FutureBool, Error);
 }
 
 // ----------------------------------------------------------------------------

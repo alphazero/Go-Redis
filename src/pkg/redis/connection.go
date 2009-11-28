@@ -394,7 +394,7 @@ func (c *asyncConnHdl) startup ()  {
 	go c.worker (heartbeatworker, "heartbeat", heartbeatTask, c.heartbeatCtl, c.feedback); 
 	c.heartbeatCtl<- start;
 	
-	go c.worker (heartbeatworker, "request-processor", reqProcessingTask2, c.reqProcCtl, c.feedback); 
+	go c.worker (heartbeatworker, "request-processor", reqProcessingTask, c.reqProcCtl, c.feedback); 
 	c.reqProcCtl<- start;
 	
 	go c.worker (heartbeatworker, "response-processor", rspProcessingTask, c.rspProcCtl, c.feedback); 
@@ -515,12 +515,20 @@ func heartbeatTask (c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *ta
 		if e != nil {
 			return nil, &taskStatus {reqerr, e};
 		}
-		_, re, ok := response.future.(FutureString).TryGet(ns1Sec);
+		stat, re, ok := response.future.(FutureBool).TryGet(ns1Sec);
 		if re != nil { 
+			log.Stderr ("ERROR: Heartbeat recieved error response on PING");
 			return nil, &taskStatus {error, re}; 
 		}
 		else if !ok {
-//			log.Stderr ("Warning: Heartbeat timeout on get PING response.")
+			log.Stderr ("Warning: Heartbeat timeout on get PING response.")
+		}
+		else {
+			// flytrap
+			if stat != true {
+				log.Stderr ("<BUG> Heartbeat recieved false stat on PING while response error was nil");
+				return nil, &taskStatus {error, NewError(SYSTEM_ERR, "BUG false stat on PING w/out error")}; 
+			}
 		}
 	case sig := <- ctl:
 		return &sig, &ok_status;
@@ -553,28 +561,22 @@ func rspProcessingTask (c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te
 	
 	resp, e3:= GetResponse (reader, cmd);
 	if e3!= nil {
+		// system error
 		log.Stderr("<TEMP DEBUG> Request sent to faults chan on error in GetResponse: ", e3);
 		req.stat = rcverr;
 		req.error = NewErrorWithCause (SYSTEM_ERR, "GetResponse os.Error", e3);
 		c.faults <- req;
 		return nil, &taskStatus {rcverr, e3};
 	}
-	
-	// redis response
-	if resp.IsError() {	// redis request error - process OK
-		errorResponse := NewRedisError(resp.GetMessage());
-		req.future.(FutureResult).onError(errorResponse);
-	}
-	else {				// redis request result
-		SetFutureResult (req.future, cmd, resp);
-	}
+	SetFutureResult (req.future, cmd, resp);
+
 	return nil, &ok_status;
 }
 
 // Pending further tests, this addresses bug in earlier version
 // and can be interrupted
 
-func reqProcessingTask2 (c *asyncConnHdl, ctl workerCtl) (ic *interrupt_code, ts *taskStatus) {
+func reqProcessingTask (c *asyncConnHdl, ctl workerCtl) (ic *interrupt_code, ts *taskStatus) {
 
 	var err		os.Error;
 	var errmsg	string;
@@ -586,7 +588,7 @@ func reqProcessingTask2 (c *asyncConnHdl, ctl workerCtl) (ic *interrupt_code, ts
 	
 	select {
 	case req := <-c.pendingReqs:
-		blen, err:= c.processAsyncRequest2 (req);
+		blen, err:= c.processAsyncRequest (req);
 		if err != nil {
 			errmsg = fmt.Sprintf("processAsyncRequest error in initial phase");
 			goto proc_error;
@@ -599,7 +601,7 @@ func reqProcessingTask2 (c *asyncConnHdl, ctl workerCtl) (ic *interrupt_code, ts
 	for bytecnt < bufsize {
 		select {
 		case req := <-c.pendingReqs:
-			blen, err = c.processAsyncRequest2 (req);
+			blen, err = c.processAsyncRequest (req);
 			if err != nil {
 				errmsg = fmt.Sprintf("processAsyncRequest error in batch phase");
 				goto proc_error;
@@ -625,7 +627,7 @@ func reqProcessingTask2 (c *asyncConnHdl, ctl workerCtl) (ic *interrupt_code, ts
 		return nil, &taskStatus {snderr, err};
 }
 
-func (c *asyncConnHdl) processAsyncRequest2 (req asyncReqPtr) (blen int, e os.Error) {
+func (c *asyncConnHdl) processAsyncRequest (req asyncReqPtr) (blen int, e os.Error) {
 //	req := <-c.pendingReqs;
 	req.id = c.nextId();
 	blen = len(*req.outbuff);

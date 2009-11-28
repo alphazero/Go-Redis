@@ -146,40 +146,53 @@ func CreateRequestBytes (cmd *Command, args [][]byte) ([]byte, os.Error) {
 //
 func CreateFuture (cmd *Command) (future interface{}) {
 	switch cmd.RespType {
-		case BOOLEAN:
-			future = newFutureBool();
-		case BULK: 			
-			future = newFutureBytes();
-		case MULTI_BULK:	
-			future = newFutureBytesArray();
-		case NUMBER:			
-			future = newFutureInt64();
-		case STATUS:		
-			future = newFutureString();
-		case STRING:		
-			future = newFutureString();
+	case BOOLEAN:
+		future = newFutureBool();
+	case BULK: 			
+		future = newFutureBytes();
+	case MULTI_BULK:	
+		future = newFutureBytesArray();
+	case NUMBER:			
+		future = newFutureInt64();
+	case STATUS:		
+//		future = newFutureString();
+		future = newFutureBool();
+	case STRING:		
+		future = newFutureString();
+//	case VIRTUAL:		// TODO
+//	    resp, err = getVirtualResponse ();
 	}
 	return;
 }
 
+// Sets the type specific result value from the response for the future reference
+// based on the command type.
+//
 func SetFutureResult (future interface{}, cmd *Command, r Response) {
-	switch cmd.RespType {
-	case BOOLEAN:
-		future.(FutureBool).set(r.GetBooleanValue());
-	case BULK: 			
-		future.(FutureBytes).set(r.GetBulkData());
-	case MULTI_BULK:	
-		future.(FutureBytesArray).set(r.GetMultiBulkData());
-	case NUMBER:			
-		future.(FutureInt64).set(r.GetNumberValue());
-	case STATUS:		
-		future.(FutureString).set(r.GetMessage());
-	case STRING:		
-		future.(FutureString).set(r.GetStringValue());
-//	case VIRTUAL:		// TODO
-//	    resp, err = getVirtualResponse ();
+	if r.IsError() {
+		future.(FutureResult).onError(NewRedisError(r.GetMessage()));
+	}
+	else {
+		switch cmd.RespType {
+		case BOOLEAN:
+			future.(FutureBool).set(r.GetBooleanValue());
+		case BULK: 			
+			future.(FutureBytes).set(r.GetBulkData());
+		case MULTI_BULK:	
+			future.(FutureBytesArray).set(r.GetMultiBulkData());
+		case NUMBER:			
+			future.(FutureInt64).set(r.GetNumberValue());
+		case STATUS:		
+	//		future.(FutureString).set(r.GetMessage());
+			future.(FutureBool).set(true);
+		case STRING:		
+			future.(FutureString).set(r.GetStringValue());
+	//	case VIRTUAL:		// TODO
+	//	    resp, err = getVirtualResponse ();
+		}
 	}
 }
+
 // Gets the response to the command.
 // Any errors (whether runtime or bugs) are returned as os.Error.
 // The returned response (regardless of flavor) may have (application level)

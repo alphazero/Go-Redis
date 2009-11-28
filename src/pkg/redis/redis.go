@@ -87,15 +87,6 @@ type Client interface {
 	// Redis SET command.
 	Set (key string, arg1 []byte) (Error);
 
-	// Redis SET command.
-//	Set (key string, arg1 string) (Error);
-
-	// Redis SET command.
-//	Set (key string, arg1 int64) (Error);
-
-	// Redis SET command.
-//	Set (key string, arg1 io.ReadWriter) (Error);
-
 	// Redis SAVE command.
 	Save () (Error);
 
@@ -104,9 +95,6 @@ type Client interface {
 
 	// Redis KEYS command.
 	Keys (key string) (result []string, err Error);
-
-	// Redis SORT command.
-//	Sort (key string) (result redis.Sort, err Error);
 
 	// Redis EXISTS command.
 	Exists (key string) (result bool, err Error);
@@ -124,25 +112,7 @@ type Client interface {
 	Quit () (Error);
 
 	// Redis SETNX command.
-//	Setnx (key string, arg1 io.ReadWriter) (result bool, err Error);
-
-	// Redis SETNX command.
 	Setnx (key string, arg1 []byte) (result bool, err Error);
-
-	// Redis SETNX command.
-//	Setnx (key string, arg1 string) (result bool, err Error);
-
-	// Redis SETNX command.
-//	Setnx (key string, arg1 int64) (result bool, err Error);
-
-	// Redis GETSET command.
-//	Getset (key string, arg1 string) (result []byte, err Error);
-
-	// Redis GETSET command.
-//	Getset (key string, arg1 int64) (result []byte, err Error);
-
-	// Redis GETSET command.
-//	Getset (key string, arg1 io.ReadWriter) (result []byte, err Error);
 
 	// Redis GETSET command.
 	Getset (key string, arg1 []byte) (result []byte, err Error);
@@ -181,52 +151,16 @@ type Client interface {
 	Ttl (key string) (result int64, err Error);
 
 	// Redis RPUSH command.
-//	Rpush (key string, arg1 io.ReadWriter) (Error);
-
-	// Redis RPUSH command.
 	Rpush (key string, arg1 []byte) (Error);
-
-	// Redis RPUSH command.
-//	Rpush (key string, arg1 string) (Error);
-
-	// Redis RPUSH command.
-//	Rpush (key string, arg1 int64) (Error);
-
-	// Redis LPUSH command.
-//	Lpush (key string, arg1 io.ReadWriter) (Error);
-
-	// Redis LPUSH command.
-//	Lpush (key string, arg1 int64) (Error);
-
-	// Redis LPUSH command.
-//	Lpush (key string, arg1 string) (Error);
 
 	// Redis LPUSH command.
 	Lpush (key string, arg1 []byte) (Error);
 
 	// Redis LSET command.
-//	Lset (key string, arg1 int64, arg2 io.ReadWriter) (Error);
-
-	// Redis LSET command.
 	Lset (key string, arg1 int64, arg2 []byte) (Error);
-
-	// Redis LSET command.
-//	Lset (key string, arg1 int64, arg2 string) (Error);
-
-	// Redis LSET command.
-//	Lset (key string, arg1 int64, arg2 int64) (Error);
-
-	// Redis LREM command.
-//	Lrem (key string, arg1 io.ReadWriter, arg2 int64) (result int64, err Error);
 
 	// Redis LREM command.
 	Lrem (key string, arg1 []byte, arg2 int64) (result int64, err Error);
-
-	// Redis LREM command.
-//	Lrem (key string, arg1 string, arg2 int64) (result int64, err Error);
-
-	// Redis LREM command.
-//	Lrem (key string, arg1 int64, arg2 int64) (result int64, err Error);
 
 	// Redis LLEN command.
 	Llen (key string) (result int64, err Error);
@@ -252,50 +186,14 @@ type Client interface {
 	// Redis SADD command.
 	Sadd (key string, arg1 []byte) (result bool, err Error);
 
-	// Redis SADD command.
-//	Sadd (key string, arg1 io.ReadWriter) (result bool, err Error);
-
-	// Redis SADD command.
-//	Sadd (key string, arg1 int64) (result bool, err Error);
-
-	// Redis SADD command.
-//	Sadd (key string, arg1 string) (result bool, err Error);
-
 	// Redis SREM command.
 	Srem (key string, arg1 []byte) (result bool, err Error);
-
-	// Redis SREM command.
-//	Srem (key string, arg1 string) (result bool, err Error);
-
-	// Redis SREM command.
-//	Srem (key string, arg1 int64) (result bool, err Error);
-
-	// Redis SREM command.
-//	Srem (key string, arg1 io.ReadWriter) (result bool, err Error);
-
-	// Redis SISMEMBER command.
-//	Sismember (key string, arg1 io.ReadWriter) (result bool, err Error);
-
-	// Redis SISMEMBER command.
-//	Sismember (key string, arg1 int64) (result bool, err Error);
-
-	// Redis SISMEMBER command.
-//	Sismember (key string, arg1 string) (result bool, err Error);
 
 	// Redis SISMEMBER command.
 	Sismember (key string, arg1 []byte) (result bool, err Error);
 
 	// Redis SMOVE command.
-//	Smove (key string, arg1 string, arg2 io.ReadWriter) (result bool, err Error);
-
-	// Redis SMOVE command.
 	Smove (key string, arg1 string, arg2 []byte) (result bool, err Error);
-
-	// Redis SMOVE command.
-//	Smove (key string, arg1 string, arg2 string) (result bool, err Error);
-
-	// Redis SMOVE command.
-//	Smove (key string, arg1 string, arg2 int64) (result bool, err Error);
 
 	// Redis SCARD command.
 	Scard (key string) (result int64, err Error);
@@ -327,24 +225,6 @@ type Client interface {
 	// Redis ZADD command.
 	Zadd (key string, arg1 float64, arg2 []byte) (result bool, err Error);
 
-	// Redis ZADD command.
-//	Zadd (key string, arg1 float64, arg2 string) (result bool, err Error);
-
-	// Redis ZADD command.
-//	Zadd (key string, arg1 float64, arg2 int64) (result bool, err Error);
-
-	// Redis ZADD command.
-//	Zadd (key string, arg1 float64, arg2 io.ReadWriter) (result bool, err Error);
-
-	// Redis ZREM command.
-//	Zrem (key string, arg1 io.ReadWriter) (result bool, err Error);
-
-	// Redis ZREM command.
-//	Zrem (key string, arg1 int64) (result bool, err Error);
-
-	// Redis ZREM command.
-//	Zrem (key string, arg1 string) (result bool, err Error);
-
 	// Redis ZREM command.
 	Zrem (key string, arg1 []byte) (result bool, err Error);
 
@@ -352,16 +232,7 @@ type Client interface {
 	Zcard (key string) (result int64, err Error);
 
 	// Redis ZSCORE command.
-//	Zscore (key string, arg1 io.ReadWriter) (result float64, err Error);
-
-	// Redis ZSCORE command.
-//	Zscore (key string, arg1 int64) (result float64, err Error);
-
-	// Redis ZSCORE command.
 	Zscore (key string, arg1 []byte) (result float64, err Error);
-
-	// Redis ZSCORE command.
-//	Zscore (key string, arg1 string) (result float64, err Error);
 
 	// Redis ZRANGE command.
 	Zrange (key string, arg1 int64, arg2 int64) (result [][]byte, err Error);

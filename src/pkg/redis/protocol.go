@@ -45,15 +45,9 @@ const
 	FALSE_BYTE 		= byte(48);
 	TRUE_BYTE 		= byte(49);
 )
-
-type ctlbytes []byte;
-var CRLF 		ctlbytes = make([]byte, 2);
-var WHITESPACE 	ctlbytes = make([]byte, 1);
-
-func init () {
-	CRLF[0] = CR_BYTE; CRLF[1] = LF_BYTE;
-	WHITESPACE [0] = SPACE_BYTE;
-}
+type ctlbytes	[]byte;
+var CRLF 		ctlbytes = ctlbytes{CR_BYTE, LF_BYTE};
+var WHITESPACE	ctlbytes = ctlbytes{SPACE_BYTE};
 
 // ----------------------------------------------------------------------------
 // Services
@@ -64,13 +58,6 @@ func init () {
 //
 // TODO: tedious but need to check for errors on all buffer writes ..
 //
-
-func copySlice(src []byte, dst []byte) {
-	for i := 0; i < len(dst); i++ {
-		dst[i] = src[i]
-	}
-}
-
 func CreateRequestBytes (cmd *Command, args [][]byte) ([]byte, os.Error) {
 
 	cmd_bytes := strings.Bytes(cmd.Code);
@@ -154,6 +141,45 @@ func CreateRequestBytes (cmd *Command, args [][]byte) ([]byte, os.Error) {
 	return buffer.Bytes(), nil;
 }
 
+// Creates a specific Future type for the given Redis command
+// and returns it as a generic reference.
+//
+func CreateFuture (cmd *Command) (future interface{}) {
+	switch cmd.RespType {
+		case BOOLEAN:
+			future = newFutureBool();
+		case BULK: 			
+			future = newFutureBytes();
+		case MULTI_BULK:	
+			future = newFutureBytesArray();
+		case NUMBER:			
+			future = newFutureInt64();
+		case STATUS:		
+			future = newFutureString();
+		case STRING:		
+			future = newFutureString();
+	}
+	return;
+}
+
+func SetFutureResult (future interface{}, cmd *Command, r Response) {
+	switch cmd.RespType {
+	case BOOLEAN:
+		future.(FutureBool).set(r.GetBooleanValue());
+	case BULK: 			
+		future.(FutureBytes).set(r.GetBulkData());
+	case MULTI_BULK:	
+		future.(FutureBytesArray).set(r.GetMultiBulkData());
+	case NUMBER:			
+		future.(FutureInt64).set(r.GetNumberValue());
+	case STATUS:		
+		future.(FutureString).set(r.GetMessage());
+	case STRING:		
+		future.(FutureString).set(r.GetStringValue());
+//	case VIRTUAL:		// TODO
+//	    resp, err = getVirtualResponse ();
+	}
+}
 // Gets the response to the command.
 // Any errors (whether runtime or bugs) are returned as os.Error.
 // The returned response (regardless of flavor) may have (application level)

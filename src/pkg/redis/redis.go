@@ -430,6 +430,7 @@ type AsyncClient interface {
 	Get (key string) (FutureBytes, Error);
 	Incr (key string) (FutureInt64, Error);
 	Set (key string, arg1 []byte) (FutureString, Error);
+//	Ping (key string, arg1 []byte) (Error);
 }
 
 // ----------------------------------------------------------------------------

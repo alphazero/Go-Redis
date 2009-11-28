@@ -57,6 +57,12 @@ func NewAsynchClientWithSpec (spec *ConnectionSpec) (c AsyncClient, err os.Error
 
 // ----------------------- aync interface
 
+func (c *async) Ping () (err Error) {
+	return;
+//	resp, err := c.conn.QueueRequest(&PING, [][]byte{});
+//	if err == nil {result = resp.future.(FutureInt64);}
+//	return result, err;
+}
 
 func (c *async) Incr (arg0 string) (result FutureInt64, err Error) {
 	arg0bytes := strings.Bytes (arg0);

@@ -111,10 +111,15 @@ func (c *synchClient) Keys (arg0 string) (result []string, err Error){
 	var resp Response;
 	resp, err = c.conn.ServiceRequest(&KEYS, [][]byte{arg0bytes});
 	if err == nil {
-		result = strings.Split(bytes.NewBuffer(resp.GetBulkData()).String(), " ", 0);
+//		result = strings.Split(bytes.NewBuffer(resp.GetBulkData()).String(), " ", 0);
+		result = convAndSplit (resp.GetBulkData());
 	}
 	return result, err;
 
+}
+
+func convAndSplit (buff []byte) []string {
+	return strings.Split(bytes.NewBuffer(buff).String(), " ", 0);
 }
 /***
 // Redis SORT command.
@@ -153,17 +158,28 @@ func (c *synchClient) Info () (result map[string] string, err Error){
 	var resp Response;
 	resp, err = c.conn.ServiceRequest(&INFO, [][]byte{});
 	if err == nil {
-		infoStr := bytes.NewBuffer(resp.GetBulkData()).String();
-		infoItems := strings.Split(infoStr, "\r\n", 0);
-		result = make(map[string] string);
-		for _, entry := range infoItems  {
-			etuple := strings.Split(entry, ":", 2);
-			result[etuple[0]] = etuple[1];
-		}
+		result = parseInfo(resp.GetBulkData());
+//		infoStr := bytes.NewBuffer(resp.GetBulkData()).String();
+//		infoItems := strings.Split(infoStr, "\r\n", 0);
+//		result = make(map[string] string);
+//		for _, entry := range infoItems  {
+//			etuple := strings.Split(entry, ":", 2);
+//			result[etuple[0]] = etuple[1];
+//		}
 	}
 	return result, err;
 }
 
+func parseInfo (buff []byte) map[string]string {
+	infoStr := bytes.NewBuffer(buff).String();
+	infoItems := strings.Split(infoStr, "\r\n", 0);
+	result := make(map[string] string);
+	for _, entry := range infoItems  {
+		etuple := strings.Split(entry, ":", 2);
+		result[etuple[0]] = etuple[1];
+	}
+	return result;
+}
 // Redis PING command.
 func (c *synchClient) Ping () (err Error){
 	if c == nil {
@@ -654,14 +670,23 @@ func (c *synchClient) Zscore (arg0 string, arg1 []byte) (result float64, err Err
 	resp, err = c.conn.ServiceRequest(&ZSCORE, [][]byte{arg0bytes, arg1bytes});
 	if err == nil {
 		buff := resp.GetBulkData();
-		fnum, oserr := strconv.Atof64(bytes.NewBuffer(buff).String());
-		if oserr != nil {
-			err = NewErrorWithCause(SYSTEM_ERR, "Expected a parsable byte representation of a float64 in Zscore!", oserr);
-		}
-		result = fnum;
+//		fnum, oserr := strconv.Atof64(bytes.NewBuffer(buff).String());
+//		if oserr != nil {
+//			err = NewErrorWithCause(SYSTEM_ERR, "Expected a parsable byte representation of a float64 in Zscore!", oserr);
+//		}
+//		result = fnum;
+		result, err = Btof64 (buff);
 	}
 	return result, err;
 
+}
+
+func Btof64 (buff []byte) (num float64, e Error){
+	num, ce := strconv.Atof64(bytes.NewBuffer(buff).String());
+	if ce != nil {
+		e = NewErrorWithCause(SYSTEM_ERR, "Expected a parsable byte representation of a float64", ce);
+	}
+	return;
 }
 
 // Redis ZRANGE command.

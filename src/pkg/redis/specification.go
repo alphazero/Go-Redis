@@ -23,6 +23,46 @@ package redis
 //
 // Redis version: 1.n
 // ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// Types
+// ----------------------------------------------------------------------------
+
+// Redis 'KeyType'
+//
+type KeyType byte;
+
+// Known Redis key types
+//
+const (
+	RT_NONE 	KeyType = iota;
+	RT_STRING;
+	RT_SET;
+	RT_LIST;
+	RT_ZSET;
+)
+
+// Returns KeyType by name
+//
+func GetKeyType (typename string) (keytype KeyType) {
+	switch {
+	case typename == "none": keytype =  RT_NONE;
+	case typename == "string": keytype =  RT_STRING;
+	case typename == "list": keytype =  RT_LIST;
+	case typename == "set": keytype =  RT_SET;
+	case typename == "zset": keytype =  RT_ZSET;
+	}
+	return;
+}
+
+// Not yet used -- TODO: decide if returning status (say for Set) for non error cases 
+// really buys us anything beyond (useless) consistency.
+//
+type Status bool;
+const (
+	OK 	 bool	= true;	 	
+	PONG 		= true;		
+	ERR 		= false;
+)
 
 // Request type defines the characteristic pattern of a cmd request
 //

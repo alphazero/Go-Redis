@@ -11,6 +11,49 @@ Also am not sure regarding the efficiency of the implementation (for the obvious
 
 The code is consolidated into a single 'redis' package and various elements of it are usable independently (for example if you wish to roll your own API but want to use the raw bytes protocol handling aspects).
 
+# Getting started:
+
+Get, build, and startup [Redis][Redis]:
+
+	make
+	chmod +x redis-server
+	./redis-server redis.conf
+
+Confirm:
+
+    alphazero[13]:entrevous$ telnet localhost 6379
+    Trying ::1...
+    telnet: connect to address ::1: Connection refused
+    Trying fe80::1...
+    telnet: connect to address fe80::1: Connection refused
+    Trying 127.0.0.1...
+    Connected to localhost.
+    Escape character is '^]'.
+    
+    PING
+    +PONG
+    
+    INFO
+    $282
+    redis_version:1.07
+    arch_bits:32
+    uptime_in_seconds:72
+    uptime_in_days:0
+    connected_clients:1
+    connected_slaves:0
+    used_memory:295232
+    changes_since_last_save:1
+    bgsave_in_progress:0
+    last_save_time:1259873372
+    total_connections_received:4
+    total_commands_processed:5
+    role:master
+    
+    QUIT
+    Connection closed by foreign host.
+    alphazero[14]:entrevous$ 
+
+
 ## build and install
 
 To build and install Go-Redis, from the root directory of the git clone:

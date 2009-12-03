@@ -34,10 +34,11 @@ After installing Go-Redis (per above), try (again from the root dir of Go-Redis)
 
 ## examples
 
-Ciao.go is a sort of hello world for redis and should get you started for the barebones necessities of getting a client and issuing commands.
+[Ciao.go][ciao] is a sort of hello world for redis and should get you started for the barebones necessities of getting a client and issuing commands.
 
 	cd examples
 	./run ciao
 
 [Go]: http://golang.org/
 [Redis]: http://github.com/antirez/redis
+[ciao]: http://github.com/alphazero/Go-Redis/blob/master/examples/ciao.go

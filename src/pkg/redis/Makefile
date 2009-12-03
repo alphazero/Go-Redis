@@ -11,9 +11,6 @@ GOFILES=\
 	connection.go\
 	synchclient.go\
     asynchclient.go\
-
-$(TARG).$(O): $(GOFILES)
-	$(GC) -o $(TARG).$(O) $(GOFILES)
         
 include $(GOROOT)/src/Make.pkg
 

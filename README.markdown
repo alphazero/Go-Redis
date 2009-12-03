@@ -11,16 +11,33 @@ Also am not sure regarding the efficiency of the implementation (for the obvious
 
 The code is consolidated into a single 'redis' package and various elements of it are usable independently (for example if you wish to roll your own API but want to use the raw bytes protocol handling aspects).
 
-## quickstart
+## build and install
 
-Presuming you already have both Go and Redis installed and a running local Redis server:
+To build and install Go-Redis, from the root directory of the git clone:
 
 	cd src/pkg/redis
-	make
-	cd ../../../bench
+	make clean && make install
+	cd -
+
+Confirm the install:
+
+	ls -l $GOROOT/pkg/"$GOOS"_"$GOARCH"/redis.a
+
+
+## run the benchmarks
+	
+After installing Go-Redis (per above), try (again from the root dir of Go-Redis):
+
+	cd bench
 	./runbench synchclient
 	./runbench gosynchclient
 
+## examples
+
+Ciao.go is a sort of hello world for redis and should get you started for the barebones necessities of getting a client and issuing commands.
+
+	cd examples
+	./run ciao
 
 [Go]: http://golang.org/
 [Redis]: http://github.com/antirez/redis

@@ -78,7 +78,7 @@ func benchTask (taskspec taskSpec, iterations int, workers int, printReport bool
 func makeConcurrentClients(workers int) (clients []redis.Client, err os.Error) {
     clients = make([]redis.Client, workers);
     for i := 0; i < workers; i++ {
-		spec := redis.DefaultSpec().Db(13);
+		spec := redis.DefaultSpec().Db(13).Password("go-redis");
 		client, e := redis.NewSynchClientWithSpec (spec);
 		if e != nil {
 			log.Stderr ("Error creating client for worker: ", e);

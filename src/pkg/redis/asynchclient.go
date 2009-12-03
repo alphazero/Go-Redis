@@ -17,36 +17,32 @@ package redis
 
 import (
 	"strings";
-	"os";
 	"log";
 	"fmt";
-/*
-	"bytes";
-	"strconv";
-*/
 )
 
-type async struct {
+// -----------------------------------------------------------------------------
+// asyncClient
+// -----------------------------------------------------------------------------
+
+type asyncClient struct {
 	conn  AsyncConnection;
 }
-
-
-
 
 // Create a new Client and connects to the Redis server using the
 // default ConnectionSpec.
 //
-func NewAsynchClient () (c AsyncClient, err os.Error){
+func NewAsynchClient () (c AsyncClient, err Error){
 	spec := DefaultSpec();
 	c, err = NewAsynchClientWithSpec(spec);
 	return;
 }
 
-// Create a new Client and connects to the Redis server using the
+// Create a new asynClient and connects to the Redis server using the
 // specified ConnectionSpec.
 //
-func NewAsynchClientWithSpec (spec *ConnectionSpec) (c AsyncClient, err os.Error) {
-	_c := new(async);
+func NewAsynchClientWithSpec (spec *ConnectionSpec) (c AsyncClient, err Error) {
+	_c := new(asyncClient);
 	_c.conn, err = NewAsynchConnection (spec);
 	if err != nil {
 		if debug() {log.Stderr("NewAsyncConnection() raised error: ", err);}
@@ -54,10 +50,13 @@ func NewAsynchClientWithSpec (spec *ConnectionSpec) (c AsyncClient, err os.Error
 	}
 	return _c, nil;
 }
-/** ----------------- REDIS INTERFACE ------------- **/
+
+// -----------------------------------------------------------------------------
+// interface redis.AsyncClient support
+// -----------------------------------------------------------------------------
 
 // Redis GET command.
-func (c *async) Get (arg0 string) (result FutureBytes, err Error){
+func (c *asyncClient) Get (arg0 string) (result FutureBytes, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -68,7 +67,7 @@ func (c *async) Get (arg0 string) (result FutureBytes, err Error){
 }
 
 // Redis TYPE command.
-func (c *async) Type (arg0 string) (result FutureKeyType, err Error){
+func (c *asyncClient) Type (arg0 string) (result FutureKeyType, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -78,7 +77,7 @@ func (c *async) Type (arg0 string) (result FutureKeyType, err Error){
 }
 
 // Redis SET command.
-func (c *async) Set (arg0 string, arg1 []byte) (stat FutureBool, err Error){
+func (c *asyncClient) Set (arg0 string, arg1 []byte) (stat FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -89,7 +88,7 @@ func (c *async) Set (arg0 string, arg1 []byte) (stat FutureBool, err Error){
 }
 
 // Redis SAVE command.
-func (c *async) Save () (stat FutureBool, err Error){
+func (c *asyncClient) Save () (stat FutureBool, err Error){
 	resp, err := c.conn.QueueRequest(&SAVE, [][]byte{});
 	if err == nil {stat = resp.future.(FutureBool);}
 
@@ -98,12 +97,12 @@ func (c *async) Save () (stat FutureBool, err Error){
 }
 
 // Redis KEYS command.
-func (c *async) AllKeys () (result FutureKeys, err Error){
+func (c *asyncClient) AllKeys () (result FutureKeys, err Error){
 	return c.Keys("*");
 }
 
 // Redis KEYS command.
-func (c *async) Keys (arg0 string) (result FutureKeys, err Error){
+func (c *asyncClient) Keys (arg0 string) (result FutureKeys, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -116,7 +115,7 @@ func (c *async) Keys (arg0 string) (result FutureKeys, err Error){
 
 /***
 // Redis SORT command.
-func (c *async) Sort (arg0 string) (result redis.Sort, err Error){
+func (c *asyncClient) Sort (arg0 string) (result redis.Sort, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -127,7 +126,7 @@ func (c *async) Sort (arg0 string) (result redis.Sort, err Error){
 }
 ***/
 // Redis EXISTS command.
-func (c *async) Exists (arg0 string) (result FutureBool, err Error){
+func (c *asyncClient) Exists (arg0 string) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	resp, err := c.conn.QueueRequest(&EXISTS, [][]byte{arg0bytes});
@@ -137,7 +136,7 @@ func (c *async) Exists (arg0 string) (result FutureBool, err Error){
 }
 
 // Redis RENAME command.
-func (c *async) Rename (arg0 string, arg1 string) (stat FutureBool, err Error){
+func (c *asyncClient) Rename (arg0 string, arg1 string) (stat FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 
@@ -148,7 +147,7 @@ func (c *async) Rename (arg0 string, arg1 string) (stat FutureBool, err Error){
 }
 
 // Redis INFO command.
-func (c *async) Info () (result FutureInfo, err Error){
+func (c *asyncClient) Info () (result FutureInfo, err Error){
 	var resp *PendingResponse;
 	resp, err = c.conn.QueueRequest(&INFO, [][]byte{});
 	if err == nil {
@@ -158,7 +157,7 @@ func (c *async) Info () (result FutureInfo, err Error){
 }
 
 // Redis PING command.
-func (c *async) Ping () (stat FutureBool, err Error){
+func (c *asyncClient) Ping () (stat FutureBool, err Error){
 	resp, err := c.conn.QueueRequest(&PING, [][]byte{});
 	if err == nil {stat = resp.future.(FutureBool);}
 
@@ -166,7 +165,7 @@ func (c *async) Ping () (stat FutureBool, err Error){
 }
 
 // Redis QUIT command.
-func (c *async) Quit () (stat FutureBool, err Error){
+func (c *asyncClient) Quit () (stat FutureBool, err Error){
 //	c.conn.Close();
 ////	resp, err = c.conn.QueueRequest(&QUIT);
 //	if err == nil {stat = resp.future.(FutureBool);}
@@ -175,7 +174,7 @@ func (c *async) Quit () (stat FutureBool, err Error){
 }
 
 // Redis SETNX command.
-func (c *async) Setnx (arg0 string, arg1 []byte) (result FutureBool, err Error){
+func (c *asyncClient) Setnx (arg0 string, arg1 []byte) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -186,7 +185,7 @@ func (c *async) Setnx (arg0 string, arg1 []byte) (result FutureBool, err Error){
 }
 
 // Redis GETSET command.
-func (c *async) Getset (arg0 string, arg1 []byte) (result FutureBytes, err Error){
+func (c *asyncClient) Getset (arg0 string, arg1 []byte) (result FutureBytes, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -198,7 +197,7 @@ func (c *async) Getset (arg0 string, arg1 []byte) (result FutureBytes, err Error
 }
 
 // Redis MGET command.
-func (c *async) Mget (arg0 string, arg1 []string) (result FutureBytesArray, err Error){
+func (c *asyncClient) Mget (arg0 string, arg1 []string) (result FutureBytesArray, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -211,7 +210,7 @@ func (c *async) Mget (arg0 string, arg1 []string) (result FutureBytesArray, err 
 
 
 // Redis INCR command.
-func (c *async) Incr (arg0 string) (result FutureInt64, err Error){
+func (c *asyncClient) Incr (arg0 string) (result FutureInt64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -222,7 +221,7 @@ func (c *async) Incr (arg0 string) (result FutureInt64, err Error){
 }
 
 // Redis INCRBY command.
-func (c *async) Incrby (arg0 string, arg1 int64) (result FutureInt64, err Error){
+func (c *asyncClient) Incrby (arg0 string, arg1 int64) (result FutureInt64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
@@ -234,7 +233,7 @@ func (c *async) Incrby (arg0 string, arg1 int64) (result FutureInt64, err Error)
 }
 
 // Redis DECR command.
-func (c *async) Decr (arg0 string) (result FutureInt64, err Error){
+func (c *asyncClient) Decr (arg0 string) (result FutureInt64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -245,7 +244,7 @@ func (c *async) Decr (arg0 string) (result FutureInt64, err Error){
 }
 
 // Redis DECRBY command.
-func (c *async) Decrby (arg0 string, arg1 int64) (result FutureInt64, err Error){
+func (c *asyncClient) Decrby (arg0 string, arg1 int64) (result FutureInt64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
@@ -257,7 +256,7 @@ func (c *async) Decrby (arg0 string, arg1 int64) (result FutureInt64, err Error)
 }
 
 // Redis DEL command.
-func (c *async) Del (arg0 string) (result FutureBool, err Error){
+func (c *asyncClient) Del (arg0 string) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -268,7 +267,7 @@ func (c *async) Del (arg0 string) (result FutureBool, err Error){
 }
 
 // Redis RANDOMKEY command.
-func (c *async) Randomkey () (result FutureString, err Error){
+func (c *asyncClient) Randomkey () (result FutureString, err Error){
 	var resp *PendingResponse;
 	resp, err = c.conn.QueueRequest(&RANDOMKEY, [][]byte{});
 	if err == nil {result = resp.future.(FutureString);}
@@ -277,7 +276,7 @@ func (c *async) Randomkey () (result FutureString, err Error){
 }
 
 // Redis RENAMENX command.
-func (c *async) Renamenx (arg0 string, arg1 string) (result FutureBool, err Error){
+func (c *asyncClient) Renamenx (arg0 string, arg1 string) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 
@@ -289,7 +288,7 @@ func (c *async) Renamenx (arg0 string, arg1 string) (result FutureBool, err Erro
 }
 
 // Redis DBSIZE command.
-func (c *async) Dbsize () (result FutureInt64, err Error){
+func (c *asyncClient) Dbsize () (result FutureInt64, err Error){
 	var resp *PendingResponse;
 	resp, err = c.conn.QueueRequest(&DBSIZE, [][]byte{});
 	if err == nil {result = resp.future.(FutureInt64);}
@@ -298,7 +297,7 @@ func (c *async) Dbsize () (result FutureInt64, err Error){
 }
 
 // Redis EXPIRE command.
-func (c *async) Expire (arg0 string, arg1 int64) (result FutureBool, err Error){
+func (c *asyncClient) Expire (arg0 string, arg1 int64) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
@@ -310,7 +309,7 @@ func (c *async) Expire (arg0 string, arg1 int64) (result FutureBool, err Error){
 }
 
 // Redis TTL command.
-func (c *async) Ttl (arg0 string) (result FutureInt64, err Error){
+func (c *asyncClient) Ttl (arg0 string) (result FutureInt64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -321,7 +320,7 @@ func (c *async) Ttl (arg0 string) (result FutureInt64, err Error){
 }
 
 // Redis RPUSH command.
-func (c *async) Rpush (arg0 string, arg1 []byte) (stat FutureBool, err Error){
+func (c *asyncClient) Rpush (arg0 string, arg1 []byte) (stat FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -332,7 +331,7 @@ func (c *async) Rpush (arg0 string, arg1 []byte) (stat FutureBool, err Error){
 }
 
 // Redis LPUSH command.
-func (c *async) Lpush (arg0 string, arg1 []byte) (result FutureBool, err Error){
+func (c *asyncClient) Lpush (arg0 string, arg1 []byte) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -343,7 +342,7 @@ func (c *async) Lpush (arg0 string, arg1 []byte) (result FutureBool, err Error){
 }
 
 // Redis LSET command.
-func (c *async) Lset (arg0 string, arg1 int64, arg2 []byte) (stat FutureBool, err Error){
+func (c *asyncClient) Lset (arg0 string, arg1 int64, arg2 []byte) (stat FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := arg2;
@@ -356,7 +355,7 @@ func (c *async) Lset (arg0 string, arg1 int64, arg2 []byte) (stat FutureBool, er
 
 
 // Redis LREM command.
-func (c *async) Lrem (arg0 string, arg1 []byte, arg2 int64) (result FutureInt64, err Error){
+func (c *asyncClient) Lrem (arg0 string, arg1 []byte, arg2 int64) (result FutureInt64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
@@ -369,7 +368,7 @@ func (c *async) Lrem (arg0 string, arg1 []byte, arg2 int64) (result FutureInt64,
 }
 
 // Redis LLEN command.
-func (c *async) Llen (arg0 string) (result FutureInt64, err Error){
+func (c *asyncClient) Llen (arg0 string) (result FutureInt64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -380,7 +379,7 @@ func (c *async) Llen (arg0 string) (result FutureInt64, err Error){
 }
 
 // Redis LRANGE command.
-func (c *async) Lrange (arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error){
+func (c *asyncClient) Lrange (arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
@@ -393,7 +392,7 @@ func (c *async) Lrange (arg0 string, arg1 int64, arg2 int64) (result FutureBytes
 }
 
 // Redis LTRIM command.
-func (c *async) Ltrim (arg0 string, arg1 int64, arg2 int64) (stat FutureBool, err Error){
+func (c *asyncClient) Ltrim (arg0 string, arg1 int64, arg2 int64) (stat FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
@@ -405,7 +404,7 @@ func (c *async) Ltrim (arg0 string, arg1 int64, arg2 int64) (stat FutureBool, er
 }
 
 // Redis LINDEX command.
-func (c *async) Lindex (arg0 string, arg1 int64) (result FutureBytes, err Error){
+func (c *asyncClient) Lindex (arg0 string, arg1 int64) (result FutureBytes, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
@@ -417,7 +416,7 @@ func (c *async) Lindex (arg0 string, arg1 int64) (result FutureBytes, err Error)
 }
 
 // Redis LPOP command.
-func (c *async) Lpop (arg0 string) (result FutureBytes, err Error){
+func (c *asyncClient) Lpop (arg0 string) (result FutureBytes, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -428,7 +427,7 @@ func (c *async) Lpop (arg0 string) (result FutureBytes, err Error){
 }
 
 // Redis RPOP command.
-func (c *async) Rpop (arg0 string) (result FutureBytes, err Error){
+func (c *asyncClient) Rpop (arg0 string) (result FutureBytes, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -439,7 +438,7 @@ func (c *async) Rpop (arg0 string) (result FutureBytes, err Error){
 }
 
 // Redis RPOPLPUSH command.
-func (c *async) Rpoplpush (arg0 string, arg1 string) (result FutureBytes, err Error){
+func (c *asyncClient) Rpoplpush (arg0 string, arg1 string) (result FutureBytes, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 
@@ -451,7 +450,7 @@ func (c *async) Rpoplpush (arg0 string, arg1 string) (result FutureBytes, err Er
 }
 
 // Redis SADD command.
-func (c *async) Sadd (arg0 string, arg1 []byte) (result FutureBool, err Error){
+func (c *asyncClient) Sadd (arg0 string, arg1 []byte) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -464,7 +463,7 @@ func (c *async) Sadd (arg0 string, arg1 []byte) (result FutureBool, err Error){
 
 
 // Redis SREM command.
-func (c *async) Srem (arg0 string, arg1 []byte) (result FutureBool, err Error){
+func (c *asyncClient) Srem (arg0 string, arg1 []byte) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -477,7 +476,7 @@ func (c *async) Srem (arg0 string, arg1 []byte) (result FutureBool, err Error){
 
 
 // Redis SISMEMBER command.
-func (c *async) Sismember (arg0 string, arg1 []byte) (result FutureBool, err Error){
+func (c *asyncClient) Sismember (arg0 string, arg1 []byte) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -489,7 +488,7 @@ func (c *async) Sismember (arg0 string, arg1 []byte) (result FutureBool, err Err
 }
 
 // Redis SMOVE command.
-func (c *async) Smove (arg0 string, arg1 string, arg2 []byte) (result FutureBool, err Error){
+func (c *asyncClient) Smove (arg0 string, arg1 string, arg2 []byte) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 	arg2bytes := arg2;
@@ -502,7 +501,7 @@ func (c *async) Smove (arg0 string, arg1 string, arg2 []byte) (result FutureBool
 }
 
 // Redis SCARD command.
-func (c *async) Scard (arg0 string) (result FutureInt64, err Error){
+func (c *asyncClient) Scard (arg0 string) (result FutureInt64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -513,7 +512,7 @@ func (c *async) Scard (arg0 string) (result FutureInt64, err Error){
 }
 
 // Redis SINTER command.
-func (c *async) Sinter (arg0 string, arg1 []string) (result FutureBytesArray, err Error){
+func (c *asyncClient) Sinter (arg0 string, arg1 []string) (result FutureBytesArray, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -525,7 +524,7 @@ func (c *async) Sinter (arg0 string, arg1 []string) (result FutureBytesArray, er
 }
 
 // Redis SINTERSTORE command.
-func (c *async) Sinterstore (arg0 string, arg1 []string) (stat FutureBool, err Error){
+func (c *asyncClient) Sinterstore (arg0 string, arg1 []string) (stat FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -536,7 +535,7 @@ func (c *async) Sinterstore (arg0 string, arg1 []string) (stat FutureBool, err E
 }
 
 // Redis SUNION command.
-func (c *async) Sunion (arg0 string, arg1 []string) (result FutureBytesArray, err Error){
+func (c *asyncClient) Sunion (arg0 string, arg1 []string) (result FutureBytesArray, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -548,7 +547,7 @@ func (c *async) Sunion (arg0 string, arg1 []string) (result FutureBytesArray, er
 }
 
 // Redis SUNIONSTORE command.
-func (c *async) Sunionstore (arg0 string, arg1 []string) (stat FutureBool, err Error){
+func (c *asyncClient) Sunionstore (arg0 string, arg1 []string) (stat FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -559,7 +558,7 @@ func (c *async) Sunionstore (arg0 string, arg1 []string) (stat FutureBool, err E
 }
 
 // Redis SDIFF command.
-func (c *async) Sdiff (arg0 string, arg1 []string) (result FutureBytesArray, err Error){
+func (c *asyncClient) Sdiff (arg0 string, arg1 []string) (result FutureBytesArray, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -571,7 +570,7 @@ func (c *async) Sdiff (arg0 string, arg1 []string) (result FutureBytesArray, err
 }
 
 // Redis SDIFFSTORE command.
-func (c *async) Sdiffstore (arg0 string, arg1 []string) (stat FutureBool, err Error){
+func (c *asyncClient) Sdiffstore (arg0 string, arg1 []string) (stat FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -582,7 +581,7 @@ func (c *async) Sdiffstore (arg0 string, arg1 []string) (stat FutureBool, err Er
 }
 
 // Redis SMEMBERS command.
-func (c *async) Smembers (arg0 string) (result FutureBytesArray, err Error){
+func (c *asyncClient) Smembers (arg0 string) (result FutureBytesArray, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -593,7 +592,7 @@ func (c *async) Smembers (arg0 string) (result FutureBytesArray, err Error){
 }
 
 // Redis SRANDMEMBER command.
-func (c *async) Srandmember (arg0 string) (result FutureBytes, err Error){
+func (c *asyncClient) Srandmember (arg0 string) (result FutureBytes, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -604,7 +603,7 @@ func (c *async) Srandmember (arg0 string) (result FutureBytes, err Error){
 }
 
 // Redis ZADD command.
-func (c *async) Zadd (arg0 string, arg1 float64, arg2 []byte) (result FutureBool, err Error){
+func (c *asyncClient) Zadd (arg0 string, arg1 float64, arg2 []byte) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%e", arg1));
 	arg2bytes := arg2;
@@ -617,7 +616,7 @@ func (c *async) Zadd (arg0 string, arg1 float64, arg2 []byte) (result FutureBool
 }
 
 // Redis ZREM command.
-func (c *async) Zrem (arg0 string, arg1 []byte) (result FutureBool, err Error){
+func (c *asyncClient) Zrem (arg0 string, arg1 []byte) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -629,7 +628,7 @@ func (c *async) Zrem (arg0 string, arg1 []byte) (result FutureBool, err Error){
 }
 
 // Redis ZCARD command.
-func (c *async) Zcard (arg0 string) (result FutureInt64, err Error){
+func (c *asyncClient) Zcard (arg0 string) (result FutureInt64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp *PendingResponse;
@@ -640,7 +639,7 @@ func (c *async) Zcard (arg0 string) (result FutureInt64, err Error){
 }
 
 // Redis ZSCORE command.
-func (c *async) Zscore (arg0 string, arg1 []byte) (result FutureFloat64, err Error){
+func (c *asyncClient) Zscore (arg0 string, arg1 []byte) (result FutureFloat64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -654,7 +653,7 @@ func (c *async) Zscore (arg0 string, arg1 []byte) (result FutureFloat64, err Err
 }
 
 // Redis ZRANGE command.
-func (c *async) Zrange (arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error){
+func (c *asyncClient) Zrange (arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
@@ -667,7 +666,7 @@ func (c *async) Zrange (arg0 string, arg1 int64, arg2 int64) (result FutureBytes
 }
 
 // Redis ZREVRANGE command.
-func (c *async) Zrevrange (arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error){
+func (c *asyncClient) Zrevrange (arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
@@ -680,7 +679,7 @@ func (c *async) Zrevrange (arg0 string, arg1 int64, arg2 int64) (result FutureBy
 }
 
 // Redis ZRANGEBYSCORE command.
-func (c *async) Zrangebyscore (arg0 string, arg1 float64, arg2 float64) (result FutureBytesArray, err Error){
+func (c *asyncClient) Zrangebyscore (arg0 string, arg1 float64, arg2 float64) (result FutureBytesArray, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%e", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%e", arg2));
@@ -693,7 +692,7 @@ func (c *async) Zrangebyscore (arg0 string, arg1 float64, arg2 float64) (result 
 }
 
 // Redis FLUSHDB command.
-func (c *async) Flushdb () (stat FutureBool, err Error){
+func (c *asyncClient) Flushdb () (stat FutureBool, err Error){
 	resp, err := c.conn.QueueRequest(&FLUSHDB, [][]byte{});
 	if err == nil {stat = resp.future.(FutureBool);}
 
@@ -701,7 +700,7 @@ func (c *async) Flushdb () (stat FutureBool, err Error){
 }
 
 // Redis FLUSHALL command.
-func (c *async) Flushall () (stat FutureBool, err Error){
+func (c *asyncClient) Flushall () (stat FutureBool, err Error){
 	resp, err := c.conn.QueueRequest(&FLUSHALL, [][]byte{});
 	if err == nil {stat = resp.future.(FutureBool);}
 
@@ -709,7 +708,7 @@ func (c *async) Flushall () (stat FutureBool, err Error){
 }
 
 // Redis MOVE command.
-func (c *async) Move (arg0 string, arg1 int64) (result FutureBool, err Error){
+func (c *asyncClient) Move (arg0 string, arg1 int64) (result FutureBool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
@@ -721,7 +720,7 @@ func (c *async) Move (arg0 string, arg1 int64) (result FutureBool, err Error){
 }
 
 // Redis BGSAVE command.
-func (c *async) Bgsave () (stat FutureBool, err Error){
+func (c *asyncClient) Bgsave () (stat FutureBool, err Error){
 	resp, err := c.conn.QueueRequest(&BGSAVE, [][]byte{});
 	if err == nil {stat = resp.future.(FutureBool);}
 
@@ -729,7 +728,7 @@ func (c *async) Bgsave () (stat FutureBool, err Error){
 }
 
 // Redis LASTSAVE command.
-func (c *async) Lastsave () (result FutureInt64, err Error){
+func (c *asyncClient) Lastsave () (result FutureInt64, err Error){
 	var resp *PendingResponse;
 	resp, err = c.conn.QueueRequest(&LASTSAVE, [][]byte{});
 	if err == nil {result = resp.future.(FutureInt64);}

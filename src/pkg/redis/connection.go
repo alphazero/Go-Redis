@@ -21,6 +21,7 @@ import (
 	"io";
 	"bufio";
 	"log";
+	"strings";
 //	"time";
 )
 
@@ -149,35 +150,39 @@ type connHdl struct {
 // The new connection is wrapped by a new connHdl with its bufio.Reader
 // delegating to the net.Conn's reader. 
 //
-func newConnHdl (spec *ConnectionSpec) (hdl *connHdl, err os.Error) {
+func newConnHdl (spec *ConnectionSpec) (hdl *connHdl, err Error) {
 	here := "newConnHdl";
 
 	if hdl = new(connHdl); hdl == nil { 
-		return nil, withNewError (fmt.Sprintf("%s(): failed to allocate connHdl", here));
+		return nil, NewError (SYSTEM_ERR, fmt.Sprintf("%s(): failed to allocate connHdl", here));
 	}
 	addr := fmt.Sprintf("%s:%d", spec.host, spec.port); 
 	raddr, e:= net.ResolveTCPAddr(addr); 
 	if e != nil {
-		return nil, withNewError (fmt.Sprintf("%s(): failed to resolve remote address %s", here, addr));
+		msg:= fmt.Sprintf("%s(): failed to resolve remote address %s", here, addr);
+		return nil, NewErrorWithCause (SYSTEM_ERR, msg, e);
 	}	
 	conn, e:= net.DialTCP(TCP, nil, raddr);
 	switch {
-		case e != nil:
-			err = withOsError (fmt.Sprintf("%s(): could not open connection", here), e);
-		case conn == nil:
-			err = withNewError (fmt.Sprintf("%s(): net.Dial returned nil, nil (?)", here));
-		default:
-			configureConn(conn, spec);
-			hdl.spec = spec;
-			hdl.conn = conn;
-			bufsize := 4096;
-			hdl.reader, e = bufio.NewReaderSize(conn, bufsize);
-			if e != nil {
-				err = withNewError (fmt.Sprintf("%s(): bufio.NewReaderSize (%d) error", here, bufsize));
+	case e != nil:
+		err = NewErrorWithCause (SYSTEM_ERR, fmt.Sprintf("%s(): could not open connection", here), e);
+	case conn == nil:
+		err = NewError (SYSTEM_ERR, fmt.Sprintf("%s(): net.Dial returned nil, nil (?)", here));
+	default:
+		configureConn(conn, spec);
+		hdl.spec = spec;
+		hdl.conn = conn;
+		bufsize := 4096;
+		hdl.reader, e = bufio.NewReaderSize(conn, bufsize);
+		if e != nil {
+			msg:= fmt.Sprintf("%s(): bufio.NewReaderSize (%d) error", here, bufsize);
+			err = NewErrorWithCause (SYSTEM_ERR, msg, e);
+		}
+		else {
+			if err = hdl.onConnect(); err == nil && debug() {
+				log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);
 			}
-			else {
-				if debug() {log.Stdout("[Go-Redis] Opened SynchConnection connection to ", addr);}
-			}
+		}
 	}
 	return hdl, err;
 }
@@ -193,15 +198,34 @@ func configureConn (conn *net.TCPConn, spec *ConnectionSpec) {
 	conn.SetReadBuffer(spec.rBufSize);
 	conn.SetWriteBuffer(spec.wBufSize);
 }
+// TODO: return redis.Error
+func (c *connHdl) onConnect() (e Error) {
+	if c.spec.password != DefaultRedisPassword {
+		_, e = c.ServiceRequest (&AUTH, [][]byte{strings.Bytes(c.spec.password)});
+		if e != nil {
+			return 
+		}
+	}
+	if c.spec.db != DefaultRedisDB {
+		_, e = c.ServiceRequest (&SELECT, [][]byte{strings.Bytes(fmt.Sprintf("%d", c.spec.db))});
+		if e != nil {
+			return 
+		}
+	}
+	return
+}
+
+func (c *connHdl) onDisconnect() Error {
+	return nil; // for now
+}
 // closes the connHdl's net.Conn connection.
 // Is public so that connHdl struct can be used as SyncConnection (TODO: review that.)
 //
 func (hdl connHdl) Close() os.Error {
 	err := hdl.conn.Close();
 	if debug() {log.Stdout ("[Go-Redis] Closed connection: ", hdl);}
-	return err;
+	return err
 }
-
 
 // ----------------------------------------------------------------------------
 // Connection SyncConnection
@@ -216,7 +240,10 @@ type SyncConnection interface {
 }
 
 // Creates a new SyncConnection using the provided ConnectionSpec
-func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err os.Error) {
+func NewSyncConnection (spec *ConnectionSpec) (c SyncConnection, err Error) {
+//	connHdl, e := newConnHdl(spec);
+//	connHdl.onConnect();
+//	return connHdl, e;
 	return newConnHdl (spec);
 }
 
@@ -341,15 +368,16 @@ type asyncConnHdl struct {
 // Creates a new asyncConnHdl with a new connHdl as its delegated 'super'.
 // Note it does not start the processing goroutines for the channels.
 
-func newAsyncConnHdl (spec *ConnectionSpec) (async *asyncConnHdl, err os.Error) {
+func newAsyncConnHdl (spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
 //	here := "newAsynConnHDL";
-	super, err := newConnHdl (spec);
-	if err == nil && super != nil {
+	connHdl, err := newConnHdl (spec);
+	if err == nil && connHdl != nil {
 		async = new(asyncConnHdl);
 		if async != nil { 
-			async.super = super;
-			async.writer, err = bufio.NewWriterSize(super.conn, spec.wBufSize);
-			if err == nil {
+			async.super = connHdl;
+			var e os.Error;
+			async.writer, e = bufio.NewWriterSize(connHdl.conn, spec.wBufSize);
+			if e == nil {
 				async.pendingReqs = make (chan asyncReqPtr, spec.reqChanCap);
 				async.pendingResps = make (chan asyncReqPtr, spec.rspChanCap);
 				async.faults = make (chan asyncReqPtr, spec.reqChanCap); // not sure about sizing here ...
@@ -361,27 +389,42 @@ func newAsyncConnHdl (spec *ConnectionSpec) (async *asyncConnHdl, err os.Error) 
 				
 				async.feedback = make (chan workerStatus);
 				async.shutdown = make (chan bool, 1);
-
 				
 				return;
 			} 
-			else { super.conn.Close(); }
+			else { 
+				connHdl.conn.Close(); 
+				msg:= fmt.Sprintf("NewWriterSize(%d) failed.", spec.wBufSize);
+				err = NewErrorWithCause(SYSTEM_ERR, msg, e);
+			}
 		} 
 	} 
 	// fall through here on errors only
-	if err == nil { err =  os.NewError("Error creating asyncConnHdl"); } 
-	return nil, err;
+	if debug() { 
+		log.Stderr("Error creating asyncConnHdl: ", err);
+//		err =  os.NewError("Error creating asyncConnHdl"); 
+	} 
+	return nil, err
 }
 
 // Creates and opens a new AsyncConnection and starts the goroutines for 
 // request and response processing
-
-func NewAsynchConnection (spec *ConnectionSpec) (conn AsyncConnection, err os.Error) {
+// TODO: NewXConnection methods need to return redis.Error due to initial connect
+// interaction with redis (AUTH &| SELECT)
+func NewAsynchConnection (spec *ConnectionSpec) (conn AsyncConnection, err Error) {
 	var async *asyncConnHdl;
 	if async, err = newAsyncConnHdl(spec); err == nil { 
+		async.onConnect ();
 		async.startup();
 	}
 	return async, err;
+}
+
+func (c *asyncConnHdl) onConnect() (e Error){
+	return;
+}
+func (c *asyncConnHdl) onDisconnect() (e Error){
+	return;
 }
 
 // responsible for managing the various moving parts of the asyncConnHdl

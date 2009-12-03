@@ -25,7 +25,7 @@ func main ()  {
 func doOne (cnt int) os.Error {
 
 	var delta int64;
-	spec := redis.DefaultSpec().Db(13);
+	spec := redis.DefaultSpec().Db(13).Password("go-redis");
 	
 	fmt.Printf("\n\n=== Bench synchclient ================ 1 Client -- %d opts --- \n", cnt );
 	fmt.Println ();

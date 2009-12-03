@@ -19,7 +19,6 @@
 package redis
 
 import (
-	"os";
 	"strings";
 	"bytes";
 	"fmt";
@@ -27,14 +26,18 @@ import (
 	"log";
 )
 
-type synchClient struct {
+// -----------------------------------------------------------------------------
+// syncClient
+// -----------------------------------------------------------------------------
+
+type syncClient struct {
 	conn  SyncConnection;
 }
 
-// Create a new Client and connects to the Redis server using the
+// Create a new syncClient and connects to the Redis server using the
 // default ConnectionSpec.
 //
-func NewSynchClient () (c Client, err os.Error){
+func NewSynchClient () (c Client, err Error){
 	spec := DefaultSpec();
 	c, err = NewSynchClientWithSpec(spec);
 	if err != nil { 
@@ -42,28 +45,30 @@ func NewSynchClient () (c Client, err os.Error){
 	}
 	if c == nil {
 		if debug() { log.Stderr("NewSynchClientWithSpec returned nil Client.");}
-		err = os.NewError("NewSynchClientWithSpec returned nil Client.");
+		err = NewError(SYSTEM_ERR, "NewSynchClientWithSpec returned nil Client");
 	}
-	return;
+	return
 }
 
-// Create a new Client and connects to the Redis server using the
+// Create a new syncClient and connects to the Redis server using the
 // specified ConnectionSpec.
 //
-func NewSynchClientWithSpec (spec *ConnectionSpec) (c Client, err os.Error) {
-	_c := new(synchClient);
+func NewSynchClientWithSpec (spec *ConnectionSpec) (c Client, err Error) {
+	_c := new(syncClient);
 	_c.conn, err = NewSyncConnection (spec);
 	if err != nil {
 		if debug() {log.Stderr("NewSyncConnection() raised error: ", err);}
 		return nil, err;
 	}
-	return _c, nil;
+	return _c, nil
 }
 
-/** ----------------- REDIS INTERFACE ------------- **/
+// -----------------------------------------------------------------------------
+// interface redis.Client support
+// -----------------------------------------------------------------------------
 
 // Redis GET command.
-func (c *synchClient) Get (arg0 string) (result []byte, err Error){
+func (c *syncClient) Get (arg0 string) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -74,7 +79,7 @@ func (c *synchClient) Get (arg0 string) (result []byte, err Error){
 }
 
 // Redis TYPE command.
-func (c *synchClient) Type (arg0 string) (result KeyType, err Error){
+func (c *syncClient) Type (arg0 string) (result KeyType, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -84,7 +89,7 @@ func (c *synchClient) Type (arg0 string) (result KeyType, err Error){
 }
 
 // Redis SET command.
-func (c *synchClient) Set (arg0 string, arg1 []byte) (err Error){
+func (c *syncClient) Set (arg0 string, arg1 []byte) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -93,19 +98,19 @@ func (c *synchClient) Set (arg0 string, arg1 []byte) (err Error){
 }
 
 // Redis SAVE command.
-func (c *synchClient) Save () (err Error){
+func (c *syncClient) Save () (err Error){
 	_, err = c.conn.ServiceRequest(&SAVE, [][]byte{});
 	return;
 
 }
 
 // Redis KEYS command.
-func (c *synchClient) AllKeys () (result []string, err Error){
+func (c *syncClient) AllKeys () (result []string, err Error){
 	return c.Keys("*");
 }
 
 // Redis KEYS command.
-func (c *synchClient) Keys (arg0 string) (result []string, err Error){
+func (c *syncClient) Keys (arg0 string) (result []string, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -123,7 +128,7 @@ func convAndSplit (buff []byte) []string {
 }
 /***
 // Redis SORT command.
-func (c *synchClient) Sort (arg0 string) (result redis.Sort, err Error){
+func (c *syncClient) Sort (arg0 string) (result redis.Sort, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -134,7 +139,7 @@ func (c *synchClient) Sort (arg0 string) (result redis.Sort, err Error){
 }
 ***/
 // Redis EXISTS command.
-func (c *synchClient) Exists (arg0 string) (result bool, err Error){
+func (c *syncClient) Exists (arg0 string) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -145,7 +150,7 @@ func (c *synchClient) Exists (arg0 string) (result bool, err Error){
 }
 
 // Redis RENAME command.
-func (c *synchClient) Rename (arg0 string, arg1 string) (err Error){
+func (c *syncClient) Rename (arg0 string, arg1 string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 
@@ -154,7 +159,7 @@ func (c *synchClient) Rename (arg0 string, arg1 string) (err Error){
 }
 
 // Redis INFO command.
-func (c *synchClient) Info () (result map[string] string, err Error){
+func (c *syncClient) Info () (result map[string] string, err Error){
 	var resp Response;
 	resp, err = c.conn.ServiceRequest(&INFO, [][]byte{});
 	if err == nil {
@@ -181,10 +186,10 @@ func parseInfo (buff []byte) map[string]string {
 	return result;
 }
 // Redis PING command.
-func (c *synchClient) Ping () (err Error){
+func (c *syncClient) Ping () (err Error){
 	if c == nil {
 		log.Stderr("FAULT in synchclient.Ping(): why is c nil?");
-		return NewError(SYSTEM_ERR, "c *synchClient is NIL!");
+		return NewError(SYSTEM_ERR, "c *syncClient is NIL!");
 	}
 	else if c.conn == nil {
 		log.Stderr("FAULT in synchclient.Ping(): why is c.conn nil?");
@@ -195,14 +200,14 @@ func (c *synchClient) Ping () (err Error){
 }
 
 // Redis QUIT command.
-func (c *synchClient) Quit () (err Error){
+func (c *syncClient) Quit () (err Error){
 	c.conn.Close();
 //	_, err = c.conn.ServiceRequest(&QUIT);
 	return;
 }
 
 // Redis SETNX command.
-func (c *synchClient) Setnx (arg0 string, arg1 []byte) (result bool, err Error){
+func (c *syncClient) Setnx (arg0 string, arg1 []byte) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -214,7 +219,7 @@ func (c *synchClient) Setnx (arg0 string, arg1 []byte) (result bool, err Error){
 }
 
 // Redis GETSET command.
-func (c *synchClient) Getset (arg0 string, arg1 []byte) (result []byte, err Error){
+func (c *syncClient) Getset (arg0 string, arg1 []byte) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -226,7 +231,7 @@ func (c *synchClient) Getset (arg0 string, arg1 []byte) (result []byte, err Erro
 }
 
 // Redis MGET command.
-func (c *synchClient) Mget (arg0 string, arg1 []string) (result [][]byte, err Error){
+func (c *syncClient) Mget (arg0 string, arg1 []string) (result [][]byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -239,7 +244,7 @@ func (c *synchClient) Mget (arg0 string, arg1 []string) (result [][]byte, err Er
 
 
 // Redis INCR command.
-func (c *synchClient) Incr (arg0 string) (result int64, err Error){
+func (c *syncClient) Incr (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -250,7 +255,7 @@ func (c *synchClient) Incr (arg0 string) (result int64, err Error){
 }
 
 // Redis INCRBY command.
-func (c *synchClient) Incrby (arg0 string, arg1 int64) (result int64, err Error){
+func (c *syncClient) Incrby (arg0 string, arg1 int64) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
@@ -262,7 +267,7 @@ func (c *synchClient) Incrby (arg0 string, arg1 int64) (result int64, err Error)
 }
 
 // Redis DECR command.
-func (c *synchClient) Decr (arg0 string) (result int64, err Error){
+func (c *syncClient) Decr (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -273,7 +278,7 @@ func (c *synchClient) Decr (arg0 string) (result int64, err Error){
 }
 
 // Redis DECRBY command.
-func (c *synchClient) Decrby (arg0 string, arg1 int64) (result int64, err Error){
+func (c *syncClient) Decrby (arg0 string, arg1 int64) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
@@ -285,7 +290,7 @@ func (c *synchClient) Decrby (arg0 string, arg1 int64) (result int64, err Error)
 }
 
 // Redis DEL command.
-func (c *synchClient) Del (arg0 string) (result bool, err Error){
+func (c *syncClient) Del (arg0 string) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -296,7 +301,7 @@ func (c *synchClient) Del (arg0 string) (result bool, err Error){
 }
 
 // Redis RANDOMKEY command.
-func (c *synchClient) Randomkey () (result string, err Error){
+func (c *syncClient) Randomkey () (result string, err Error){
 	var resp Response;
 	resp, err = c.conn.ServiceRequest(&RANDOMKEY, [][]byte{});
 	if err == nil {result = resp.GetStringValue();}
@@ -305,7 +310,7 @@ func (c *synchClient) Randomkey () (result string, err Error){
 }
 
 // Redis RENAMENX command.
-func (c *synchClient) Renamenx (arg0 string, arg1 string) (result bool, err Error){
+func (c *syncClient) Renamenx (arg0 string, arg1 string) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 
@@ -317,7 +322,7 @@ func (c *synchClient) Renamenx (arg0 string, arg1 string) (result bool, err Erro
 }
 
 // Redis DBSIZE command.
-func (c *synchClient) Dbsize () (result int64, err Error){
+func (c *syncClient) Dbsize () (result int64, err Error){
 	var resp Response;
 	resp, err = c.conn.ServiceRequest(&DBSIZE, [][]byte{});
 	if err == nil {result = resp.GetNumberValue();}
@@ -326,7 +331,7 @@ func (c *synchClient) Dbsize () (result int64, err Error){
 }
 
 // Redis EXPIRE command.
-func (c *synchClient) Expire (arg0 string, arg1 int64) (result bool, err Error){
+func (c *syncClient) Expire (arg0 string, arg1 int64) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
@@ -338,7 +343,7 @@ func (c *synchClient) Expire (arg0 string, arg1 int64) (result bool, err Error){
 }
 
 // Redis TTL command.
-func (c *synchClient) Ttl (arg0 string) (result int64, err Error){
+func (c *syncClient) Ttl (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -349,7 +354,7 @@ func (c *synchClient) Ttl (arg0 string) (result int64, err Error){
 }
 
 // Redis RPUSH command.
-func (c *synchClient) Rpush (arg0 string, arg1 []byte) (err Error){
+func (c *syncClient) Rpush (arg0 string, arg1 []byte) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -358,7 +363,7 @@ func (c *synchClient) Rpush (arg0 string, arg1 []byte) (err Error){
 }
 
 // Redis LPUSH command.
-func (c *synchClient) Lpush (arg0 string, arg1 []byte) (err Error){
+func (c *syncClient) Lpush (arg0 string, arg1 []byte) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -367,7 +372,7 @@ func (c *synchClient) Lpush (arg0 string, arg1 []byte) (err Error){
 }
 
 // Redis LSET command.
-func (c *synchClient) Lset (arg0 string, arg1 int64, arg2 []byte) (err Error){
+func (c *syncClient) Lset (arg0 string, arg1 int64, arg2 []byte) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := arg2;
@@ -378,7 +383,7 @@ func (c *synchClient) Lset (arg0 string, arg1 int64, arg2 []byte) (err Error){
 
 
 // Redis LREM command.
-func (c *synchClient) Lrem (arg0 string, arg1 []byte, arg2 int64) (result int64, err Error){
+func (c *syncClient) Lrem (arg0 string, arg1 []byte, arg2 int64) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
@@ -391,7 +396,7 @@ func (c *synchClient) Lrem (arg0 string, arg1 []byte, arg2 int64) (result int64,
 }
 
 // Redis LLEN command.
-func (c *synchClient) Llen (arg0 string) (result int64, err Error){
+func (c *syncClient) Llen (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -402,7 +407,7 @@ func (c *synchClient) Llen (arg0 string) (result int64, err Error){
 }
 
 // Redis LRANGE command.
-func (c *synchClient) Lrange (arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error){
+func (c *syncClient) Lrange (arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
@@ -415,7 +420,7 @@ func (c *synchClient) Lrange (arg0 string, arg1 int64, arg2 int64) (result [][]b
 }
 
 // Redis LTRIM command.
-func (c *synchClient) Ltrim (arg0 string, arg1 int64, arg2 int64) (err Error){
+func (c *syncClient) Ltrim (arg0 string, arg1 int64, arg2 int64) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
@@ -425,7 +430,7 @@ func (c *synchClient) Ltrim (arg0 string, arg1 int64, arg2 int64) (err Error){
 }
 
 // Redis LINDEX command.
-func (c *synchClient) Lindex (arg0 string, arg1 int64) (result []byte, err Error){
+func (c *syncClient) Lindex (arg0 string, arg1 int64) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
@@ -437,7 +442,7 @@ func (c *synchClient) Lindex (arg0 string, arg1 int64) (result []byte, err Error
 }
 
 // Redis LPOP command.
-func (c *synchClient) Lpop (arg0 string) (result []byte, err Error){
+func (c *syncClient) Lpop (arg0 string) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -448,7 +453,7 @@ func (c *synchClient) Lpop (arg0 string) (result []byte, err Error){
 }
 
 // Redis RPOP command.
-func (c *synchClient) Rpop (arg0 string) (result []byte, err Error){
+func (c *syncClient) Rpop (arg0 string) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -459,7 +464,7 @@ func (c *synchClient) Rpop (arg0 string) (result []byte, err Error){
 }
 
 // Redis RPOPLPUSH command.
-func (c *synchClient) Rpoplpush (arg0 string, arg1 string) (result []byte, err Error){
+func (c *syncClient) Rpoplpush (arg0 string, arg1 string) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 
@@ -471,7 +476,7 @@ func (c *synchClient) Rpoplpush (arg0 string, arg1 string) (result []byte, err E
 }
 
 // Redis SADD command.
-func (c *synchClient) Sadd (arg0 string, arg1 []byte) (result bool, err Error){
+func (c *syncClient) Sadd (arg0 string, arg1 []byte) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -484,7 +489,7 @@ func (c *synchClient) Sadd (arg0 string, arg1 []byte) (result bool, err Error){
 
 
 // Redis SREM command.
-func (c *synchClient) Srem (arg0 string, arg1 []byte) (result bool, err Error){
+func (c *syncClient) Srem (arg0 string, arg1 []byte) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -497,7 +502,7 @@ func (c *synchClient) Srem (arg0 string, arg1 []byte) (result bool, err Error){
 
 
 // Redis SISMEMBER command.
-func (c *synchClient) Sismember (arg0 string, arg1 []byte) (result bool, err Error){
+func (c *syncClient) Sismember (arg0 string, arg1 []byte) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -509,7 +514,7 @@ func (c *synchClient) Sismember (arg0 string, arg1 []byte) (result bool, err Err
 }
 
 // Redis SMOVE command.
-func (c *synchClient) Smove (arg0 string, arg1 string, arg2 []byte) (result bool, err Error){
+func (c *syncClient) Smove (arg0 string, arg1 string, arg2 []byte) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (arg1);
 	arg2bytes := arg2;
@@ -522,7 +527,7 @@ func (c *synchClient) Smove (arg0 string, arg1 string, arg2 []byte) (result bool
 }
 
 // Redis SCARD command.
-func (c *synchClient) Scard (arg0 string) (result int64, err Error){
+func (c *syncClient) Scard (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -541,7 +546,7 @@ func concatAndGetBytes(arr []string, delim string) []byte {
 	return strings.Bytes(cstr);
 }
 // Redis SINTER command.
-func (c *synchClient) Sinter (arg0 string, arg1 []string) (result [][]byte, err Error){
+func (c *syncClient) Sinter (arg0 string, arg1 []string) (result [][]byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -553,7 +558,7 @@ func (c *synchClient) Sinter (arg0 string, arg1 []string) (result [][]byte, err 
 }
 
 // Redis SINTERSTORE command.
-func (c *synchClient) Sinterstore (arg0 string, arg1 []string) (err Error){
+func (c *syncClient) Sinterstore (arg0 string, arg1 []string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -562,7 +567,7 @@ func (c *synchClient) Sinterstore (arg0 string, arg1 []string) (err Error){
 }
 
 // Redis SUNION command.
-func (c *synchClient) Sunion (arg0 string, arg1 []string) (result [][]byte, err Error){
+func (c *syncClient) Sunion (arg0 string, arg1 []string) (result [][]byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -574,7 +579,7 @@ func (c *synchClient) Sunion (arg0 string, arg1 []string) (result [][]byte, err 
 }
 
 // Redis SUNIONSTORE command.
-func (c *synchClient) Sunionstore (arg0 string, arg1 []string) (err Error){
+func (c *syncClient) Sunionstore (arg0 string, arg1 []string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -583,7 +588,7 @@ func (c *synchClient) Sunionstore (arg0 string, arg1 []string) (err Error){
 }
 
 // Redis SDIFF command.
-func (c *synchClient) Sdiff (arg0 string, arg1 []string) (result [][]byte, err Error){
+func (c *syncClient) Sdiff (arg0 string, arg1 []string) (result [][]byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -595,7 +600,7 @@ func (c *synchClient) Sdiff (arg0 string, arg1 []string) (result [][]byte, err E
 }
 
 // Redis SDIFFSTORE command.
-func (c *synchClient) Sdiffstore (arg0 string, arg1 []string) (err Error){
+func (c *syncClient) Sdiffstore (arg0 string, arg1 []string) (err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := concatAndGetBytes(arg1, " ");
 
@@ -604,7 +609,7 @@ func (c *synchClient) Sdiffstore (arg0 string, arg1 []string) (err Error){
 }
 
 // Redis SMEMBERS command.
-func (c *synchClient) Smembers (arg0 string) (result [][]byte, err Error){
+func (c *syncClient) Smembers (arg0 string) (result [][]byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -615,7 +620,7 @@ func (c *synchClient) Smembers (arg0 string) (result [][]byte, err Error){
 }
 
 // Redis SRANDMEMBER command.
-func (c *synchClient) Srandmember (arg0 string) (result []byte, err Error){
+func (c *syncClient) Srandmember (arg0 string) (result []byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -626,7 +631,7 @@ func (c *synchClient) Srandmember (arg0 string) (result []byte, err Error){
 }
 
 // Redis ZADD command.
-func (c *synchClient) Zadd (arg0 string, arg1 float64, arg2 []byte) (result bool, err Error){
+func (c *syncClient) Zadd (arg0 string, arg1 float64, arg2 []byte) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%e", arg1));
 	arg2bytes := arg2;
@@ -639,7 +644,7 @@ func (c *synchClient) Zadd (arg0 string, arg1 float64, arg2 []byte) (result bool
 }
 
 // Redis ZREM command.
-func (c *synchClient) Zrem (arg0 string, arg1 []byte) (result bool, err Error){
+func (c *syncClient) Zrem (arg0 string, arg1 []byte) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -651,7 +656,7 @@ func (c *synchClient) Zrem (arg0 string, arg1 []byte) (result bool, err Error){
 }
 
 // Redis ZCARD command.
-func (c *synchClient) Zcard (arg0 string) (result int64, err Error){
+func (c *syncClient) Zcard (arg0 string) (result int64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 
 	var resp Response;
@@ -662,7 +667,7 @@ func (c *synchClient) Zcard (arg0 string) (result int64, err Error){
 }
 
 // Redis ZSCORE command.
-func (c *synchClient) Zscore (arg0 string, arg1 []byte) (result float64, err Error){
+func (c *syncClient) Zscore (arg0 string, arg1 []byte) (result float64, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := arg1;
 
@@ -690,7 +695,7 @@ func Btof64 (buff []byte) (num float64, e Error){
 }
 
 // Redis ZRANGE command.
-func (c *synchClient) Zrange (arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error){
+func (c *syncClient) Zrange (arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
@@ -703,7 +708,7 @@ func (c *synchClient) Zrange (arg0 string, arg1 int64, arg2 int64) (result [][]b
 }
 
 // Redis ZREVRANGE command.
-func (c *synchClient) Zrevrange (arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error){
+func (c *syncClient) Zrevrange (arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%d", arg2));
@@ -716,7 +721,7 @@ func (c *synchClient) Zrevrange (arg0 string, arg1 int64, arg2 int64) (result []
 }
 
 // Redis ZRANGEBYSCORE command.
-func (c *synchClient) Zrangebyscore (arg0 string, arg1 float64, arg2 float64) (result [][]byte, err Error){
+func (c *syncClient) Zrangebyscore (arg0 string, arg1 float64, arg2 float64) (result [][]byte, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%e", arg1));
 	arg2bytes := strings.Bytes (fmt.Sprintf("%e", arg2));
@@ -729,19 +734,19 @@ func (c *synchClient) Zrangebyscore (arg0 string, arg1 float64, arg2 float64) (r
 }
 
 // Redis FLUSHDB command.
-func (c *synchClient) Flushdb () (err Error){
+func (c *syncClient) Flushdb () (err Error){
 	_, err = c.conn.ServiceRequest(&FLUSHDB, [][]byte{});
 	return;
 }
 
 // Redis FLUSHALL command.
-func (c *synchClient) Flushall () (err Error){
+func (c *syncClient) Flushall () (err Error){
 	_, err = c.conn.ServiceRequest(&FLUSHALL, [][]byte{});
 	return;
 }
 
 // Redis MOVE command.
-func (c *synchClient) Move (arg0 string, arg1 int64) (result bool, err Error){
+func (c *syncClient) Move (arg0 string, arg1 int64) (result bool, err Error){
 	arg0bytes := strings.Bytes (arg0);
 	arg1bytes := strings.Bytes (fmt.Sprintf("%d", arg1));
 
@@ -753,13 +758,13 @@ func (c *synchClient) Move (arg0 string, arg1 int64) (result bool, err Error){
 }
 
 // Redis BGSAVE command.
-func (c *synchClient) Bgsave () (err Error){
+func (c *syncClient) Bgsave () (err Error){
 	_, err = c.conn.ServiceRequest(&BGSAVE, [][]byte{});
 	return;
 }
 
 // Redis LASTSAVE command.
-func (c *synchClient) Lastsave () (result int64, err Error){
+func (c *syncClient) Lastsave () (result int64, err Error){
 	var resp Response;
 	resp, err = c.conn.ServiceRequest(&LASTSAVE, [][]byte{});
 	if err == nil {result = resp.GetNumberValue();}

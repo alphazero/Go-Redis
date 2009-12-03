@@ -50,7 +50,7 @@ func main () {
 			value = strings.Bytes(user);
 			client.Set(key, value);
 		}
-		else { fmt.Printf ("vafanculo!\n"); }
+		else { fmt.Printf ("vafanculo!\n"); return }
 	}
 	fmt.Printf ("Hey, ciao %s!\n", fmt.Sprintf("%s", value));
 }

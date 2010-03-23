@@ -59,7 +59,7 @@ func GetKeyType (typename string) (keytype KeyType) {
 //
 type Status bool;
 const (
-	OK 	 bool	= true;	 	
+	OK			= true;	 	
 	PONG 		= true;		
 	ERR 		= false;
 )

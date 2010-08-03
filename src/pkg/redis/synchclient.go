@@ -75,7 +75,7 @@ func NewSynchClientWithSpec(spec *ConnectionSpec) (c Client, err Error) {
 
 // Redis GET command.
 func (c *syncClient) Get(arg0 string) (result []byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&GET, [][]byte{arg0bytes})
@@ -88,7 +88,7 @@ func (c *syncClient) Get(arg0 string) (result []byte, err Error) {
 
 // Redis TYPE command.
 func (c *syncClient) Type(arg0 string) (result KeyType, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&TYPE, [][]byte{arg0bytes})
@@ -100,7 +100,7 @@ func (c *syncClient) Type(arg0 string) (result KeyType, err Error) {
 
 // Redis SET command.
 func (c *syncClient) Set(arg0 string, arg1 []byte) (err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
 
 	_, err = c.conn.ServiceRequest(&SET, [][]byte{arg0bytes, arg1bytes})
@@ -121,7 +121,7 @@ func (c *syncClient) AllKeys() (result []string, err Error) {
 
 // Redis KEYS command.
 func (c *syncClient) Keys(arg0 string) (result []string, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&KEYS, [][]byte{arg0bytes})
@@ -139,7 +139,7 @@ func convAndSplit(buff []byte) []string {
 /***
 // Redis SORT command.
 func (c *syncClient) Sort (arg0 string) (result redis.Sort, err Error){
-	arg0bytes := strings.Bytes (arg0);
+	arg0bytes := []byte (arg0);
 
 	var resp Response;
 	resp, err = c.conn.ServiceRequest(&SORT, [][]byte{arg0bytes});
@@ -150,7 +150,7 @@ func (c *syncClient) Sort (arg0 string) (result redis.Sort, err Error){
 ***/
 // Redis EXISTS command.
 func (c *syncClient) Exists(arg0 string) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&EXISTS, [][]byte{arg0bytes})
@@ -163,8 +163,8 @@ func (c *syncClient) Exists(arg0 string) (result bool, err Error) {
 
 // Redis RENAME command.
 func (c *syncClient) Rename(arg0 string, arg1 string) (err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(arg1)
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(arg1)
 
 	_, err = c.conn.ServiceRequest(&RENAME, [][]byte{arg0bytes, arg1bytes})
 	return
@@ -219,7 +219,7 @@ func (c *syncClient) Quit() (err Error) {
 
 // Redis SETNX command.
 func (c *syncClient) Setnx(arg0 string, arg1 []byte) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
 
 	var resp Response
@@ -233,7 +233,7 @@ func (c *syncClient) Setnx(arg0 string, arg1 []byte) (result bool, err Error) {
 
 // Redis GETSET command.
 func (c *syncClient) Getset(arg0 string, arg1 []byte) (result []byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
 
 	var resp Response
@@ -247,7 +247,7 @@ func (c *syncClient) Getset(arg0 string, arg1 []byte) (result []byte, err Error)
 
 // Redis MGET command.
 func (c *syncClient) Mget(arg0 string, arg1 []string) (result [][]byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := concatAndGetBytes(arg1, " ")
 
 	var resp Response
@@ -262,7 +262,7 @@ func (c *syncClient) Mget(arg0 string, arg1 []string) (result [][]byte, err Erro
 
 // Redis INCR command.
 func (c *syncClient) Incr(arg0 string) (result int64, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&INCR, [][]byte{arg0bytes})
@@ -275,8 +275,8 @@ func (c *syncClient) Incr(arg0 string) (result int64, err Error) {
 
 // Redis INCRBY command.
 func (c *syncClient) Incrby(arg0 string, arg1 int64) (result int64, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%d", arg1))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&INCRBY, [][]byte{arg0bytes, arg1bytes})
@@ -289,7 +289,7 @@ func (c *syncClient) Incrby(arg0 string, arg1 int64) (result int64, err Error) {
 
 // Redis DECR command.
 func (c *syncClient) Decr(arg0 string) (result int64, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&DECR, [][]byte{arg0bytes})
@@ -302,8 +302,8 @@ func (c *syncClient) Decr(arg0 string) (result int64, err Error) {
 
 // Redis DECRBY command.
 func (c *syncClient) Decrby(arg0 string, arg1 int64) (result int64, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%d", arg1))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&DECRBY, [][]byte{arg0bytes, arg1bytes})
@@ -316,7 +316,7 @@ func (c *syncClient) Decrby(arg0 string, arg1 int64) (result int64, err Error) {
 
 // Redis DEL command.
 func (c *syncClient) Del(arg0 string) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&DEL, [][]byte{arg0bytes})
@@ -340,8 +340,8 @@ func (c *syncClient) Randomkey() (result string, err Error) {
 
 // Redis RENAMENX command.
 func (c *syncClient) Renamenx(arg0 string, arg1 string) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(arg1)
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(arg1)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&RENAMENX, [][]byte{arg0bytes, arg1bytes})
@@ -365,8 +365,8 @@ func (c *syncClient) Dbsize() (result int64, err Error) {
 
 // Redis EXPIRE command.
 func (c *syncClient) Expire(arg0 string, arg1 int64) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%d", arg1))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&EXPIRE, [][]byte{arg0bytes, arg1bytes})
@@ -379,7 +379,7 @@ func (c *syncClient) Expire(arg0 string, arg1 int64) (result bool, err Error) {
 
 // Redis TTL command.
 func (c *syncClient) Ttl(arg0 string) (result int64, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&TTL, [][]byte{arg0bytes})
@@ -392,7 +392,7 @@ func (c *syncClient) Ttl(arg0 string) (result int64, err Error) {
 
 // Redis RPUSH command.
 func (c *syncClient) Rpush(arg0 string, arg1 []byte) (err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
 
 	_, err = c.conn.ServiceRequest(&RPUSH, [][]byte{arg0bytes, arg1bytes})
@@ -401,7 +401,7 @@ func (c *syncClient) Rpush(arg0 string, arg1 []byte) (err Error) {
 
 // Redis LPUSH command.
 func (c *syncClient) Lpush(arg0 string, arg1 []byte) (err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
 
 	_, err = c.conn.ServiceRequest(&LPUSH, [][]byte{arg0bytes, arg1bytes})
@@ -410,8 +410,8 @@ func (c *syncClient) Lpush(arg0 string, arg1 []byte) (err Error) {
 
 // Redis LSET command.
 func (c *syncClient) Lset(arg0 string, arg1 int64, arg2 []byte) (err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%d", arg1))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
 	arg2bytes := arg2
 
 	_, err = c.conn.ServiceRequest(&LSET, [][]byte{arg0bytes, arg1bytes, arg2bytes})
@@ -421,9 +421,9 @@ func (c *syncClient) Lset(arg0 string, arg1 int64, arg2 []byte) (err Error) {
 
 // Redis LREM command.
 func (c *syncClient) Lrem(arg0 string, arg1 []byte, arg2 int64) (result int64, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
-	arg2bytes := strings.Bytes(fmt.Sprintf("%d", arg2))
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&LREM, [][]byte{arg0bytes, arg1bytes, arg2bytes})
@@ -436,7 +436,7 @@ func (c *syncClient) Lrem(arg0 string, arg1 []byte, arg2 int64) (result int64, e
 
 // Redis LLEN command.
 func (c *syncClient) Llen(arg0 string) (result int64, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&LLEN, [][]byte{arg0bytes})
@@ -449,9 +449,9 @@ func (c *syncClient) Llen(arg0 string) (result int64, err Error) {
 
 // Redis LRANGE command.
 func (c *syncClient) Lrange(arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%d", arg1))
-	arg2bytes := strings.Bytes(fmt.Sprintf("%d", arg2))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&LRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
@@ -464,9 +464,9 @@ func (c *syncClient) Lrange(arg0 string, arg1 int64, arg2 int64) (result [][]byt
 
 // Redis LTRIM command.
 func (c *syncClient) Ltrim(arg0 string, arg1 int64, arg2 int64) (err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%d", arg1))
-	arg2bytes := strings.Bytes(fmt.Sprintf("%d", arg2))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
 
 	_, err = c.conn.ServiceRequest(&LTRIM, [][]byte{arg0bytes, arg1bytes, arg2bytes})
 	return
@@ -474,8 +474,8 @@ func (c *syncClient) Ltrim(arg0 string, arg1 int64, arg2 int64) (err Error) {
 
 // Redis LINDEX command.
 func (c *syncClient) Lindex(arg0 string, arg1 int64) (result []byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%d", arg1))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&LINDEX, [][]byte{arg0bytes, arg1bytes})
@@ -488,7 +488,7 @@ func (c *syncClient) Lindex(arg0 string, arg1 int64) (result []byte, err Error) 
 
 // Redis LPOP command.
 func (c *syncClient) Lpop(arg0 string) (result []byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&LPOP, [][]byte{arg0bytes})
@@ -501,7 +501,7 @@ func (c *syncClient) Lpop(arg0 string) (result []byte, err Error) {
 
 // Redis RPOP command.
 func (c *syncClient) Rpop(arg0 string) (result []byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&RPOP, [][]byte{arg0bytes})
@@ -514,8 +514,8 @@ func (c *syncClient) Rpop(arg0 string) (result []byte, err Error) {
 
 // Redis RPOPLPUSH command.
 func (c *syncClient) Rpoplpush(arg0 string, arg1 string) (result []byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(arg1)
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(arg1)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&RPOPLPUSH, [][]byte{arg0bytes, arg1bytes})
@@ -528,7 +528,7 @@ func (c *syncClient) Rpoplpush(arg0 string, arg1 string) (result []byte, err Err
 
 // Redis SADD command.
 func (c *syncClient) Sadd(arg0 string, arg1 []byte) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
 
 	var resp Response
@@ -543,7 +543,7 @@ func (c *syncClient) Sadd(arg0 string, arg1 []byte) (result bool, err Error) {
 
 // Redis SREM command.
 func (c *syncClient) Srem(arg0 string, arg1 []byte) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
 
 	var resp Response
@@ -558,7 +558,7 @@ func (c *syncClient) Srem(arg0 string, arg1 []byte) (result bool, err Error) {
 
 // Redis SISMEMBER command.
 func (c *syncClient) Sismember(arg0 string, arg1 []byte) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
 
 	var resp Response
@@ -572,8 +572,8 @@ func (c *syncClient) Sismember(arg0 string, arg1 []byte) (result bool, err Error
 
 // Redis SMOVE command.
 func (c *syncClient) Smove(arg0 string, arg1 string, arg2 []byte) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(arg1)
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(arg1)
 	arg2bytes := arg2
 
 	var resp Response
@@ -587,7 +587,7 @@ func (c *syncClient) Smove(arg0 string, arg1 string, arg2 []byte) (result bool, 
 
 // Redis SCARD command.
 func (c *syncClient) Scard(arg0 string) (result int64, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&SCARD, [][]byte{arg0bytes})
@@ -604,11 +604,11 @@ func concatAndGetBytes(arr []string, delim string) []byte {
 		cstr += s
 		cstr += delim
 	}
-	return strings.Bytes(cstr)
+	return []byte(cstr)
 }
 // Redis SINTER command.
 func (c *syncClient) Sinter(arg0 string, arg1 []string) (result [][]byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := concatAndGetBytes(arg1, " ")
 
 	var resp Response
@@ -622,7 +622,7 @@ func (c *syncClient) Sinter(arg0 string, arg1 []string) (result [][]byte, err Er
 
 // Redis SINTERSTORE command.
 func (c *syncClient) Sinterstore(arg0 string, arg1 []string) (err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := concatAndGetBytes(arg1, " ")
 
 	_, err = c.conn.ServiceRequest(&SINTERSTORE, [][]byte{arg0bytes, arg1bytes})
@@ -631,7 +631,7 @@ func (c *syncClient) Sinterstore(arg0 string, arg1 []string) (err Error) {
 
 // Redis SUNION command.
 func (c *syncClient) Sunion(arg0 string, arg1 []string) (result [][]byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := concatAndGetBytes(arg1, " ")
 
 	var resp Response
@@ -645,7 +645,7 @@ func (c *syncClient) Sunion(arg0 string, arg1 []string) (result [][]byte, err Er
 
 // Redis SUNIONSTORE command.
 func (c *syncClient) Sunionstore(arg0 string, arg1 []string) (err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := concatAndGetBytes(arg1, " ")
 
 	_, err = c.conn.ServiceRequest(&SUNIONSTORE, [][]byte{arg0bytes, arg1bytes})
@@ -654,7 +654,7 @@ func (c *syncClient) Sunionstore(arg0 string, arg1 []string) (err Error) {
 
 // Redis SDIFF command.
 func (c *syncClient) Sdiff(arg0 string, arg1 []string) (result [][]byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := concatAndGetBytes(arg1, " ")
 
 	var resp Response
@@ -668,7 +668,7 @@ func (c *syncClient) Sdiff(arg0 string, arg1 []string) (result [][]byte, err Err
 
 // Redis SDIFFSTORE command.
 func (c *syncClient) Sdiffstore(arg0 string, arg1 []string) (err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := concatAndGetBytes(arg1, " ")
 
 	_, err = c.conn.ServiceRequest(&SDIFFSTORE, [][]byte{arg0bytes, arg1bytes})
@@ -677,7 +677,7 @@ func (c *syncClient) Sdiffstore(arg0 string, arg1 []string) (err Error) {
 
 // Redis SMEMBERS command.
 func (c *syncClient) Smembers(arg0 string) (result [][]byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&SMEMBERS, [][]byte{arg0bytes})
@@ -690,7 +690,7 @@ func (c *syncClient) Smembers(arg0 string) (result [][]byte, err Error) {
 
 // Redis SRANDMEMBER command.
 func (c *syncClient) Srandmember(arg0 string) (result []byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&SRANDMEMBER, [][]byte{arg0bytes})
@@ -703,8 +703,8 @@ func (c *syncClient) Srandmember(arg0 string) (result []byte, err Error) {
 
 // Redis ZADD command.
 func (c *syncClient) Zadd(arg0 string, arg1 float64, arg2 []byte) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%e", arg1))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
 	arg2bytes := arg2
 
 	var resp Response
@@ -718,7 +718,7 @@ func (c *syncClient) Zadd(arg0 string, arg1 float64, arg2 []byte) (result bool, 
 
 // Redis ZREM command.
 func (c *syncClient) Zrem(arg0 string, arg1 []byte) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
 
 	var resp Response
@@ -732,7 +732,7 @@ func (c *syncClient) Zrem(arg0 string, arg1 []byte) (result bool, err Error) {
 
 // Redis ZCARD command.
 func (c *syncClient) Zcard(arg0 string) (result int64, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&ZCARD, [][]byte{arg0bytes})
@@ -745,7 +745,7 @@ func (c *syncClient) Zcard(arg0 string) (result int64, err Error) {
 
 // Redis ZSCORE command.
 func (c *syncClient) Zscore(arg0 string, arg1 []byte) (result float64, err Error) {
-	arg0bytes := strings.Bytes(arg0)
+	arg0bytes := []byte(arg0)
 	arg1bytes := arg1
 
 	var resp Response
@@ -773,9 +773,9 @@ func Btof64(buff []byte) (num float64, e Error) {
 
 // Redis ZRANGE command.
 func (c *syncClient) Zrange(arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%d", arg1))
-	arg2bytes := strings.Bytes(fmt.Sprintf("%d", arg2))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&ZRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
@@ -788,9 +788,9 @@ func (c *syncClient) Zrange(arg0 string, arg1 int64, arg2 int64) (result [][]byt
 
 // Redis ZREVRANGE command.
 func (c *syncClient) Zrevrange(arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%d", arg1))
-	arg2bytes := strings.Bytes(fmt.Sprintf("%d", arg2))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&ZREVRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
@@ -803,9 +803,9 @@ func (c *syncClient) Zrevrange(arg0 string, arg1 int64, arg2 int64) (result [][]
 
 // Redis ZRANGEBYSCORE command.
 func (c *syncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (result [][]byte, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%e", arg1))
-	arg2bytes := strings.Bytes(fmt.Sprintf("%e", arg2))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%e", arg2))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&ZRANGEBYSCORE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
@@ -830,8 +830,8 @@ func (c *syncClient) Flushall() (err Error) {
 
 // Redis MOVE command.
 func (c *syncClient) Move(arg0 string, arg1 int64) (result bool, err Error) {
-	arg0bytes := strings.Bytes(arg0)
-	arg1bytes := strings.Bytes(fmt.Sprintf("%d", arg1))
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&MOVE, [][]byte{arg0bytes, arg1bytes})

@@ -23,7 +23,6 @@ import (
 	"bufio"
 	"strconv"
 	"bytes"
-	"strings"
 	"log"
 	"fmt"
 )
@@ -61,7 +60,7 @@ var WHITESPACE ctlbytes = ctlbytes{SPACE_BYTE}
 //
 func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, os.Error) {
 
-	cmd_bytes := strings.Bytes(cmd.Code)
+	cmd_bytes := []byte(cmd.Code)
 	buffer := bytes.NewBuffer(cmd_bytes)
 
 	switch cmd.ReqType {
@@ -97,7 +96,7 @@ func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, os.Error) {
 		buffer.Write(args[0])
 		buffer.Write(WHITESPACE)
 		len := fmt.Sprintf("%d", len(args[1]))
-		buffer.Write(strings.Bytes(len))
+		buffer.Write([]byte(len))
 		buffer.Write(CRLF)
 		buffer.Write(args[1])
 
@@ -111,7 +110,7 @@ func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, os.Error) {
 		buffer.Write(args[1])
 		buffer.Write(WHITESPACE)
 		len := fmt.Sprintf("%d", len(args[2]))
-		buffer.Write(strings.Bytes(len))
+		buffer.Write([]byte(len))
 		buffer.Write(CRLF)
 		buffer.Write(args[2])
 
@@ -123,7 +122,7 @@ func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, os.Error) {
 		buffer.Write(args[2])
 		buffer.Write(WHITESPACE)
 		len := fmt.Sprintf("%d", len(args[1]))
-		buffer.Write(strings.Bytes(len))
+		buffer.Write([]byte(len))
 		buffer.Write(CRLF)
 		buffer.Write(args[1])
 

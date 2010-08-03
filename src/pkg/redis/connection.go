@@ -21,7 +21,6 @@ import (
 	"io"
 	"bufio"
 	"log"
-	"strings"
 	//	"time";
 )
 
@@ -200,13 +199,13 @@ func configureConn(conn *net.TCPConn, spec *ConnectionSpec) {
 // TODO: return redis.Error
 func (c *connHdl) onConnect() (e Error) {
 	if c.spec.password != DefaultRedisPassword {
-		_, e = c.ServiceRequest(&AUTH, [][]byte{strings.Bytes(c.spec.password)})
+		_, e = c.ServiceRequest(&AUTH, [][]byte{[]byte(c.spec.password)})
 		if e != nil {
 			return
 		}
 	}
 	if c.spec.db != DefaultRedisDB {
-		_, e = c.ServiceRequest(&SELECT, [][]byte{strings.Bytes(fmt.Sprintf("%d", c.spec.db))})
+		_, e = c.ServiceRequest(&SELECT, [][]byte{[]byte(fmt.Sprintf("%d", c.spec.db))})
 		if e != nil {
 			return
 		}

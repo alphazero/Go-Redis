@@ -52,7 +52,7 @@ func GetByteArray (v reflect.Value) (arr []byte, ok bool) {
 		aosv := reflect.ArrayOrSliceValue(v);
 		arr = make([]byte, aosv.Len());
 		for i:=0; i<aosv.Len();i++ {
-			arr[i] = aosv.Elem(i).(*reflect.Uint8Value).Get(); 
+			arr[i] = uint8(aosv.Elem(i).(*reflect.UintValue).Get())
 		} 
 		return arr, true;
 	}

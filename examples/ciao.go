@@ -19,7 +19,6 @@ import (
 	"bufio";
 	"log";
 	"fmt";
-	"strings";
 	"redis";
 )
 
@@ -47,10 +46,12 @@ func main () {
 		user, _ := reader.ReadString(byte('\n'));
 		if len(user) > 1 {
 			user = user[0:len(user)-1];
-			value = strings.Bytes(user);
+			value = []byte(user);
 			client.Set(key, value);
+		} else { 
+			fmt.Printf ("vafanculo!\n");
+			return;
 		}
-		else { fmt.Printf ("vafanculo!\n"); return }
 	}
 	fmt.Printf ("Hey, ciao %s!\n", fmt.Sprintf("%s", value));
 }

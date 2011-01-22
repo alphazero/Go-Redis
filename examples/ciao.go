@@ -34,11 +34,11 @@ func main () {
 	
 	spec := redis.DefaultSpec().Db(13).Password("go-redis");
 	client, e := redis.NewSynchClientWithSpec (spec);
-	if e != nil { log.Stderr ("failed to create the client", e); return }
+	if e != nil { log.Println ("failed to create the client", e); return }
 	
 	key := "examples/hello/user.name";
 	value, e := client.Get(key);
-	if e!= nil { log.Stderr ("error on Get", e); return }
+	if e!= nil { log.Println ("error on Get", e); return }
 	
 	if value == nil {
 		fmt.Printf("\nHello, don't believe we've met before!\nYour name? ");

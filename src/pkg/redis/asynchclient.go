@@ -44,7 +44,7 @@ func NewAsynchClientWithSpec (spec *ConnectionSpec) (c AsyncClient, err Error) {
 	_c := new(asyncClient);
 	_c.conn, err = NewAsynchConnection (spec);
 	if err != nil {
-		if debug() {log.Stderr("NewAsyncConnection() raised error: ", err);}
+		if debug() {log.Println("NewAsyncConnection() raised error: ", err);}
 		return nil, err;
 	}
 	return _c, nil;

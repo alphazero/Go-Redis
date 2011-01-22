@@ -81,7 +81,7 @@ func tryReceive(c chan result, ns int64) (v interface{}, error Error, ok bool) {
 		}
 	case to := <-timer:
 		if debug() {
-			log.Stderr("resultchan.TryGet() -- timedout waiting for futurevaluechan | timeout after ", to)
+			log.Println("resultchan.TryGet() -- timedout waiting for futurevaluechan | timeout after ", to)
 		}
 	}
 	return

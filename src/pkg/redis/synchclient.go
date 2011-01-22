@@ -42,12 +42,12 @@ func NewSynchClient() (c Client, err Error) {
 	c, err = NewSynchClientWithSpec(spec)
 	if err != nil {
 		if debug() {
-			log.Stderr("NewSynchClientWithSpec raised error: ", err)
+			log.Println("NewSynchClientWithSpec raised error: ", err)
 		}
 	}
 	if c == nil {
 		if debug() {
-			log.Stderr("NewSynchClientWithSpec returned nil Client.")
+			log.Println("NewSynchClientWithSpec returned nil Client.")
 		}
 		err = NewError(SYSTEM_ERR, "NewSynchClientWithSpec returned nil Client")
 	}
@@ -62,7 +62,7 @@ func NewSynchClientWithSpec(spec *ConnectionSpec) (c Client, err Error) {
 	_c.conn, err = NewSyncConnection(spec)
 	if err != nil {
 		if debug() {
-			log.Stderr("NewSyncConnection() raised error: ", err)
+			log.Println("NewSyncConnection() raised error: ", err)
 		}
 		return nil, err
 	}
@@ -200,10 +200,10 @@ func parseInfo(buff []byte) map[string]string {
 // Redis PING command.
 func (c *syncClient) Ping() (err Error) {
 	if c == nil {
-		log.Stderr("FAULT in synchclient.Ping(): why is c nil?")
+		log.Println("FAULT in synchclient.Ping(): why is c nil?")
 		return NewError(SYSTEM_ERR, "c *syncClient is NIL!")
 	} else if c.conn == nil {
-		log.Stderr("FAULT in synchclient.Ping(): why is c.conn nil?")
+		log.Println("FAULT in synchclient.Ping(): why is c.conn nil?")
 		return NewError(SYSTEM_ERR, "c.conn *SynchConnection is NIL!")
 	}
 	_, err = c.conn.ServiceRequest(&PING, [][]byte{})

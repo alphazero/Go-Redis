@@ -3,12 +3,12 @@ Redis:
 	https://github.com/antirez/redis/zipball/v2.0.0-stable
 
 Go:
-	release (as of 4/17/2011)
-	6g version release.2011-03-07 7666
-	6l version release.2011-03-07 7666
+	release (as of 4/18/2011)
+	6g version release.r56 7666
+	6l version release.r56 7666
 
 Test platform
 	darwin/amd64
 
 --
-April 17, 2011
+April 18, 2011

@@ -11,6 +11,9 @@ Also am not sure regarding the efficiency of the implementation (for the obvious
 
 The code is consolidated into a single 'redis' package and various elements of it are usable independently (for example if you wish to roll your own API but want to use the raw bytes protocol handling aspects).
 
+# Compliance
+Refer to compliance_note.txt.
+
 # Getting started:
 
 Get, build, and startup [Redis][Redis]:

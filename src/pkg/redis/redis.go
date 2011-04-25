@@ -19,7 +19,7 @@
 package redis
 
 import (
-	"flag";
+	"flag"
 //	"runtime";
 )
 

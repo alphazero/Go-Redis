@@ -164,6 +164,7 @@ var (
  	FLUSHDB			Command = Command {"FLUSHDB", NO_ARG, 	STATUS};
  	FLUSHALL		Command = Command {"FLUSHALL", NO_ARG, 	STATUS};
  	MOVE			Command = Command {"MOVE", KEY_NUM, 	BOOLEAN};
+// TODO	SORT		(RequestType.MULTI_KEY,		ResponseType.MULTI_BULK), 
  	SORT			Command = Command {"SORT", KEY_SPEC, 	MULTI_BULK};
  	SAVE			Command = Command {"SAVE", NO_ARG, 	STATUS};
  	BGSAVE			Command = Command {"BGSAVE", NO_ARG, 	STATUS};

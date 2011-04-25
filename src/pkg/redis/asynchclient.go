@@ -16,8 +16,9 @@
 package redis
 
 import (
-	"log";
-	"fmt";
+	"log"
+	"fmt"
+	"strconv"
 )
 
 // -----------------------------------------------------------------------------
@@ -343,7 +344,7 @@ func (c *asyncClient) Lpush (arg0 string, arg1 []byte) (result FutureBool, err E
 // Redis LSET command.
 func (c *asyncClient) Lset (arg0 string, arg1 int64, arg2 []byte) (stat FutureBool, err Error){
 	arg0bytes := []byte (arg0);
-	arg1bytes := []byte (fmt.Sprintf("%d", arg1));
+	arg1bytes := []byte(strconv.Itoa64(arg1))
 	arg2bytes := arg2;
 
 	resp, err := c.conn.QueueRequest(&LSET, [][]byte{arg0bytes, arg1bytes, arg2bytes});
@@ -354,10 +355,10 @@ func (c *asyncClient) Lset (arg0 string, arg1 int64, arg2 []byte) (stat FutureBo
 
 
 // Redis LREM command.
-func (c *asyncClient) Lrem (arg0 string, arg1 []byte, arg2 int64) (result FutureInt64, err Error){
-	arg0bytes := []byte (arg0);
-	arg1bytes := arg1;
-	arg2bytes := []byte (fmt.Sprintf("%d", arg2));
+func (c *asyncClient) Lrem (key string, value []byte, count int64) (result FutureInt64, err Error){
+	arg0bytes := []byte (key);
+	arg1bytes := value;
+	arg2bytes := []byte(strconv.Itoa64(count))
 
 	var resp *PendingResponse;
 	resp, err = c.conn.QueueRequest(&LREM, [][]byte{arg0bytes, arg1bytes, arg2bytes});
@@ -380,8 +381,8 @@ func (c *asyncClient) Llen (arg0 string) (result FutureInt64, err Error){
 // Redis LRANGE command.
 func (c *asyncClient) Lrange (arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error){
 	arg0bytes := []byte (arg0);
-	arg1bytes := []byte (fmt.Sprintf("%d", arg1));
-	arg2bytes := []byte (fmt.Sprintf("%d", arg2));
+	arg1bytes := []byte(strconv.Itoa64(arg1))
+	arg2bytes := []byte(strconv.Itoa64(arg2))
 
 	var resp *PendingResponse;
 	resp, err = c.conn.QueueRequest(&LRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes});

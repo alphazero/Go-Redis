@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"bytes"
 	"log"
-	"fmt"
+//	"fmt"
 )
 // ----------------------------------------------------------------------------
 // Wire
@@ -60,83 +60,26 @@ var WHITESPACE ctlbytes = ctlbytes{SPACE_BYTE}
 //
 func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, os.Error) {
 
+
 	cmd_bytes := []byte(cmd.Code)
-	buffer := bytes.NewBuffer(cmd_bytes)
-
-	switch cmd.ReqType {
-
-	case NO_ARG:
-
-	case KEY:
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[0])
-
-	case
-		KEY_KEY,
-		KEY_NUM,
-		KEY_SPEC:
-
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[0])
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[1])
-
-	case KEY_NUM_NUM:
-
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[0])
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[1])
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[2])
-
-	case KEY_VALUE:
-
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[0])
-		buffer.Write(WHITESPACE)
-		len := fmt.Sprintf("%d", len(args[1]))
-		buffer.Write([]byte(len))
-		buffer.Write(CRLF)
-		buffer.Write(args[1])
-
-	case
-		KEY_IDX_VALUE,
-		KEY_KEY_VALUE:
-
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[0])
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[1])
-		buffer.Write(WHITESPACE)
-		len := fmt.Sprintf("%d", len(args[2]))
-		buffer.Write([]byte(len))
-		buffer.Write(CRLF)
-		buffer.Write(args[2])
-
-	case KEY_CNT_VALUE:
-
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[0])
-		buffer.Write(WHITESPACE)
-		buffer.Write(args[2])
-		buffer.Write(WHITESPACE)
-		len := fmt.Sprintf("%d", len(args[1]))
-		buffer.Write([]byte(len))
-		buffer.Write(CRLF)
-		buffer.Write(args[1])
-
-	case MULTI_KEY:
-
-		buffer.Write(WHITESPACE)
-		keycnt := len(args)
-		for i := 0; i < keycnt; i++ {
-			buffer.Write(args[i])
-			buffer.Write(WHITESPACE)
-		}
+	
+	buffer := bytes.NewBufferString("")
+	buffer.WriteByte (COUNT_BYTE);
+	buffer.Write ([]byte (strconv.Itoa(len(args)+1)))
+	buffer.Write (CRLF);
+	buffer.WriteByte (SIZE_BYTE);
+	buffer.Write ([]byte (strconv.Itoa(len(cmd_bytes))))
+	buffer.Write (CRLF);
+	buffer.Write (cmd_bytes);
+	buffer.Write (CRLF);
+	
+	for _, s := range args {
+		buffer.WriteByte (SIZE_BYTE);
+		buffer.Write([]byte(strconv.Itoa(len(s))))
+		buffer.Write(CRLF);
+		buffer.Write(s);
+		buffer.Write(CRLF);
 	}
-
-	buffer.Write(CRLF)
 
 	return buffer.Bytes(), nil
 }
@@ -497,4 +440,13 @@ func readBulkData(conn *bufio.Reader, len int64) ([]byte, os.Error) {
 	}
 
 	return buff, nil
+}
+
+// convenience func for now
+// but slated to optimize converting ints to their []byte literal representation
+
+func writeNum(b *bytes.Buffer, n int) (*bytes.Buffer, os.Error) {
+	nb := ([]byte (strconv.Itoa(n)))
+	b.Write(nb)
+	return b, nil
 }

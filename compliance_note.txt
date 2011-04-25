@@ -1,6 +1,6 @@
 Redis: 
-	2.0.0 (stable)
-	https://github.com/antirez/redis/zipball/v2.0.0-stable
+	2.2.4 
+	https://github.com/antirez/redis/zipball/2.2.4
 
 Go:
 	release (as of 4/18/2011)
@@ -11,4 +11,4 @@ Test platform
 	darwin/amd64
 
 --
-April 18, 2011
+April 24, 2011

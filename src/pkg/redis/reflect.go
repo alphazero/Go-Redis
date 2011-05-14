@@ -25,47 +25,48 @@ import (
 //	(independent) little package as using Go reflection is quite tedious.
 // ----------------------------------------------------------------------------
 
-func ToByteSliceArray (v *reflect.StructValue) (bsa [][]byte, ok bool) {
-	n:= v.NumField();
-	bsa = make([][]byte, n);
-	for i:=0; i<n; i++ {
-		bsa[i], ok = GetByteArrayAtIndex (v, i);
+func ToByteSliceArray(v reflect.Value) (bsa [][]byte, ok bool) {
+	n := v.NumField()
+	bsa = make([][]byte, n)
+	for i := 0; i < n; i++ {
+		bsa[i], ok = GetByteArrayAtIndex(v, i)
 		if !ok {
-			if debug() {}
-			break;
+			if debug() {
+			}
+			break
 		}
 	}
-	return;
+	return
 }
 // TODO: document me
 //
-func GetByteArrayAtIndex(v *reflect.StructValue, i int) (arr []byte, ok bool){
-	field := v.Field(i);
-	return GetByteArray (field);
-}
-
-// TODO: document me
-//
-func GetByteArray (v reflect.Value) (arr []byte, ok bool) {
-	switch v := v.(type) {
-	case reflect.ArrayOrSliceValue:
-		aosv := reflect.ArrayOrSliceValue(v);
-		arr = make([]byte, aosv.Len());
-		for i:=0; i<aosv.Len();i++ {
-			arr[i] = uint8(aosv.Elem(i).(*reflect.UintValue).Get())
-		} 
-		return arr, true;
-	}
-	return;
+func GetByteArrayAtIndex(v reflect.Value, i int) (arr []byte, ok bool) {
+	field := v.Field(i)
+	return GetByteArray(field)
 }
 
 // TODO: document me
 //
-func GetByteArrayLen (v reflect.Value) (len int, ok bool) {
-	switch v := v.(type) {
-	case reflect.ArrayOrSliceValue:
-		aosv := reflect.ArrayOrSliceValue(v);
-		return aosv.Len(), true;
+func GetByteArray(v reflect.Value) (arr []byte, ok bool) {
+	switch v.Kind() {
+	case reflect.Array, reflect.Slice:
+		aosv := reflect.Value(v)
+		arr = make([]byte, aosv.Len())
+		for i := 0; i < aosv.Len(); i++ {
+			arr[i] = uint8(aosv.Index(i).Uint())
+		}
+		return arr, true
 	}
-	return;
+	return
+}
+
+// TODO: document me
+//
+func GetByteArrayLen(v reflect.Value) (len int, ok bool) {
+	switch v.Kind() {
+	case reflect.Array, reflect.Slice:
+		aosv := reflect.Value(v)
+		return aosv.Len(), true
+	}
+	return
 }

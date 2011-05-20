@@ -127,7 +127,11 @@ func (c *syncClient) Keys(arg0 string) (result []string, err Error) {
 	resp, err = c.conn.ServiceRequest(&KEYS, [][]byte{arg0bytes})
 	if err == nil {
 		//		result = strings.Split(bytes.NewBuffer(resp.GetBulkData()).String(), " ", 0);
-		result = convAndSplit(resp.GetBulkData())
+		res := resp.GetMultiBulkData()
+		var result []string = make([]string, len(res))
+		for i, key_bytes := range res {
+			result[i] = string(key_bytes)
+		}
 	}
 	return result, err
 

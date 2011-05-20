@@ -122,7 +122,7 @@ var (
  	EXISTS			Command = Command {"EXISTS", KEY, 	BOOLEAN};
  	DEL				Command = Command {"DEL", KEY, 	BOOLEAN};
  	TYPE			Command = Command {"TYPE", KEY, 	STRING};
- 	KEYS			Command = Command {"KEYS", KEY, 	BULK};
+ 	KEYS			Command = Command {"KEYS", KEY, 	MULTI_BULK};
  	RANDOMKEY		Command = Command {"RANDOMKEY", NO_ARG, 	STRING};
  	RENAME			Command = Command {"RENAME", KEY_KEY, 	STATUS};
  	RENAMENX		Command = Command {"RENAMENX", KEY_KEY, 	BOOLEAN};

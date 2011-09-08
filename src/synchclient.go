@@ -138,7 +138,7 @@ func (c *syncClient) Keys(arg0 string) (result []string, err Error) {
 }
 
 func convAndSplit(buff []byte) []string {
-	return strings.Split(bytes.NewBuffer(buff).String(), " ", 0)
+	return strings.SplitN(bytes.NewBuffer(buff).String(), " ", 0)
 }
 /***
 // Redis SORT command.
@@ -193,10 +193,10 @@ func (c *syncClient) Info() (result map[string]string, err Error) {
 
 func parseInfo(buff []byte) map[string]string {
 	infoStr := bytes.NewBuffer(buff).String()
-	infoItems := strings.Split(infoStr, "\r\n", 0)
+	infoItems := strings.SplitN(infoStr, "\r\n", 0)
 	result := make(map[string]string)
 	for _, entry := range infoItems {
-		etuple := strings.Split(entry, ":", 2)
+		etuple := strings.SplitN(entry, ":", 2)
 		result[etuple[0]] = etuple[1]
 	}
 	return result
@@ -428,7 +428,6 @@ func (c *syncClient) Lrem(key string, value []byte, count int64) (result int64, 
 	arg0bytes := []byte(key)
 	arg1bytes := value
 	arg2bytes := []byte(strconv.Itoa64(count))
-	
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&LREM, [][]byte{arg0bytes, arg1bytes, arg2bytes})

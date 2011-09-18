@@ -66,7 +66,7 @@ To build and install Go-Redis, from the root directory of the git clone:
 	cd -
 Or to install using goinstall:
 
-	goinstall github.com/kpm/Go-Redis/src
+	goinstall github.com/alphazero/Go-Redis/src
 	
 Confirm the install:
 

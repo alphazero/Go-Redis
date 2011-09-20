@@ -277,7 +277,7 @@ func getMultiBulkResponse(conn *bufio.Reader, cmd *Command) (Response, os.Error)
 		return nil, e2
 	}
 
-	log.Println("multibulk data count: ", num)
+	//log.Println("multibulk data count: ", num)
 	if num < 0 {
 		return newMultiBulkResponse(nil, false), nil
 	}

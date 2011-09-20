@@ -64,7 +64,10 @@ To build and install Go-Redis, from the root directory of the git clone:
 	cd src/pkg/redis
 	make clean && make install
 	cd -
+Or to install using goinstall:
 
+	goinstall github.com/alphazero/Go-Redis/src
+	
 Confirm the install:
 
 	ls -l $GOROOT/pkg/"$GOOS"_"$GOARCH"/redis.a

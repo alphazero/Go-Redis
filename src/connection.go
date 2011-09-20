@@ -156,7 +156,7 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 		return nil, NewError(SYSTEM_ERR, fmt.Sprintf("%s(): failed to allocate connHdl", here))
 	}
 	addr := fmt.Sprintf("%s:%d", spec.host, spec.port)
-	raddr, e := net.ResolveTCPAddr(addr)
+	raddr, e := net.ResolveTCPAddr("tcp", addr)
 	if e != nil {
 		msg := fmt.Sprintf("%s(): failed to resolve remote address %s", here, addr)
 		return nil, NewErrorWithCause(SYSTEM_ERR, msg, e)

@@ -1,15 +1,14 @@
 Redis: 
-	2.2.13 
-	https://github.com/antirez/redis/zipball/2.2.13
+	2.4.6 
 
 Go:
 	release (as of 4/18/2011)
-	6g version release.r60.1 9497
-	6l version release.r60.1 9497
+	6g version release.r60.3 9516
+	6l version release.r60.3 9516
 
 Test platform
 	darwin/amd64
 
 --
-September 21, 2011
+January 31, 2012
 bushwick/nyc

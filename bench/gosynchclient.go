@@ -112,8 +112,8 @@ func makeConcurrentClients(workers int) (clients []redis.Client, err os.Error) {
 
 func report(cmd string, delta int64, cnt int) {
 	fmt.Printf("---\n")
-	fmt.Printf(fmt.Sprintf("cmd: %s\n", cmd))
-	fmt.Printf(fmt.Sprintf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/1000000))
+	fmt.Printf("cmd: %s\n", cmd)
+	fmt.Printf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/1000000)
 }
 
 // ----------------------------------------------------------------------------

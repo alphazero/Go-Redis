@@ -29,32 +29,56 @@ type error struct {
     cause   os.Error
 }
 
-// Checks the redis.Client interface methods against a
+type clientType string
+
+ const (
+    sync clientType = "redis.Client";
+    async = "redis.AsyncClient";
+)
+
+// Checks Redis client interfaces' methods against a
 // a list of canonical Redis methods obtained from a
 // spec file and reports the missing methods
 func main() {
-    specfname, e := getSpecFileName("checksync.txt");
+    specfname, e := getSpecFileName("compliance.prop");
     if e != nil {
         log.Println("error -", e)
     }
-    specmap, e1 := readCommandsFromSpecFile(specfname)
+    rmspec, e1 := readCommandsFromSpecFile(specfname)
     if e1 != nil {
         log.Println("error -", e1)
         return
     }
 
-    defined, e2 := getDefinedMethods()
+    var rctype clientType
+
+    fmt.Println()
+    fmt.Println("/////////////////////////////////////")
+    fmt.Println("///  Go-Redis client compliance   ///")
+    fmt.Println("/////////////////////////////////////\n")
+
+    rctype = sync
+    analyzeAndReport(rctype, rmspec)
+
+    rctype = async
+    analyzeAndReport(rctype, rmspec)
+}
+
+// Get the defined methods for the specified client type
+// and report compliance
+func analyzeAndReport(rctype clientType, rmspec []string) {
+    defined, e2 := getDefinedMethods(rctype)
     if e2 != nil {
         log.Println ("error -", e2)
+        return
     }
-
-    reportCompliance(defined, specmap)
+    reportCompliance(rctype, defined, rmspec)
 }
 
 // check method name map against spec'd method names
 // and report undefined methods
-func reportCompliance(mmap map[string]string, specms []string){
-    fmt.Println("=== compliance report =========================")
+func reportCompliance(rctype clientType, mmap map[string]string, specms []string){
+    fmt.Printf("=== compliance report [%s] =========================\n", rctype)
     var nccnt = 0
     for _, method := range specms {
         if mmap[method] == "" {
@@ -87,22 +111,41 @@ func readCommandsFromSpecFile (specfile string) ([]string, os.Error) {
 
 // Reflect over the methods defined in redis.Client
 // and send back as []string (tolowercase)
-func getDefinedMethods () (map[string]string, *error) {
+// TOOD get rid of redundant code in switch
+// (REVU: needs minor update to core code)
+func getDefinedMethods (ctype clientType) (map[string]string, *error) {
 
     var mmap = map[string]string {}
 
+    var tc reflect.Type;
+    var client interface{};
+
 	spec := redis.DefaultSpec().Db(13).Password("go-redis")
 
-	client, e := redis.NewSynchClientWithSpec(spec)
-	if e != nil {
-        log.Println("ignoring - ", e)
-	}
-	if client == nil {
-	    return mmap, &error{"client is nil", nil}
-	}
-	defer client.Quit()
-
-    tc := reflect.TypeOf(client)
+    switch ctype {
+    case sync:
+        _client, e := redis.NewSynchClientWithSpec(spec)
+        if e != nil {
+            log.Println("ignoring - ", e)
+        }
+        if _client == nil {
+            return mmap, &error{"client is nil", nil}
+        }
+        defer _client.Quit()
+        client = _client
+    case async:
+        _client, e := redis.NewAsynchClientWithSpec(spec)
+        if e != nil {
+            log.Println("ignoring - ", e)
+        }
+        if _client == nil {
+            return mmap, &error{"client is nil", nil}
+        }
+        defer _client.Quit()
+        client = _client
+    }
+    tc = reflect.TypeOf(client)
+//log.Printf("%s\n", tc)
     nm := tc.NumMethod()
 
     for i := 0; i < nm; i++ {

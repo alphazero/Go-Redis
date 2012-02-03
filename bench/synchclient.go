@@ -51,6 +51,8 @@ func doOne(cnt int) os.Error {
 	if client == nil {
 		return failedTest("NewSynchClient returned nil!")
 	}
+	//	defer client.Quit()   // will be deprecated soon
+	defer client.RedisClient().Quit()
 
 	client.Flushdb()
 
@@ -81,7 +83,6 @@ func doOne(cnt int) os.Error {
 	delta = doRpop(client, cnt)
 	report("RPOP", delta, cnt)
 
-	client.Quit()
 	return nil
 }
 
@@ -89,6 +90,7 @@ func report(cmd string, delta int64, cnt int) {
 	fmt.Printf("---\n")
 	fmt.Printf("cmd: %s\n", cmd)
 	fmt.Printf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/1000000)
+	fmt.Printf("---\n")
 }
 
 func doPing(client redis.Client, cnt int) (delta int64) {

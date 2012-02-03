@@ -308,7 +308,6 @@ func (fvc _futurefloat64) TryGet(ns int64) (v float64, error Error, ok bool) {
 	return v, nil, ok
 }
 
-
 // ------------------
 // FutureKeys
 //

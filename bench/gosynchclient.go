@@ -86,7 +86,8 @@ func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool)
 	}
 	delta = time.Nanoseconds() - t0
 	for i := 0; i < workers; i++ {
-		clients[i].Quit()
+		clients[i].Quit() // will be deprecated soon
+		clients[i].RedisClient().Quit()
 	}
 
 	if printReport {
@@ -114,6 +115,7 @@ func report(cmd string, delta int64, cnt int) {
 	fmt.Printf("---\n")
 	fmt.Printf("cmd: %s\n", cmd)
 	fmt.Printf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/1000000)
+	fmt.Printf("---\n\n")
 }
 
 // ----------------------------------------------------------------------------

@@ -49,7 +49,7 @@ var opcnt = flag.Int("n", 10000, "number of task iterations per worker")
 
 func main() {
 	// DEBUG
-    log.SetPrefix("[go-redis|bench] ")
+	log.SetPrefix("[go-redis|bench] ")
 	flag.Parse()
 
 	fmt.Printf("\n\n=== Bench synchclient ================ %d Concurrent Clients -- %d opts each --- \n\n", *workers, *opcnt)
@@ -59,18 +59,18 @@ func main() {
 
 }
 
-
 // Use a single redis.AsyncClient with specified number
 // of workers to bench concurrent load on the async client
 func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool) (delta int64, err os.Error) {
 	signal := make(chan int, workers) // Buffering optional but sensible.
-    spec := redis.DefaultSpec().Db(13).Password("go-redis")
-    client, e := redis.NewAsynchClientWithSpec(spec)
-    if e != nil {
-        log.Println("Error creating client for worker: ", e)
-        return -1, e
-    }
-    defer client.Quit()
+	spec := redis.DefaultSpec().Db(13).Password("go-redis")
+	client, e := redis.NewAsynchClientWithSpec(spec)
+	if e != nil {
+		log.Println("Error creating client for worker: ", e)
+		return -1, e
+	}
+	//    defer client.Quit()        // will be deprecated soon
+	defer client.RedisClient().Quit()
 
 	t0 := time.Nanoseconds()
 	for i := 0; i < workers; i++ {
@@ -81,10 +81,10 @@ func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool)
 		<-signal
 	}
 	delta = time.Nanoseconds() - t0
-//	for i := 0; i < workers; i++ {
-//		clients[i].Quit()
-//	}
-//
+	//	for i := 0; i < workers; i++ {
+	//		clients[i].Quit()
+	//	}
+	//
 	if printReport {
 		report("concurrent "+taskspec.name, delta, iterations*workers)
 	}
@@ -95,8 +95,8 @@ func report(cmd string, delta int64, cnt int) {
 	fmt.Printf("---\n")
 	fmt.Printf("cmd: %s\n", cmd)
 	fmt.Printf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/1000000)
+	fmt.Printf("---\n\n")
 }
-
 
 // ----------------------------------------------------------------------------
 // redis tasks
@@ -168,4 +168,3 @@ func doRpop(id string, signal chan int, client redis.AsyncClient, cnt int) {
 	}
 	signal <- 1
 }
-

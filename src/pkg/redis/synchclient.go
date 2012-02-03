@@ -70,8 +70,25 @@ func NewSynchClientWithSpec(spec *ConnectionSpec) (c Client, err Error) {
 }
 
 // -----------------------------------------------------------------------------
+// interface redis.RedisClient support
+// -----------------------------------------------------------------------------
+
+// Redis QUIT command.
+func (c *syncClient) Quit() (err Error) {
+	c.conn.Close()
+	//	_, err = c.conn.ServiceRequest(&QUIT);
+	return
+}
+
+// -----------------------------------------------------------------------------
 // interface redis.Client support
 // -----------------------------------------------------------------------------
+
+// Coerce to RedisClient type
+func (c *syncClient) RedisClient() RedisClient {
+	var rc interface{} = c
+	return rc.(RedisClient)
+}
 
 // Redis GET command.
 func (c *syncClient) Get(arg0 string) (result []byte, err Error) {
@@ -214,12 +231,12 @@ func (c *syncClient) Ping() (err Error) {
 	return
 }
 
-// Redis QUIT command.
-func (c *syncClient) Quit() (err Error) {
-	c.conn.Close()
-	//	_, err = c.conn.ServiceRequest(&QUIT);
-	return
-}
+//// Redis QUIT command.
+//func (c *syncClient) Quit() (err Error) {
+//	c.conn.Close()
+//	//	_, err = c.conn.ServiceRequest(&QUIT);
+//	return
+//}
 
 // Redis SETNX command.
 func (c *syncClient) Setnx(arg0 string, arg1 []byte) (result bool, err Error) {
@@ -262,7 +279,6 @@ func (c *syncClient) Mget(arg0 string, arg1 []string) (result [][]byte, err Erro
 	return result, err
 
 }
-
 
 // Redis INCR command.
 func (c *syncClient) Incr(arg0 string) (result int64, err Error) {
@@ -422,7 +438,6 @@ func (c *syncClient) Lset(arg0 string, arg1 int64, arg2 []byte) (err Error) {
 	return
 }
 
-
 // Redis LREM command.
 func (c *syncClient) Lrem(key string, value []byte, count int64) (result int64, err Error) {
 	arg0bytes := []byte(key)
@@ -544,7 +559,6 @@ func (c *syncClient) Sadd(arg0 string, arg1 []byte) (result bool, err Error) {
 
 }
 
-
 // Redis SREM command.
 func (c *syncClient) Srem(arg0 string, arg1 []byte) (result bool, err Error) {
 	arg0bytes := []byte(arg0)
@@ -558,7 +572,6 @@ func (c *syncClient) Srem(arg0 string, arg1 []byte) (result bool, err Error) {
 	return result, err
 
 }
-
 
 // Redis SISMEMBER command.
 func (c *syncClient) Sismember(arg0 string, arg1 []byte) (result bool, err Error) {

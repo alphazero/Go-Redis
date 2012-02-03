@@ -485,7 +485,7 @@ work:
 			log.Println("<BUG> nil stat from worker ", name)
 		}
 		if stat.code != ok {
-//			fmt.Println(name, "_worker: task error!")
+			//			fmt.Println(name, "_worker: task error!")
 			tstat = stat
 			goto on_error
 		} else if is != nil {
@@ -503,7 +503,7 @@ on_error:
 	goto await_signal
 
 before_stop:
-//	fmt.Println(name, "_worker: before_stop!")
+	//	fmt.Println(name, "_worker: before_stop!")
 	// TODO: add shutdown hook for worker
 
 	log.Println(name, "_worker: STOPPED!")
@@ -701,7 +701,6 @@ func (c *asyncConnHdl) processAsyncRequest(req asyncReqPtr) (blen int, e os.Erro
 	}
 	return
 }
-
 
 // ----------------------------------------------------------------------------
 // AsyncConnection interface & Impl

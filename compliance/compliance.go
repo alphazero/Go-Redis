@@ -117,35 +117,27 @@ func getDefinedMethods(ctype clientType) (map[string]string, *error) {
 
 	var mmap = map[string]string{}
 
-	var tc reflect.Type
-	var client interface{}
-
 	spec := redis.DefaultSpec().Db(13).Password("go-redis")
+
+	var e redis.Error
+	var client interface{}
 
 	switch ctype {
 	case sync:
-		_client, e := redis.NewSynchClientWithSpec(spec)
-		if e != nil {
-			log.Println("ignoring - ", e)
-		}
-		if _client == nil {
-			return mmap, &error{"client is nil", nil}
-		}
-		defer _client.Quit()
-		client = _client
+		client, e = redis.NewSynchClientWithSpec(spec)
 	case async:
-		_client, e := redis.NewAsynchClientWithSpec(spec)
-		if e != nil {
-			log.Println("ignoring - ", e)
-		}
-		if _client == nil {
-			return mmap, &error{"client is nil", nil}
-		}
-		defer _client.Quit()
-		client = _client
+		client, e = redis.NewAsynchClientWithSpec(spec)
 	}
-	tc = reflect.TypeOf(client)
-	//log.Printf("%s\n", tc)
+	if e != nil {
+		log.Println("ignoring - ", e)
+	}
+	if client == nil {
+		return mmap, &error{"client is nil", nil}
+	} else {
+		defer client.(redis.RedisClient).Quit()
+	}
+
+	tc := reflect.TypeOf(client)
 	nm := tc.NumMethod()
 
 	for i := 0; i < nm; i++ {

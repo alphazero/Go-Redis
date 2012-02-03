@@ -14,7 +14,7 @@
 //
 
 /*
-*/
+ */
 package redis
 
 import (
@@ -23,8 +23,8 @@ import (
 	"bufio"
 	"strconv"
 	"bytes"
-//	"log"
-//	"fmt"
+	//	"log"
+	//	"fmt"
 )
 // ----------------------------------------------------------------------------
 // Wire
@@ -60,25 +60,24 @@ var WHITESPACE ctlbytes = ctlbytes{SPACE_BYTE}
 //
 func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, os.Error) {
 
-
 	cmd_bytes := []byte(cmd.Code)
-	
+
 	buffer := bytes.NewBufferString("")
-	buffer.WriteByte (COUNT_BYTE);
-	buffer.Write ([]byte (strconv.Itoa(len(args)+1)))
-	buffer.Write (CRLF);
-	buffer.WriteByte (SIZE_BYTE);
-	buffer.Write ([]byte (strconv.Itoa(len(cmd_bytes))))
-	buffer.Write (CRLF);
-	buffer.Write (cmd_bytes);
-	buffer.Write (CRLF);
-	
+	buffer.WriteByte(COUNT_BYTE)
+	buffer.Write([]byte(strconv.Itoa(len(args) + 1)))
+	buffer.Write(CRLF)
+	buffer.WriteByte(SIZE_BYTE)
+	buffer.Write([]byte(strconv.Itoa(len(cmd_bytes))))
+	buffer.Write(CRLF)
+	buffer.Write(cmd_bytes)
+	buffer.Write(CRLF)
+
 	for _, s := range args {
-		buffer.WriteByte (SIZE_BYTE);
+		buffer.WriteByte(SIZE_BYTE)
 		buffer.Write([]byte(strconv.Itoa(len(s))))
-		buffer.Write(CRLF);
-		buffer.Write(s);
-		buffer.Write(CRLF);
+		buffer.Write(CRLF)
+		buffer.Write(s)
+		buffer.Write(CRLF)
 	}
 
 	return buffer.Bytes(), nil
@@ -308,7 +307,6 @@ func getMultiBulkResponse(conn *bufio.Reader, cmd *Command) (Response, os.Error)
 	return newMultiBulkResponse(multibulkdata, false), nil
 }
 
-
 // ----------------------------------------------------------------------------
 // Response
 // ----------------------------------------------------------------------------
@@ -446,7 +444,7 @@ func readBulkData(conn *bufio.Reader, len int64) ([]byte, os.Error) {
 // but slated to optimize converting ints to their []byte literal representation
 
 func writeNum(b *bytes.Buffer, n int) (*bytes.Buffer, os.Error) {
-	nb := ([]byte (strconv.Itoa(n)))
+	nb := ([]byte(strconv.Itoa(n)))
 	b.Write(nb)
 	return b, nil
 }

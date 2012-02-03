@@ -169,8 +169,8 @@ func (c *asyncClient) Quit () (stat FutureBool, err Error){
 //	c.conn.Close();
 ////	resp, err = c.conn.QueueRequest(&QUIT);
 //	if err == nil {stat = resp.future.(FutureBool);}
-
-	return nil, NewError(SYSTEM_ERR, "<BUG> Lazy programmer hasn't implemented Quit!");;
+    log.Println("<BUG> Lazy programmer hasn't implemented Quit!")
+	return nil, NewError(SYSTEM_ERR, "<BUG> Lazy programmer hasn't implemented Quit!")
 }
 
 // Redis SETNX command.

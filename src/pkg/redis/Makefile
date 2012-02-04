@@ -7,6 +7,7 @@ GOFILES=\
 	specification.go\
 	error.go\
 	redis.go\
+	redisfutures.go\
 	protocol.go\
 	connection.go\
 	synchclient.go\

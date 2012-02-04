@@ -11,10 +11,11 @@
 //   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
-//
 
-// Package redis defines the interfaces for Redis clients.
-// Both synchronous and asynchronous are defined.
+// Package redis provides both clients and connectors for the Redis
+// server.  Both synchronous and asynchronous interaction modes are
+// supported.  Asynchronous clients (using the asynchronous connection)
+// use pipelining.
 package redis
 
 import (

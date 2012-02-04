@@ -16,6 +16,80 @@
 // server.  Both synchronous and asynchronous interaction modes are
 // supported.  Asynchronous clients (using the asynchronous connection)
 // use pipelining.
+//
+// Synchronous semantics are defined by redis.Client interface type
+//
+//
+// Usage example:
+//
+//  func usingRedisSync () Error {
+//      spec := DefaultConnectionSpec();
+//      pipeline := NewAsynchClient(spec);
+//
+//      value, reqErr := pipeline.Get("my-key");
+//      if reqErr != nil { return withError (reqErr); }
+//  }
+//
+// Asynchronous semantics are defined by redis.AsyncClient interface type.
+// Note that these clients use a pipelining connector and a single instance
+// can be used by multiple go routines.  Use of pipelining increases throughput
+// at the cost of latency.  If low latency is more important to you than
+// throughput, and you require async call semantics, then you should use only
+// 1 go routine per AsyncClient connection.
+//
+// Usage example without timeouts (caller blocks on Get until the response
+// from Redis has been processed.)
+//
+//  func usingRedisAsync () Error {
+//      spec := DefaultConnectionSpec();
+//      pipeline := NewRedisPipeline(spec);
+//
+//      // async invoke of GET my-key
+//      // futureBytes is a FutureBytes that will have the result of the
+//      // Redis GET operation.
+//      futureBytes, reqErr := pipline.Get("my-key");
+//      if reqErr != nil {
+//          return withError (reqErr);
+//      }
+//
+//      // ... note that you could issue additional redis commands here ...
+//
+//      []byte, execErr := futureBytes.Get();
+//      if execErr != nil {
+//          return withError (execErr);
+//      }
+//  }
+//
+// Usage example with timeouts - same Redis op as above but here we use
+// TryGet on the Future result with a timeout of 1 msecs:
+//
+//  func usingRedisAsync () Error {
+//      spec := DefaultConnectionSpec();
+//      pipeline := NewRedisPipeline(spec);
+//
+//      // futureBytes is a FutureBytes
+//      futureBytes, reqErr := pipline.Get("my-key");
+//      if reqErr != nil { return withError (reqErr); }
+//
+//      // ... note that you could issue additional redis commands here ...
+//
+//      []byte, execErr := futureBytes.Get();
+//      if execErr != nil {
+//          return withError (execErr);
+//      }
+//
+//      timeout := 1000000; // wait 1 msec for result
+//      []byte, execErr, ok := futureBytes.TryGet (timeout);
+//      if !ok {
+//          .. handle timeout here
+//      }
+//      else {
+//          if execErr != nil {
+//              return withError (execErr);
+//          }
+//      }
+//  }
+//
 package redis
 
 import (
@@ -46,17 +120,6 @@ type RedisClient interface {
 // All methods may return an redis.Error, which is either a Redis error (from
 // the server), or a system error indicating a runtime issue (or bug).
 // See Error in this package for details of its interface.
-//
-// Usage example:
-//
-//  func usingRedisSync () Error {
-//      spec := DefaultConnectionSpec();
-//      pipeline := NewAsynchClient(spec);
-//
-//      // futureBytes is a FutureBytes
-//      value, reqErr := pipeline.Get("my-key");
-//      if reqErr != nil { return withError (reqErr); }
-//  }
 type Client interface {
 
 	// psuedo inheritance to coerce to RedisClient type
@@ -251,35 +314,12 @@ type Client interface {
 // any (system) errors encountered in queuing the request.
 //
 // The returned value may be ignored by clients that are not interested in the
-// future response (for example on SET("foo", data)).  ALternatively, the caller
+// future response (for example on SET("foo", data)).  Alternatively, the caller
 // may retain the future result referenced and perform blocking and/or timed wait
 // gets on the expected response.
 //
-// [Try]Gets on the future result will return any Redis errors that were sent by
+// Get() or TryGet() on the future result will return any Redis errors that were sent by
 // the server, or, Go-Redis (system) errors encountered in processing the response.
-//
-// Usage example with timeouts:
-//
-//  func usingRedisAsync () Error {                                                                                             spec := DefaultConnectionSpec();
-//      pipeline := NewRedisPipeline(spec);
-//                                                                                                                                     // futureBytes is a FutureBytes
-//      futureBytes, reqErr := pipline.Get("my-key");
-//      if reqErr != nil { return withError (reqErr); }
-//      // ....
-//      []byte, execErr := futureBytes.Get();                                                                                                     if execErr != nil { return withError (execErr); }
-//                                                                                                                                           // or using timeouts
-//
-//      timeout := 1000000; // 1 msec
-//      []byte, execErr, ok := futureBytes.TryGet (timeout);
-//      if !ok {
-//          // we timedout                                                                                                                            }
-//      else {
-//          if execErr != nil {
-//              return withError (execErr);
-//          }
-//      }
-//  }
-//
 type AsyncClient interface {
 
 	// psuedo inheritance to coerce to RedisClient type

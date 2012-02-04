@@ -87,7 +87,6 @@ func tryReceive(c chan result, ns int64) (v interface{}, error Error, ok bool) {
 	return
 }
 
-// ------------------
 // Future? interfaces very much in line with the Future<?> of Java.
 // These variants all expose the same set of semantics in a type-safe manner.
 //
@@ -207,7 +206,6 @@ func (fvc _boolfuture) TryGet(ns int64) (v bool, error Error, ok bool) {
 	return gv.(bool), err, ok
 }
 
-// ------------------
 // FutureString
 //
 type FutureString interface {
@@ -239,7 +237,6 @@ func (fvc _futurestring) TryGet(ns int64) (v string, error Error, ok bool) {
 	return gv.(string), err, ok
 }
 
-// ------------------
 // FutureInt64
 //
 type FutureInt64 interface {
@@ -270,11 +267,11 @@ func (fvc _futureint64) TryGet(ns int64) (v int64, error Error, ok bool) {
 	}
 	return gv.(int64), err, ok
 }
-// ----------------------------------------------------------------------------
+
 // Future types that wrap generic Redis response types - not entirely happy about
 // this ...
+// REVU: move to redis.go
 
-// ------------------
 // FutureFloat64
 //
 type FutureFloat64 interface {
@@ -308,7 +305,6 @@ func (fvc _futurefloat64) TryGet(ns int64) (v float64, error Error, ok bool) {
 	return v, nil, ok
 }
 
-// ------------------
 // FutureKeys
 //
 type FutureKeys interface {
@@ -342,7 +338,6 @@ func (fvc _futurekeys) TryGet(ns int64) (v []string, error Error, ok bool) {
 	return v, nil, ok
 }
 
-// ------------------
 // FutureInfo
 //
 type FutureInfo interface {
@@ -376,7 +371,6 @@ func (fvc _futureinfo) TryGet(ns int64) (v map[string]string, error Error, ok bo
 	return v, nil, ok
 }
 
-// ------------------
 // FutureKeyType
 //
 type FutureKeyType interface {
@@ -410,9 +404,6 @@ func (fvc _futurekeytype) TryGet(ns int64) (v KeyType, error Error, ok bool) {
 	return v, nil, ok
 }
 
-// ----------------------------------------------------------------------------
-// Timer
-//
 // start a new timer that will signal on the returned
 // channel when the specified ns (timeout in nanoseconds)
 // have passsed.  If ns < 0, function returns immediately
@@ -421,7 +412,7 @@ func (fvc _futurekeytype) TryGet(ns int64) (v KeyType, error Error, ok bool) {
 // itself was interrupted during sleep, the value in channel
 // will be 0-time-elapsed.  Otherwise, for normal operation,
 // it will return time elapsed in ns (which hopefully is very
-// close to the specified ns.
+// close to the specified ns timeout value in nanosecs.)
 //
 // Example:
 //
@@ -435,8 +426,7 @@ func (fvc _futurekeytype) TryGet(ns int64) (v KeyType, error Error, ok bool) {
 //		case to := <-timeout:
 //			out.Printf("Timedout waiting for task.  %d\n", to);
 //	}
-
-
+//
 func NewTimer(ns int64) (signal <-chan int64) {
 	if ns <= 0 {
 		return nil
@@ -455,9 +445,6 @@ func NewTimer(ns int64) (signal <-chan int64) {
 	return c
 }
 
-// ----------------------------------------------------------------------------
-// Signaling
-//
 // Signal interface defines the semantics of simple signaling between
 // a sending and awaiting party, with timeout support.
 //
@@ -525,7 +512,6 @@ type signal struct {
 //		}
 //	}
 //
-
 func NewSignal() Signal {
 	c := make(chan byte)
 	return &signal{c}

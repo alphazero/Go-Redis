@@ -268,10 +268,6 @@ func (fvc _futureint64) TryGet(ns int64) (v int64, error Error, ok bool) {
 	return gv.(int64), err, ok
 }
 
-//// Future types that wrap generic Redis response types - not entirely happy about
-//// this ...
-//// REVU: move to redis.go
-//
 // FutureFloat64
 //
 type FutureFloat64 interface {
@@ -348,8 +344,8 @@ func NewTimer(ns int64) (signal <-chan int64) {
 
 // Signal interface defines the semantics of simple signaling between
 // a sending and awaiting party, with timeout support.
-//
 type Signal interface {
+
 	// Used to send the signal to the waiting party
 	Send()
 
@@ -381,9 +377,8 @@ type signal struct {
 //
 // Usage exmple:
 //
-//  The sending party -- here it also creates the signal but that
-// can happen elsewhere and passed to it.
-//
+//	//The sending party -- here it also creates the signal but that
+//	// can happen elsewhere and passed to it.
 //	func DoSomethingAndSignalOnCompletion (ns int64) (redis.Signal) {
 //		s := redis.NewSignal();
 //   	go func () {
@@ -395,9 +390,8 @@ type signal struct {
 //		return s;
 //	}
 //
-// elsewhere, the waiting party gets a signal (here by making a call to
-// the above func) and then first waits using
-//
+//	// elsewhere, the waiting party gets a signal (here by making a call to
+//	// the above func) and then first waits using
 //	func useSignal(t int64) {
 //
 //		// returns a signal

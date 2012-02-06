@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"flag"
 	"fmt"
 	"log"
@@ -36,11 +37,11 @@ var tasks = []taskSpec{
 	taskSpec{doRpop, "RPOP"},
 }
 
-// workers option.  default is equiv to -w=10 on command line
-var workers = flag.Int("w", 10, "number of concurrent workers")
+// workers option.  default is equiv to -w=10000 on command line
+var workers = flag.Int("w", 10000, "number of concurrent workers")
 
-// opcnt option.  default is equiv to -n=2000 on command line
-var opcnt = flag.Int("n", 20000, "number of task iterations per worker")
+// opcnt option.  default is equiv to -n=20 on command line
+var opcnt = flag.Int("n", 20, "number of task iterations per worker")
 
 // ----------------------------------------------------------------------------
 // benchmarker
@@ -48,11 +49,17 @@ var opcnt = flag.Int("n", 20000, "number of task iterations per worker")
 
 func main() {
 	// DEBUG
+	runtime.GOMAXPROCS(2);
+
 	log.SetPrefix("[go-redis|bench] ")
 	flag.Parse()
 
-	fmt.Printf("\n\n=== Bench synchclient ================ %d Concurrent Clients -- %d opts each --- \n\n", *workers, *opcnt)
+	fmt.Printf("\n\n== Bench synchclient == %d goroutines 1 AsyncClient  -- %d opts each --- \n\n", *workers, *opcnt)
+
 	for _, task := range tasks {
+		// REVU: creates a new client for each task run
+		// wondering if using the same conn throughout will be more realistic?
+		// regardless flushdb per task is OK
 		benchTask(task, *opcnt, *workers, true)
 	}
 
@@ -61,40 +68,58 @@ func main() {
 // Use a single redis.AsyncClient with specified number
 // of workers to bench concurrent load on the async client
 func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool) (delta time.Duration, err error) {
-	signal := make(chan int, workers) // Buffering optional but sensible.
+	// channel to signal completion
+	signal := make(chan int, workers)
+
+	// spec and initialize an AsyncClient
+	// will flush your db13 as noted in README ..
 	spec := redis.DefaultSpec().Db(13).Password("go-redis")
 	client, e := redis.NewAsynchClientWithSpec(spec)
 	if e != nil {
 		log.Println("Error creating client for worker: ", e)
 		return -1, e
 	}
-	//    defer client.Quit()        // will be deprecated soon
+
 	defer client.RedisClient().Quit()
+
+	// panics
+	setup(client)
 
 	t0 := time.Now()
 	for i := 0; i < workers; i++ {
 		id := fmt.Sprintf("%d", i)
 		go taskspec.task(id, signal, client, iterations)
 	}
+
+	// wait for completion
 	for i := 0; i < workers; i++ {
 		<-signal
 	}
 	delta = time.Now().Sub(t0)
-	//	for i := 0; i < workers; i++ {
-	//		clients[i].Quit()
-	//	}
-	//
+
 	if printReport {
-		report("concurrent "+taskspec.name, delta, iterations*workers)
+		report(taskspec.name, workers, delta, iterations*workers)
 	}
 
 	return
 }
-func report(cmd string, delta time.Duration, cnt int) {
-	fmt.Printf("---\n")
-	fmt.Printf("cmd: %s\n", cmd)
-	fmt.Printf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/time.Millisecond)
-	fmt.Printf("---\n\n")
+
+func setup (client redis.AsyncClient) {
+	fr, e := client.Flushdb(); if e!=nil {
+		log.Println("Error creating client for worker: ", e)
+		panic(e)
+	}
+	_, e2 := fr.Get(); if e2 != nil {
+		log.Println("Error creating client for worker: ", e)
+		panic(e)
+	}
+}
+
+func report(cmd string, workers int, delta time.Duration, cnt int) {
+	log.Printf("---\n")
+	log.Printf("cmd: %s\n", cmd)
+	log.Printf("%d goroutines 1 asyncClient %d iterations of %s in %d msecs\n", workers, cnt, cmd, delta/time.Millisecond)
+	log.Printf("---\n\n")
 }
 
 // ----------------------------------------------------------------------------
@@ -102,23 +127,35 @@ func report(cmd string, delta time.Duration, cnt int) {
 // ----------------------------------------------------------------------------
 
 func doPing(id string, signal chan int, client redis.AsyncClient, cnt int) {
+	var fr redis.FutureBool
 	for i := 0; i < cnt; i++ {
-		client.Ping()
+		fr, _ = client.Ping()
 	}
+	fr.Get()
 	signal <- 1
 }
 func doIncr(id string, signal chan int, client redis.AsyncClient, cnt int) {
 	key := "ctr-" + id
+	var fr redis.FutureInt64
 	for i := 0; i < cnt; i++ {
-		client.Incr(key)
+		fr, _ = client.Incr(key)
 	}
+	v, _ := fr.Get()
+	if v != int64(cnt) {
+		log.Fatalf("BUG: expecting counter %s to be %d but it is %d\n", key, cnt, v)
+		panic(1)
+	}
+// debug sanity check
+//	log.Printf("worker[%s] - last INCR result %s=%d\n", id, key, v)
 	signal <- 1
 }
 func doDecr(id string, signal chan int, client redis.AsyncClient, cnt int) {
+	var fr redis.FutureInt64
 	key := "ctr-" + id
 	for i := 0; i < cnt; i++ {
-		client.Decr(key)
+		fr, _ = client.Decr(key)
 	}
+	fr.Get()
 	signal <- 1
 }
 func doSet(id string, signal chan int, client redis.AsyncClient, cnt int) {

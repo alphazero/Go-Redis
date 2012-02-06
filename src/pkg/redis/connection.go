@@ -15,20 +15,21 @@
 package redis
 
 import (
-	"net"
-	"fmt"
-	"os"
-	"io"
 	"bufio"
+	"fmt"
+	"io"
 	"log"
-	//	"time";
+	"net"
+	"os"
+	"time"
 )
 
 const (
 	TCP       = "tcp"
 	LOCALHOST = "127.0.0.1"
-	ns1MSec   = 1000000
-	ns1Sec    = ns1MSec * 1000
+	//	ns1MSec   = 1000000
+	////	ns1Sec    = ns1MSec * 1000
+	//	ns1Sec    = 1*time.Second
 )
 
 // various default sizes for the connections
@@ -37,13 +38,15 @@ const (
 	DefaultReqChanSize  = 1000000
 	DefaultRespChanSize = 1000000
 
-	DefaultTCPReadBuffSize      = 1024 * 256
-	DefaultTCPWriteBuffSize     = 1024 * 256
-	DefaultTCPReadTimeoutNSecs  = ns1Sec * 10
-	DefaultTCPWriteTimeoutNSecs = ns1Sec * 10
+	DefaultTCPReadBuffSize  = 1024 * 256
+	DefaultTCPWriteBuffSize = 1024 * 256
+	//	DefaultTCPReadTimeoutNSecs  = ns1Sec * 10
+	//	DefaultTCPWriteTimeoutNSecs = ns1Sec * 10
+	DefaultTCPReadTimeoutNSecs  = 10 * time.Second
+	DefaultTCPWriteTimeoutNSecs = 10 * time.Second
 	DefaultTCPLinger            = 0
 	DefaultTCPKeepalive         = true
-	DefaultHeartbeatSecs        = 1
+	DefaultHeartbeatSecs        = 1 * time.Second
 )
 
 // Redis specific default settings
@@ -54,6 +57,7 @@ const (
 	DefaultRedisPort     = 6379
 	DefaultRedisHost     = LOCALHOST
 )
+
 // ----------------------------------------------------------------------------
 // Connection ConnectionSpec
 // ----------------------------------------------------------------------------
@@ -68,15 +72,15 @@ type ConnectionSpec struct {
 	// tcp specific specs
 	rBufSize   int
 	wBufSize   int
-	rTimeout   int64
-	wTimeout   int64
+	rTimeout   time.Duration
+	wTimeout   time.Duration
 	keepalive  bool
 	lingerspec int // -n: finish io; 0: discard, +n: wait for n secs to finish
 	// async specs
 	reqChanCap int
 	rspChanCap int
 	//
-	heartbeat int64 // 0 means no heartbeat
+	heartbeat time.Duration // 0 means no heartbeat
 }
 
 // Creates a ConnectionSpec using default settings.
@@ -128,8 +132,8 @@ func (spec *ConnectionSpec) Password(password string) *ConnectionSpec {
 }
 
 // return the address as string.
-func (spec *ConnectionSpec) Heartbeat(seconds int64) *ConnectionSpec {
-	spec.heartbeat = seconds
+func (spec *ConnectionSpec) Heartbeat(period time.Duration) *ConnectionSpec {
+	spec.heartbeat = period
 	return spec
 }
 
@@ -196,6 +200,7 @@ func configureConn(conn *net.TCPConn, spec *ConnectionSpec) {
 	conn.SetReadBuffer(spec.rBufSize)
 	conn.SetWriteBuffer(spec.wBufSize)
 }
+
 // TODO: return redis.Error
 func (c *connHdl) onConnect() (e Error) {
 	if c.spec.password != DefaultRedisPassword {
@@ -216,10 +221,11 @@ func (c *connHdl) onConnect() (e Error) {
 func (c *connHdl) onDisconnect() Error {
 	return nil // for now
 }
+
 // closes the connHdl's net.Conn connection.
 // Is public so that connHdl struct can be used as SyncConnection (TODO: review that.)
 //
-func (hdl connHdl) Close() os.Error {
+func (hdl connHdl) Close() error {
 	err := hdl.conn.Close()
 	if debug() {
 		log.Println("[Go-Redis] Closed connection: ", hdl)
@@ -236,7 +242,7 @@ func (hdl connHdl) Close() os.Error {
 
 type SyncConnection interface {
 	ServiceRequest(cmd *Command, args [][]byte) (Response, Error)
-	Close() os.Error
+	Close() error
 }
 
 // Creates a new SyncConnection using the provided ConnectionSpec
@@ -291,7 +297,7 @@ const (
 	ok status_code = iota
 	info
 	warning
-	error
+	error_
 	reqerr
 	inierr
 	snderr
@@ -327,7 +333,7 @@ type workerStatus struct {
 }
 type taskStatus struct {
 	code  status_code
-	error os.Error
+	error error
 }
 
 var ok_status = taskStatus{ok, nil}
@@ -384,7 +390,7 @@ func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
 		async = new(asyncConnHdl)
 		if async != nil {
 			async.super = connHdl
-			var e os.Error
+			var e error
 			async.writer, e = bufio.NewWriterSize(connHdl.conn, spec.wBufSize)
 			if e == nil {
 				async.pendingReqs = make(chan asyncReqPtr, spec.reqChanCap)
@@ -562,22 +568,23 @@ func managementTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *ta
 func heartbeatTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
 	var async AsyncConnection = c
 	select {
-	case <-NewTimer(ns1Sec * c.super.spec.heartbeat):
+	//	case <-NewTimer(ns1Sec * c.super.spec.heartbeat):
+	case <-NewTimer(c.super.spec.heartbeat):
 		response, e := async.QueueRequest(&PING, [][]byte{})
 		if e != nil {
 			return nil, &taskStatus{reqerr, e}
 		}
-		stat, re, ok := response.future.(FutureBool).TryGet(ns1Sec)
+		stat, re, ok := response.future.(FutureBool).TryGet(1 * time.Second)
 		if re != nil {
 			log.Println("ERROR: Heartbeat recieved error response on PING")
-			return nil, &taskStatus{error, re}
+			return nil, &taskStatus{error_, re}
 		} else if !ok {
 			log.Println("Warning: Heartbeat timeout on get PING response.")
 		} else {
 			// flytrap
 			if stat != true {
 				log.Println("<BUG> Heartbeat recieved false stat on PING while response error was nil")
-				return nil, &taskStatus{error, NewError(SYSTEM_ERR, "BUG false stat on PING w/out error")}
+				return nil, &taskStatus{error_, NewError(SYSTEM_ERR, "BUG false stat on PING w/out error")}
 			}
 		}
 	case sig := <-ctl:
@@ -628,7 +635,7 @@ func rspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 
 func reqProcessingTask(c *asyncConnHdl, ctl workerCtl) (ic *interrupt_code, ts *taskStatus) {
 
-	var err os.Error
+	var err error
 	var errmsg string
 
 	bytecnt := 0
@@ -680,7 +687,7 @@ proc_error:
 	return nil, &taskStatus{snderr, err}
 }
 
-func (c *asyncConnHdl) processAsyncRequest(req asyncReqPtr) (blen int, e os.Error) {
+func (c *asyncConnHdl) processAsyncRequest(req asyncReqPtr) (blen int, e error) {
 	//	req := <-c.pendingReqs;
 	req.id = c.nextId()
 	blen = len(*req.outbuff)
@@ -760,7 +767,7 @@ func (c *asyncConnHdl) nextId() (id int64) {
 
 // Either writes all the bytes or it fails and returns an error
 //
-func sendRequest(w io.Writer, data []byte) (e os.Error) {
+func sendRequest(w io.Writer, data []byte) (e error) {
 	here := "connHdl.sendRequest"
 	if w == nil {
 		return withNewError(fmt.Sprintf("<BUG> in %s(): nil Writer", here))

@@ -14,14 +14,13 @@
 
 package redis
 
-// Future types that wrap generic Redis response types - not entirely happy about
-// this ...
+import "time"
 
 // FutureKeys
 //
 type FutureKeys interface {
 	Get() ([]string, Error)
-	TryGet(timeout int64) (keys []string, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (keys []string, error Error, ok bool)
 }
 type _futurekeys struct {
 	future FutureBytes
@@ -38,7 +37,7 @@ func (fvc _futurekeys) Get() (v []string, error Error) {
 	v = convAndSplit(gv)
 	return v, nil
 }
-func (fvc _futurekeys) TryGet(ns int64) (v []string, error Error, ok bool) {
+func (fvc _futurekeys) TryGet(ns time.Duration) (v []string, error Error, ok bool) {
 	gv, err, ok := fvc.future.TryGet(ns)
 	if !ok {
 		return nil, nil, ok
@@ -54,7 +53,7 @@ func (fvc _futurekeys) TryGet(ns int64) (v []string, error Error, ok bool) {
 //
 type FutureInfo interface {
 	Get() (map[string]string, Error)
-	TryGet(timeout int64) (keys map[string]string, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (keys map[string]string, error Error, ok bool)
 }
 type _futureinfo struct {
 	future FutureBytes
@@ -71,7 +70,7 @@ func (fvc _futureinfo) Get() (v map[string]string, error Error) {
 	v = parseInfo(gv)
 	return v, nil
 }
-func (fvc _futureinfo) TryGet(ns int64) (v map[string]string, error Error, ok bool) {
+func (fvc _futureinfo) TryGet(ns time.Duration) (v map[string]string, error Error, ok bool) {
 	gv, err, ok := fvc.future.TryGet(ns)
 	if !ok {
 		return nil, nil, ok
@@ -87,7 +86,7 @@ func (fvc _futureinfo) TryGet(ns int64) (v map[string]string, error Error, ok bo
 //
 type FutureKeyType interface {
 	Get() (KeyType, Error)
-	TryGet(timeout int64) (keys KeyType, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (keys KeyType, error Error, ok bool)
 }
 type _futurekeytype struct {
 	future FutureString
@@ -104,7 +103,7 @@ func (fvc _futurekeytype) Get() (v KeyType, error Error) {
 	v = GetKeyType(gv)
 	return v, nil
 }
-func (fvc _futurekeytype) TryGet(ns int64) (v KeyType, error Error, ok bool) {
+func (fvc _futurekeytype) TryGet(ns time.Duration) (v KeyType, error Error, ok bool) {
 	gv, err, ok := fvc.future.TryGet(ns)
 	if !ok {
 		return RT_NONE, nil, ok

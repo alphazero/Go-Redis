@@ -15,13 +15,15 @@
 package redis
 
 import (
-	"time"
 	"log"
+	"time"
 )
 
 // ----------------------------------------------------------------------------
 // synchronization utilities.
 // ----------------------------------------------------------------------------
+
+const NANOSEC_1 time.Duration = 1 * time.Nanosecond
 
 // result and result channel
 //
@@ -56,6 +58,7 @@ func receive(c chan result) (v interface{}, error Error) {
 	}
 	return
 }
+
 // using a timer blocks on the channel until a result is received.
 // or timeout period expires.
 // if timedout, returns ok==false.
@@ -67,8 +70,8 @@ func receive(c chan result) (v interface{}, error Error) {
 // value v is the intended result, even if nil.
 // TODO: think this through a bit more
 
-func tryReceive(c chan result, ns int64) (v interface{}, error Error, ok bool) {
-	timer := NewTimer(ns)
+func tryReceive(c chan result, ns time.Duration) (v interface{}, error Error, ok bool) {
+	//	timer := NewTimer(ns)
 	select {
 	case fv := <-c:
 		ok = true
@@ -79,9 +82,10 @@ func tryReceive(c chan result, ns int64) (v interface{}, error Error, ok bool) {
 		} else {
 			v = fv.v
 		}
-	case to := <-timer:
+		//	case to := <-timer:
+	case to := <-time.After(ns):
 		if debug() {
-			log.Println("resultchan.TryGet() -- timedout waiting for futurevaluechan | timeout after ", to)
+			log.Println("resultchan.TryGet() -- timedout waiting for futurevaluechan | timeout: ", to)
 		}
 	}
 	return
@@ -115,11 +119,11 @@ type FutureBytes interface {
 	//	onError (Error);
 	set([]byte)
 	Get() (vale []byte, error Error)
-	TryGet(timeout int64) (value []byte, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (value []byte, error Error, ok bool)
 }
 type _byteslicefuture chan result
 
-func newFutureBytes() FutureBytes            { return make(_byteslicefuture, 1) }
+func newFutureBytes() FutureBytes            { return make(_byteslicefuture, NANOSEC_1) }
 func (fvc _byteslicefuture) onError(e Error) { send(fvc, nil, e) }
 func (fvc _byteslicefuture) set(v []byte)    { send(fvc, v, nil) }
 func (fvc _byteslicefuture) Get() (v []byte, error Error) {
@@ -129,7 +133,7 @@ func (fvc _byteslicefuture) Get() (v []byte, error Error) {
 	}
 	return gv.([]byte), err
 }
-func (fvc _byteslicefuture) TryGet(ns int64) (v []byte, error Error, ok bool) {
+func (fvc _byteslicefuture) TryGet(ns time.Duration) (v []byte, error Error, ok bool) {
 	gv, err, ok := tryReceive(fvc, ns)
 	if !ok {
 		return nil, nil, ok
@@ -146,11 +150,11 @@ type FutureBytesArray interface {
 	//	onError (Error);
 	set([][]byte)
 	Get() (vale [][]byte, error Error)
-	TryGet(timeout int64) (value [][]byte, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (value [][]byte, error Error, ok bool)
 }
 type _bytearrayslicefuture chan result
 
-func newFutureBytesArray() FutureBytesArray { return make(_bytearrayslicefuture, 1) }
+func newFutureBytesArray() FutureBytesArray { return make(_bytearrayslicefuture, NANOSEC_1) }
 func (fvc _bytearrayslicefuture) onError(e Error) {
 	send(fvc, nil, e)
 }
@@ -164,7 +168,7 @@ func (fvc _bytearrayslicefuture) Get() (v [][]byte, error Error) {
 	}
 	return gv.([][]byte), err
 }
-func (fvc _bytearrayslicefuture) TryGet(ns int64) (v [][]byte, error Error, ok bool) {
+func (fvc _bytearrayslicefuture) TryGet(ns time.Duration) (v [][]byte, error Error, ok bool) {
 	gv, err, ok := tryReceive(fvc, ns)
 	if !ok {
 		return nil, nil, ok
@@ -181,11 +185,11 @@ type FutureBool interface {
 	//	onError (Error);
 	set(bool)
 	Get() (val bool, error Error)
-	TryGet(timeout int64) (value bool, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (value bool, error Error, ok bool)
 }
 type _boolfuture chan result
 
-func newFutureBool() FutureBool         { return make(_boolfuture, 1) }
+func newFutureBool() FutureBool         { return make(_boolfuture, NANOSEC_1) }
 func (fvc _boolfuture) onError(e Error) { send(fvc, nil, e) }
 func (fvc _boolfuture) set(v bool)      { send(fvc, v, nil) }
 func (fvc _boolfuture) Get() (v bool, error Error) {
@@ -195,7 +199,7 @@ func (fvc _boolfuture) Get() (v bool, error Error) {
 	}
 	return gv.(bool), err
 }
-func (fvc _boolfuture) TryGet(ns int64) (v bool, error Error, ok bool) {
+func (fvc _boolfuture) TryGet(ns time.Duration) (v bool, error Error, ok bool) {
 	gv, err, ok := tryReceive(fvc, ns)
 	if !ok {
 		return false, nil, ok
@@ -212,11 +216,11 @@ type FutureString interface {
 	//	onError (execErr Error);
 	set(v string)
 	Get() (string, Error)
-	TryGet(timeout int64) (value string, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (value string, error Error, ok bool)
 }
 type _futurestring chan result
 
-func newFutureString() FutureString       { return make(_futurestring, 1) }
+func newFutureString() FutureString       { return make(_futurestring, NANOSEC_1) }
 func (fvc _futurestring) onError(e Error) { send(fvc, nil, e) }
 func (fvc _futurestring) set(v string)    { send(fvc, v, nil) }
 func (fvc _futurestring) Get() (v string, error Error) {
@@ -226,7 +230,7 @@ func (fvc _futurestring) Get() (v string, error Error) {
 	}
 	return gv.(string), err
 }
-func (fvc _futurestring) TryGet(ns int64) (v string, error Error, ok bool) {
+func (fvc _futurestring) TryGet(ns time.Duration) (v string, error Error, ok bool) {
 	gv, err, ok := tryReceive(fvc, ns)
 	if !ok {
 		return "", nil, ok
@@ -243,11 +247,11 @@ type FutureInt64 interface {
 	//	onError (execErr Error);
 	set(v int64)
 	Get() (int64, Error)
-	TryGet(timeout int64) (value int64, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (value int64, error Error, ok bool)
 }
 type _futureint64 chan result
 
-func newFutureInt64() FutureInt64        { return make(_futureint64, 1) }
+func newFutureInt64() FutureInt64        { return make(_futureint64, NANOSEC_1) }
 func (fvc _futureint64) onError(e Error) { send(fvc, nil, e) }
 func (fvc _futureint64) set(v int64)     { send(fvc, v, nil) }
 func (fvc _futureint64) Get() (v int64, error Error) {
@@ -257,7 +261,7 @@ func (fvc _futureint64) Get() (v int64, error Error) {
 	}
 	return gv.(int64), err
 }
-func (fvc _futureint64) TryGet(ns int64) (v int64, error Error, ok bool) {
+func (fvc _futureint64) TryGet(ns time.Duration) (v int64, error Error, ok bool) {
 	gv, err, ok := tryReceive(fvc, ns)
 	if !ok {
 		return -1, nil, ok
@@ -272,7 +276,7 @@ func (fvc _futureint64) TryGet(ns int64) (v int64, error Error, ok bool) {
 //
 type FutureFloat64 interface {
 	Get() (float64, Error)
-	TryGet(timeout int64) (v float64, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (v float64, error Error, ok bool)
 }
 type _futurefloat64 struct {
 	future FutureBytes
@@ -289,7 +293,7 @@ func (fvc _futurefloat64) Get() (v float64, error Error) {
 	v, err = Btof64(gv)
 	return v, nil
 }
-func (fvc _futurefloat64) TryGet(ns int64) (v float64, error Error, ok bool) {
+func (fvc _futurefloat64) TryGet(ns time.Duration) (v float64, error Error, ok bool) {
 	gv, err, ok := fvc.future.TryGet(ns)
 	if !ok {
 		return 0, nil, ok
@@ -305,7 +309,7 @@ func (fvc _futurefloat64) TryGet(ns int64) (v float64, error Error, ok bool) {
 // channel when the specified ns (timeout in nanoseconds)
 // have passsed.  If ns < 0, function returns immediately
 // with nil.  Otherwise, the caller can select on the channel
-// and will recieve an item after timeout.  If the timer
+// and will receive an item after timeout.  If the timer
 // itself was interrupted during sleep, the value in channel
 // will be 0-time-elapsed.  Otherwise, for normal operation,
 // it will return time elapsed in ns (which hopefully is very
@@ -324,19 +328,19 @@ func (fvc _futurefloat64) TryGet(ns int64) (v float64, error Error, ok bool) {
 //			out.Printf("Timedout waiting for task.  %d\n", to);
 //	}
 //
-func NewTimer(ns int64) (signal <-chan int64) {
+func NewTimer(ns time.Duration) (signal <-chan time.Duration) {
 	if ns <= 0 {
 		return nil
 	}
-	c := make(chan int64)
+	c := make(chan time.Duration)
 	go func() {
-		t := time.Nanoseconds()
-		e := time.Sleep(ns)
-		if e != nil {
-			t = 0 - (time.Nanoseconds() - t)
-		} else {
-			t = time.Nanoseconds() - t
-		}
+		t0 := time.Now()
+		time.Sleep(ns)
+		//		if e != nil {
+		//			t = 0 - (time.Now().Sub(t))
+		//		} else {
+		t := time.Now().Sub(t0)
+		//		}
 		c <- t
 	}()
 	return c
@@ -364,7 +368,7 @@ type Signal interface {
 	//
 	// timedout and interrupted are mutually exclusive.
 	//
-	WaitFor(timeout int64) (timedout bool, interrupted bool)
+	WaitFor(timeoutnano time.Duration) (timedout bool, interrupted bool)
 }
 
 // signal wraps a channel and implements the Signal interface.
@@ -379,7 +383,7 @@ type signal struct {
 //
 //	//The sending party -- here it also creates the signal but that
 //	// can happen elsewhere and passed to it.
-//	func DoSomethingAndSignalOnCompletion (ns int64) (redis.Signal) {
+//	func DoSomethingAndSignalOnCompletion (ns time.Duration) (redis.Signal) {
 //		s := redis.NewSignal();
 //   	go func () {
 //			out.Printf("I'm going to sleep for %d nseconds ...\n", ns);
@@ -421,8 +425,8 @@ func (s *signal) Wait() {
 
 // implementation of Signal.WaitFor(int64)
 //
-func (s *signal) WaitFor(timeout int64) (timedout bool, interrupted bool) {
-	timer := NewTimer(timeout)
+func (s *signal) WaitFor(timeoutnano time.Duration) (timedout bool, interrupted bool) {
+	timer := NewTimer(timeoutnano)
 	select {
 	case <-s.c:
 	case to := <-timer:

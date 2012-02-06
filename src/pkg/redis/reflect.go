@@ -37,6 +37,7 @@ func ToByteSliceArray(v reflect.Value) (bsa [][]byte, ok bool) {
 	}
 	return
 }
+
 // TODO: document me
 //
 func GetByteArrayAtIndex(v reflect.Value, i int) (arr []byte, ok bool) {

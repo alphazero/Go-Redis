@@ -15,10 +15,11 @@
 package redis
 
 import (
-	"os"
+	"errors"
 	"fmt"
 	"log"
 )
+
 // ----------------------------------------------------------------------------
 // ERRORS
 // ----------------------------------------------------------------------------
@@ -45,9 +46,10 @@ const (
 )
 
 // Defines the interfce to get details of an Error.
-// 
+//
 type Error interface {
-	Cause() os.Error
+	Cause() error
+	Error() string
 	Category() ErrorCategory
 	Message() string
 	String() string
@@ -55,10 +57,11 @@ type Error interface {
 type redisError struct {
 	msg      string
 	category ErrorCategory
-	cause    os.Error
+	cause    error
 }
 
-func (e redisError) Cause() os.Error         { return e.cause }
+func (e redisError) Cause() error            { return e.cause }
+func (e redisError) Error() string           { return e.Error() }
 func (e redisError) Category() ErrorCategory { return e.category }
 func (e redisError) Message() string         { return e.msg }
 func (e redisError) String() string {
@@ -96,7 +99,7 @@ func NewError(t ErrorCategory, msg string) Error {
 
 // Creates an Error of specified category with the message and cause.
 //
-func NewErrorWithCause(cat ErrorCategory, msg string, cause os.Error) Error {
+func NewErrorWithCause(cat ErrorCategory, msg string, cause error) Error {
 	e := new(redisError)
 	e.msg = msg
 	e.category = cat
@@ -115,13 +118,13 @@ func withError(e Error) Error {
 	}
 	return e
 }
-func withNewError(m string) os.Error {
-	e := os.NewError(m)
+func withNewError(m string) error {
+	e := errors.New(m)
 	if debug() {
 		log.Println(e)
 	}
 	return e
 }
-func withOsError(m string, cause os.Error) os.Error {
+func withOsError(m string, cause error) error {
 	return withNewError(fmt.Sprintf("%s [cause: %s]", m, cause))
 }

@@ -15,14 +15,15 @@
 package redis
 
 import (
-	"os"
-	"io"
 	"bufio"
-	"strconv"
 	"bytes"
+	"errors"
+	"io"
+	"strconv"
 	//	"log"
 	//	"fmt"
 )
+
 // ----------------------------------------------------------------------------
 // Wire
 // ----------------------------------------------------------------------------
@@ -55,7 +56,7 @@ var WHITESPACE ctlbytes = ctlbytes{SPACE_BYTE}
 //
 // TODO: tedious but need to check for errors on all buffer writes ..
 //
-func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, os.Error) {
+func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, error) {
 
 	cmd_bytes := []byte(cmd.Code)
 
@@ -136,7 +137,7 @@ func SetFutureResult(future interface{}, cmd *Command, r Response) {
 // The returned response (regardless of flavor) may have (application level)
 // errors as sent from Redis server.
 //
-func GetResponse(reader *bufio.Reader, cmd *Command) (resp Response, err os.Error) {
+func GetResponse(reader *bufio.Reader, cmd *Command) (resp Response, err error) {
 	switch cmd.RespType {
 	case BOOLEAN:
 		resp, err = getBooleanResponse(reader, cmd)
@@ -160,7 +161,7 @@ func GetResponse(reader *bufio.Reader, cmd *Command) (resp Response, err os.Erro
 // internal ops
 // ----------------------------------------------------------------------------
 
-func getStatusResponse(conn *bufio.Reader, cmd *Command) (resp Response, e os.Error) {
+func getStatusResponse(conn *bufio.Reader, cmd *Command) (resp Response, e error) {
 	//	fmt.Printf("getStatusResponse: about to read line for %s\n", cmd.Code);
 	buff, error, fault := readLine(conn)
 	if fault == nil {
@@ -171,7 +172,7 @@ func getStatusResponse(conn *bufio.Reader, cmd *Command) (resp Response, e os.Er
 	return resp, fault
 }
 
-func getBooleanResponse(conn *bufio.Reader, cmd *Command) (resp Response, e os.Error) {
+func getBooleanResponse(conn *bufio.Reader, cmd *Command) (resp Response, e error) {
 	buff, error, fault := readLine(conn)
 	if fault == nil {
 		if !error {
@@ -184,7 +185,7 @@ func getBooleanResponse(conn *bufio.Reader, cmd *Command) (resp Response, e os.E
 	return resp, fault
 }
 
-func getStringResponse(conn *bufio.Reader, cmd *Command) (resp Response, e os.Error) {
+func getStringResponse(conn *bufio.Reader, cmd *Command) (resp Response, e error) {
 	buff, error, fault := readLine(conn)
 	if fault == nil {
 		if !error {
@@ -197,18 +198,18 @@ func getStringResponse(conn *bufio.Reader, cmd *Command) (resp Response, e os.Er
 	}
 	return resp, fault
 }
-func getNumberResponse(conn *bufio.Reader, cmd *Command) (resp Response, e os.Error) {
+func getNumberResponse(conn *bufio.Reader, cmd *Command) (resp Response, e error) {
 
 	buff, error, fault := readLine(conn)
 	if fault == nil {
 		if !error {
 			buff = buff[1:len(buff)]
 			numrep := bytes.NewBuffer(buff).String()
-			num, err := strconv.Atoi64(numrep)
+			num, err := strconv.ParseInt(numrep, 10, 64)
 			if err == nil {
 				resp = newNumberResponse(num, error)
 			} else {
-				e = os.NewError("<BUG> Expecting a int64 number representation here: " + err.String())
+				e = errors.New("<BUG> Expecting a int64 number representation here: " + err.Error())
 			}
 		} else {
 			resp = newStatusResponse(bytes.NewBuffer(buff).String(), error)
@@ -217,15 +218,15 @@ func getNumberResponse(conn *bufio.Reader, cmd *Command) (resp Response, e os.Er
 	return resp, fault
 }
 
-func btoi64(buff []byte) (num int64, e os.Error) {
+func btoi64(buff []byte) (num int64, e error) {
 	numrep := bytes.NewBuffer(buff).String()
-	num, e = strconv.Atoi64(numrep)
+	num, e = strconv.ParseInt(numrep, 10, 64)
 	if e != nil {
-		e = os.NewError("<BUG> Expecting a int64 number representation here: " + e.String())
+		e = errors.New("<BUG> Expecting a int64 number representation here: " + e.Error())
 	}
 	return
 }
-func getBulkResponse(conn *bufio.Reader, cmd *Command) (Response, os.Error) {
+func getBulkResponse(conn *bufio.Reader, cmd *Command) (Response, error) {
 	buf, e1 := readToCRLF(conn)
 	if e1 != nil {
 		return nil, e1
@@ -235,7 +236,7 @@ func getBulkResponse(conn *bufio.Reader, cmd *Command) (Response, os.Error) {
 		return newStatusResponse(bytes.NewBuffer(buf).String(), true), nil
 	}
 	if buf[0] != SIZE_BYTE {
-		return nil, os.NewError("<BUG> Expecting a SIZE_BYTE in getBulkResponse")
+		return nil, errors.New("<BUG> Expecting a SIZE_BYTE in getBulkResponse")
 	}
 
 	num, e2 := btoi64(buf[1:len(buf)])
@@ -255,7 +256,7 @@ func getBulkResponse(conn *bufio.Reader, cmd *Command) (Response, os.Error) {
 	return newBulkResponse(bulkdata, false), nil
 }
 
-func getMultiBulkResponse(conn *bufio.Reader, cmd *Command) (Response, os.Error) {
+func getMultiBulkResponse(conn *bufio.Reader, cmd *Command) (Response, error) {
 	buf, e1 := readToCRLF(conn)
 	if e1 != nil {
 		return nil, e1
@@ -265,7 +266,7 @@ func getMultiBulkResponse(conn *bufio.Reader, cmd *Command) (Response, os.Error)
 		return newStatusResponse(bytes.NewBuffer(buf).String(), true), nil
 	}
 	if buf[0] != COUNT_BYTE {
-		return nil, os.NewError("<BUG> Expecting a NUM_BYTE in getMultiBulkResponse")
+		return nil, errors.New("<BUG> Expecting a NUM_BYTE in getMultiBulkResponse")
 	}
 
 	num, e2 := btoi64(buf[1:len(buf)])
@@ -284,7 +285,7 @@ func getMultiBulkResponse(conn *bufio.Reader, cmd *Command) (Response, os.Error)
 			return nil, e
 		}
 		if sbuf[0] != SIZE_BYTE {
-			return nil, os.NewError("<BUG> Expecting a SIZE_BYTE for data item in getMultiBulkResponse")
+			return nil, errors.New("<BUG> Expecting a SIZE_BYTE for data item in getMultiBulkResponse")
 		}
 		size, e2 := btoi64(sbuf[1:len(sbuf)])
 		if e2 != nil {
@@ -383,7 +384,7 @@ func newMultiBulkResponse(val [][]byte, isError bool) Response {
 // error returned is NOT ("-ERR ...").  If there is a Redis error
 // that is in the line buffer returned
 
-func readToCRLF(reader *bufio.Reader) (buffer []byte, err os.Error) {
+func readToCRLF(reader *bufio.Reader) (buffer []byte, err error) {
 	//	reader := bufio.NewReader(conn);
 	var buf []byte
 	buf, err = reader.ReadBytes(CR_BYTE)
@@ -394,7 +395,7 @@ func readToCRLF(reader *bufio.Reader) (buffer []byte, err os.Error) {
 			return
 		}
 		if b != LF_BYTE {
-			err = os.NewError("<BUG> Expecting a Linefeed byte here!")
+			err = errors.New("<BUG> Expecting a Linefeed byte here!")
 		}
 		//		log.Println("readToCRLF: ", buf);
 		buffer = buf[0 : len(buf)-1]
@@ -402,7 +403,7 @@ func readToCRLF(reader *bufio.Reader) (buffer []byte, err os.Error) {
 	return
 }
 
-func readLine(conn *bufio.Reader) (buf []byte, error bool, fault os.Error) {
+func readLine(conn *bufio.Reader) (buf []byte, error bool, fault error) {
 	buf, fault = readToCRLF(conn)
 	if fault == nil {
 		error = buf[0] == ERR_BYTE
@@ -410,7 +411,7 @@ func readLine(conn *bufio.Reader) (buf []byte, error bool, fault os.Error) {
 	return
 }
 
-func readBulkData(conn *bufio.Reader, len int64) ([]byte, os.Error) {
+func readBulkData(conn *bufio.Reader, len int64) ([]byte, error) {
 	buff := make([]byte, len)
 
 	_, e := io.ReadFull(conn, buff)
@@ -421,17 +422,17 @@ func readBulkData(conn *bufio.Reader, len int64) ([]byte, os.Error) {
 
 	crb, e1 := conn.ReadByte()
 	if e1 != nil {
-		return nil, os.NewError("Error while attempting read of bulkdata terminal CR:" + e1.String())
+		return nil, errors.New("Error while attempting read of bulkdata terminal CR:" + e1.Error())
 	}
 	if crb != CR_BYTE {
-		return nil, os.NewError("<BUG> bulkdata terminal was not CR as expected")
+		return nil, errors.New("<BUG> bulkdata terminal was not CR as expected")
 	}
 	lfb, e2 := conn.ReadByte()
 	if e2 != nil {
-		return nil, os.NewError("Error while attempting read of bulkdata terminal LF:" + e2.String())
+		return nil, errors.New("Error while attempting read of bulkdata terminal LF:" + e2.Error())
 	}
 	if lfb != LF_BYTE {
-		return nil, os.NewError("<BUG> bulkdata terminal was not LF as expected.")
+		return nil, errors.New("<BUG> bulkdata terminal was not LF as expected.")
 	}
 
 	return buff, nil
@@ -440,7 +441,7 @@ func readBulkData(conn *bufio.Reader, len int64) ([]byte, os.Error) {
 // convenience func for now
 // but slated to optimize converting ints to their []byte literal representation
 
-func writeNum(b *bytes.Buffer, n int) (*bytes.Buffer, os.Error) {
+func writeNum(b *bytes.Buffer, n int) (*bytes.Buffer, error) {
 	nb := ([]byte(strconv.Itoa(n)))
 	b.Write(nb)
 	return b, nil

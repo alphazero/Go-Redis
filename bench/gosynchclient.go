@@ -16,12 +16,11 @@
 package main
 
 import (
-	"os"
 	"flag"
-	"log"
 	"fmt"
-	"time"
+	"log"
 	"redis"
+	"time"
 )
 
 func main() {
@@ -70,13 +69,13 @@ type taskSpec struct {
 	name string
 }
 
-func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool) (delta int64, err os.Error) {
+func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool) (delta time.Duration, err error) {
 	signal := make(chan int, workers) // Buffering optional but sensible.
 	clients, e := makeConcurrentClients(workers)
 	if e != nil {
 		return 0, e
 	}
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	for i := 0; i < workers; i++ {
 		id := fmt.Sprintf("%d", i)
 		go taskspec.task(id, signal, clients[i], iterations)
@@ -84,7 +83,7 @@ func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool)
 	for i := 0; i < workers; i++ {
 		<-signal
 	}
-	delta = time.Nanoseconds() - t0
+	delta = time.Now().Sub(t0)
 	for i := 0; i < workers; i++ {
 		clients[i].Quit() // will be deprecated soon
 		clients[i].RedisClient().Quit()
@@ -97,7 +96,7 @@ func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool)
 	return
 }
 
-func makeConcurrentClients(workers int) (clients []redis.Client, err os.Error) {
+func makeConcurrentClients(workers int) (clients []redis.Client, err error) {
 	clients = make([]redis.Client, workers)
 	for i := 0; i < workers; i++ {
 		spec := redis.DefaultSpec().Db(13).Password("go-redis")
@@ -111,10 +110,10 @@ func makeConcurrentClients(workers int) (clients []redis.Client, err os.Error) {
 	return
 }
 
-func report(cmd string, delta int64, cnt int) {
+func report(cmd string, delta time.Duration, cnt int) {
 	fmt.Printf("---\n")
 	fmt.Printf("cmd: %s\n", cmd)
-	fmt.Printf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/1000000)
+	fmt.Printf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/time.Millisecond)
 	fmt.Printf("---\n\n")
 }
 

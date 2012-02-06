@@ -15,18 +15,17 @@
 package main
 
 import (
-	"os"
-	"redis"
-	"log"
 	"fmt"
+	"log"
+	"redis"
 	"time"
 )
 
-func onError(msg string, e os.Error) os.Error {
+func onError(msg string, e error) error {
 	log.Println(msg, "", e)
 	return e
 }
-func failedTest(msg string) os.Error {
+func failedTest(msg string) error {
 	log.Println(msg)
 	return nil
 }
@@ -36,9 +35,9 @@ func main() {
 	doOne(cnt)
 }
 
-func doOne(cnt int) os.Error {
+func doOne(cnt int) error {
 
-	var delta int64
+	var delta time.Duration
 	spec := redis.DefaultSpec().Db(13).Password("go-redis")
 
 	fmt.Printf("\n\n=== Bench synchclient ================ 1 Client -- %d opts --- \n", cnt)
@@ -86,99 +85,99 @@ func doOne(cnt int) os.Error {
 	return nil
 }
 
-func report(cmd string, delta int64, cnt int) {
+func report(cmd string, delta time.Duration, cnt int) {
 	fmt.Printf("---\n")
 	fmt.Printf("cmd: %s\n", cmd)
-	fmt.Printf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/1000000)
+	fmt.Printf("%d iterations of %s in %d msecs\n", cnt, cmd, delta/time.Millisecond)
 	fmt.Printf("---\n")
 }
 
-func doPing(client redis.Client, cnt int) (delta int64) {
-	t0 := time.Nanoseconds()
+func doPing(client redis.Client, cnt int) (delta time.Duration) {
+	t0 := time.Now()
 	for i := 0; i < cnt; i++ {
 		client.Ping()
 	}
-	delta = time.Nanoseconds() - t0
+	delta = time.Now().Sub(t0)
 	client.Flushdb()
 	return
 }
-func doIncr(client redis.Client, cnt int) (delta int64) {
+func doIncr(client redis.Client, cnt int) (delta time.Duration) {
 	key := "ctr"
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	for i := 0; i < cnt; i++ {
 		client.Incr(key)
 	}
-	delta = time.Nanoseconds() - t0
+	delta = time.Now().Sub(t0)
 	client.Flushdb()
 	return
 }
-func doSet(client redis.Client, cnt int) (delta int64) {
+func doSet(client redis.Client, cnt int) (delta time.Duration) {
 	key := "ctr"
 	value := []byte("foo")
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	for i := 0; i < cnt; i++ {
 		client.Set(key, value)
 	}
-	delta = time.Nanoseconds() - t0
+	delta = time.Now().Sub(t0)
 	client.Flushdb()
 	return
 }
-func doGet(client redis.Client, cnt int) (delta int64) {
+func doGet(client redis.Client, cnt int) (delta time.Duration) {
 	key := "ctr"
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	for i := 0; i < cnt; i++ {
 		client.Get(key)
 	}
-	delta = time.Nanoseconds() - t0
+	delta = time.Now().Sub(t0)
 	client.Flushdb()
 	return
 }
-func doSadd(client redis.Client, cnt int) (delta int64) {
+func doSadd(client redis.Client, cnt int) (delta time.Duration) {
 	key := "set"
 	value := []byte("one")
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	for i := 0; i < cnt; i++ {
 		client.Sadd(key, value)
 	}
-	delta = time.Nanoseconds() - t0
+	delta = time.Now().Sub(t0)
 	client.Flushdb()
 	return
 }
-func doLpush(client redis.Client, cnt int) (delta int64) {
+func doLpush(client redis.Client, cnt int) (delta time.Duration) {
 	key := "list-L"
 	value := []byte("foo")
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	for i := 0; i < cnt; i++ {
 		client.Lpush(key, value)
 	}
-	delta = time.Nanoseconds() - t0
+	delta = time.Now().Sub(t0)
 	return
 }
-func doRpush(client redis.Client, cnt int) (delta int64) {
+func doRpush(client redis.Client, cnt int) (delta time.Duration) {
 	key := "list-R"
 	value := []byte("foo")
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	for i := 0; i < cnt; i++ {
 		client.Lpush(key, value)
 	}
-	delta = time.Nanoseconds() - t0
+	delta = time.Now().Sub(t0)
 	return
 }
-func doLpop(client redis.Client, cnt int) (delta int64) {
+func doLpop(client redis.Client, cnt int) (delta time.Duration) {
 	key := "list-L"
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	for i := 0; i < cnt; i++ {
 		client.Lpop(key)
 	}
-	delta = time.Nanoseconds() - t0
+	delta = time.Now().Sub(t0)
 	return
 }
-func doRpop(client redis.Client, cnt int) (delta int64) {
+func doRpop(client redis.Client, cnt int) (delta time.Duration) {
 	key := "list-R"
-	t0 := time.Nanoseconds()
+	t0 := time.Now()
 	for i := 0; i < cnt; i++ {
 		client.Lpop(key)
 	}
-	delta = time.Nanoseconds() - t0
+	delta = time.Now().Sub(t0)
 	return
 }

@@ -15,18 +15,17 @@
 package main
 
 import (
-	"os"
-	"redis"
-	"log"
 	"fmt"
-	"reflect"
 	"io/ioutil"
+	"log"
+	"redis"
+	"reflect"
 	"strings"
 )
 
-type error struct {
+type error_ struct {
 	msg   string
-	cause os.Error
+	cause error
 }
 
 type clientType string
@@ -94,7 +93,7 @@ func reportCompliance(rctype clientType, mmap map[string]string, specms []string
 // Fully reads the file named (specfile) and converts content
 // to a []string.  It is expected that the file is a simple list
 // of redis commands, each on a single line.
-func readCommandsFromSpecFile(specfile string) ([]string, os.Error) {
+func readCommandsFromSpecFile(specfile string) ([]string, error) {
 
 	spec, e := ioutil.ReadFile(specfile)
 	if e != nil {
@@ -113,7 +112,7 @@ func readCommandsFromSpecFile(specfile string) ([]string, os.Error) {
 // and send back as []string (tolowercase)
 // TOOD get rid of redundant code in switch
 // (REVU: needs minor update to core code)
-func getDefinedMethods(ctype clientType) (map[string]string, *error) {
+func getDefinedMethods(ctype clientType) (map[string]string, *error_) {
 
 	var mmap = map[string]string{}
 
@@ -132,7 +131,7 @@ func getDefinedMethods(ctype clientType) (map[string]string, *error) {
 		log.Println("ignoring - ", e)
 	}
 	if client == nil {
-		return mmap, &error{"client is nil", nil}
+		return mmap, &error_{"client is nil", nil}
 	} else {
 		defer client.(redis.RedisClient).Quit()
 	}
@@ -151,7 +150,7 @@ func getDefinedMethods(ctype clientType) (map[string]string, *error) {
 // Reads the spec file to use for the check
 // csmetafile is the name of the expected prop file and
 // should contain just the name of another file.
-func getSpecFileName(csmetafile string) (string, os.Error) {
+func getSpecFileName(csmetafile string) (string, error) {
 	var fname string
 	buff, e := ioutil.ReadFile(csmetafile)
 	if e != nil {

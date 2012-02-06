@@ -7,6 +7,10 @@ The initial release provides the interface and implementation supporting the (~)
 Hope to add rigorous tests as soon as I have a better understanding of the Go language tools.  Same applies to the makefile.  
 Also am not sure regarding the efficiency of the implementation (for the obvious reasons), but definitely a goal is to make this a high performance connector.
 
+## A note note  Go verion support
+
+Branch r60.3 of repo holds the (frozen) Go r60.3 compliant client.  Master will reflect this until Go 1 is released.
+
 ## structure
 
 The code is consolidated into a single 'redis' package and various elements of it are usable independently (for example if you wish to roll your own API but want to use the raw bytes protocol handling aspects).

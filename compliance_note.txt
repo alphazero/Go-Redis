@@ -3,12 +3,12 @@ Redis:
 
 Go:
 	release (as of 4/18/2011)
-	6g version release.r60.3 9516
-	6l version release.r60.3 9516
+	6g version weekly.2012-01-27 11507
+	6l version weekly.2012-01-27 11507
 
 Test platform
 	darwin/amd64
 
 --
-January 31, 2012
+February 06, 2012
 bushwick/nyc

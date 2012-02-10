@@ -1,3 +1,5 @@
+temp
 *.6
 *_obj
 *.iml
+*.goide

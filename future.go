@@ -23,8 +23,6 @@ import (
 // synchronization utilities.
 // ----------------------------------------------------------------------------
 
-const NANOSEC_1 time.Duration = 1 * time.Nanosecond
-
 // result and result channel
 //
 // result defines a basic struct that either holds a generic (interface{}) reference
@@ -51,8 +49,6 @@ func receive(c chan result) (v interface{}, error Error) {
 	fv := <-c
 	if fv.e != nil {
 		error = fv.e
-	} else if fv.v == nil {
-		// ? should we allow nil results?
 	} else {
 		v = fv.v
 	}
@@ -68,7 +64,7 @@ func receive(c chan result) (v interface{}, error Error) {
 //
 // For now presumably a nil result is OK and if error is nil, the return
 // value v is the intended result, even if nil.
-// TODO: think this through a bit more
+// REVU(jh): rename ok to timeout and flip its semantics.
 
 func tryReceive(c chan result, ns time.Duration) (v interface{}, error Error, ok bool) {
 	//	timer := NewTimer(ns)
@@ -77,8 +73,6 @@ func tryReceive(c chan result, ns time.Duration) (v interface{}, error Error, ok
 		ok = true
 		if fv.e != nil {
 			error = fv.e
-		} else if fv.v == nil {
-			// ? should we allow nil results?
 		} else {
 			v = fv.v
 		}
@@ -123,7 +117,7 @@ type FutureBytes interface {
 }
 type _byteslicefuture chan result
 
-func newFutureBytes() FutureBytes            { return make(_byteslicefuture, NANOSEC_1) }
+func newFutureBytes() FutureBytes            { return make(_byteslicefuture, 1) }
 func (fvc _byteslicefuture) onError(e Error) { send(fvc, nil, e) }
 func (fvc _byteslicefuture) set(v []byte)    { send(fvc, v, nil) }
 func (fvc _byteslicefuture) Get() (v []byte, error Error) {
@@ -154,7 +148,7 @@ type FutureBytesArray interface {
 }
 type _bytearrayslicefuture chan result
 
-func newFutureBytesArray() FutureBytesArray { return make(_bytearrayslicefuture, NANOSEC_1) }
+func newFutureBytesArray() FutureBytesArray { return make(_bytearrayslicefuture, 1) }
 func (fvc _bytearrayslicefuture) onError(e Error) {
 	send(fvc, nil, e)
 }
@@ -189,7 +183,7 @@ type FutureBool interface {
 }
 type _boolfuture chan result
 
-func newFutureBool() FutureBool         { return make(_boolfuture, NANOSEC_1) }
+func newFutureBool() FutureBool         { return make(_boolfuture, 1) }
 func (fvc _boolfuture) onError(e Error) { send(fvc, nil, e) }
 func (fvc _boolfuture) set(v bool)      { send(fvc, v, nil) }
 func (fvc _boolfuture) Get() (v bool, error Error) {
@@ -220,7 +214,7 @@ type FutureString interface {
 }
 type _futurestring chan result
 
-func newFutureString() FutureString       { return make(_futurestring, NANOSEC_1) }
+func newFutureString() FutureString       { return make(_futurestring, 1) }
 func (fvc _futurestring) onError(e Error) { send(fvc, nil, e) }
 func (fvc _futurestring) set(v string)    { send(fvc, v, nil) }
 func (fvc _futurestring) Get() (v string, error Error) {
@@ -251,7 +245,7 @@ type FutureInt64 interface {
 }
 type _futureint64 chan result
 
-func newFutureInt64() FutureInt64        { return make(_futureint64, NANOSEC_1) }
+func newFutureInt64() FutureInt64        { return make(_futureint64, 1) }
 func (fvc _futureint64) onError(e Error) { send(fvc, nil, e) }
 func (fvc _futureint64) set(v int64)     { send(fvc, v, nil) }
 func (fvc _futureint64) Get() (v int64, error Error) {
@@ -304,141 +298,3 @@ func (fvc _futurefloat64) TryGet(ns time.Duration) (v float64, error Error, ok b
 	v, err = Btof64(gv)
 	return v, nil, ok
 }
-
-// start a new timer that will signal on the returned
-// channel when the specified ns (timeout in nanoseconds)
-// have passsed.  If ns < 0, function returns immediately
-// with nil.  Otherwise, the caller can select on the channel
-// and will receive an item after timeout.  If the timer
-// itself was interrupted during sleep, the value in channel
-// will be 0-time-elapsed.  Otherwise, for normal operation,
-// it will return time elapsed in ns (which hopefully is very
-// close to the specified ns timeout value in nanosecs.)
-//
-// Example:
-//
-//	tasksignal := DoSomethingWhileIWait ();  // could take a while..
-//
-//	timeout := redis.NewTimer(1000*800);
-//
-//	select {
-//		case <-tasksignal:
-//			out.Printf("Task completed!\n");
-//		case to := <-timeout:
-//			out.Printf("Timedout waiting for task.  %d\n", to);
-//	}
-//
-func NewTimer(ns time.Duration) (signal <-chan time.Duration) {
-	if ns <= 0 {
-		return nil
-	}
-	c := make(chan time.Duration)
-	go func() {
-		t0 := time.Now()
-		time.Sleep(ns)
-		//		if e != nil {
-		//			t = 0 - (time.Now().Sub(t))
-		//		} else {
-		t := time.Now().Sub(t0)
-		//		}
-		c <- t
-	}()
-	return c
-}
-
-// Signal interface defines the semantics of simple signaling between
-// a sending and awaiting party, with timeout support.
-type Signal interface {
-
-	// Used to send the signal to the waiting party
-	Send()
-
-	// Used by the waiting party.  This call will block until
-	// the Send() method has been invoked.
-	Wait()
-
-	// Used by the waiting party.  This call will block until
-	// either the Send() method has been invoked, or, an interrupt
-	// occurs, or, the timeout duration passes.
-	//
-	// out param timedout is true if the period expired before
-	// signal was received.
-	//
-	// out param interrupted is true if an interrupt occurred.
-	//
-	// timedout and interrupted are mutually exclusive.
-	//
-	WaitFor(timeoutnano time.Duration) (timedout bool, interrupted bool)
-}
-
-// signal wraps a channel and implements the Signal interface.
-//
-type signal struct {
-	c chan byte
-}
-
-// Creates a new Signal
-//
-// Usage exmple:
-//
-//	//The sending party -- here it also creates the signal but that
-//	// can happen elsewhere and passed to it.
-//	func DoSomethingAndSignalOnCompletion (ns time.Duration) (redis.Signal) {
-//		s := redis.NewSignal();
-//   	go func () {
-//			out.Printf("I'm going to sleep for %d nseconds ...\n", ns);
-//			time.Sleep(ns);
-//			out.Printf("the sleeper has awakened!\n");
-//			s.Send();
-//		}();
-//		return s;
-//	}
-//
-//	// elsewhere, the waiting party gets a signal (here by making a call to
-//	// the above func) and then first waits using
-//	func useSignal(t int64) {
-//
-//		// returns a signal
-//		s := DoSomethingSignalOnCompletion(1000*1000);
-//
-//		// wait on signal or timeout
-//		tout, nsinterrupt := s.WaitFor (t);
-//		if tout {
-//			out.Printf("Timedout waiting for task.  interrupted: %v\n", nsinterrupt);
-//		}
-//		else {
-//			out.Printf("Have signal task is completed!\n");
-//		}
-//	}
-//
-func NewSignal() Signal {
-	c := make(chan byte)
-	return &signal{c}
-}
-
-// implementation of Signal.Wait()
-//
-func (s *signal) Wait() {
-	<-s.c
-	return
-}
-
-// implementation of Signal.WaitFor(int64)
-//
-func (s *signal) WaitFor(timeoutnano time.Duration) (timedout bool, interrupted bool) {
-	timer := NewTimer(timeoutnano)
-	select {
-	case <-s.c:
-	case to := <-timer:
-		if to < 0 {
-			interrupted = true
-		} else {
-			timedout = true
-		}
-	}
-	return
-}
-
-// implementation of Signal.Send()
-//
-func (s *signal) Send() { s.c <- 1 }

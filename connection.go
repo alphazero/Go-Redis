@@ -569,7 +569,7 @@ func heartbeatTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *tas
 	var async AsyncConnection = c
 	select {
 	//	case <-NewTimer(ns1Sec * c.super.spec.heartbeat):
-	case <-NewTimer(c.super.spec.heartbeat):
+	case <-time.NewTimer(c.super.spec.heartbeat).C:
 		response, e := async.QueueRequest(&PING, [][]byte{})
 		if e != nil {
 			return nil, &taskStatus{reqerr, e}

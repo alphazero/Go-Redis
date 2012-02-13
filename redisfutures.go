@@ -20,7 +20,7 @@ import "time"
 //
 type FutureKeys interface {
 	Get() ([]string, Error)
-	TryGet(timeoutnano time.Duration) (keys []string, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (keys []string, error Error, timedout bool)
 }
 type _futurekeys struct {
 	future FutureBytes
@@ -37,23 +37,19 @@ func (fvc _futurekeys) Get() (v []string, error Error) {
 	v = convAndSplit(gv)
 	return v, nil
 }
-func (fvc _futurekeys) TryGet(ns time.Duration) (v []string, error Error, ok bool) {
-	gv, err, ok := fvc.future.TryGet(ns)
-	if !ok {
-		return nil, nil, ok
+func (fvc _futurekeys) TryGet(ns time.Duration) ([]string, Error, bool) {
+	gv, err, timedout := fvc.future.TryGet(ns)
+	if timedout || err != nil {
+		return nil, err, timedout
 	}
-	if err != nil {
-		return nil, err, ok
-	}
-	v = convAndSplit(gv)
-	return v, nil, ok
+	return convAndSplit(gv), nil, timedout
 }
 
 // FutureInfo
 //
 type FutureInfo interface {
 	Get() (map[string]string, Error)
-	TryGet(timeoutnano time.Duration) (keys map[string]string, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (keys map[string]string, error Error, timedout bool)
 }
 type _futureinfo struct {
 	future FutureBytes
@@ -70,23 +66,19 @@ func (fvc _futureinfo) Get() (v map[string]string, error Error) {
 	v = parseInfo(gv)
 	return v, nil
 }
-func (fvc _futureinfo) TryGet(ns time.Duration) (v map[string]string, error Error, ok bool) {
-	gv, err, ok := fvc.future.TryGet(ns)
-	if !ok {
-		return nil, nil, ok
+func (fvc _futureinfo) TryGet(ns time.Duration) (map[string]string, Error, bool) {
+	gv, err, timedout := fvc.future.TryGet(ns)
+	if timedout || err != nil {
+		return nil, err, timedout
 	}
-	if err != nil {
-		return nil, err, ok
-	}
-	v = parseInfo(gv)
-	return v, nil, ok
+	return parseInfo(gv), nil, timedout
 }
 
 // FutureKeyType
 //
 type FutureKeyType interface {
 	Get() (KeyType, Error)
-	TryGet(timeoutnano time.Duration) (keys KeyType, error Error, ok bool)
+	TryGet(timeoutnano time.Duration) (keys KeyType, error Error, timedout bool)
 }
 type _futurekeytype struct {
 	future FutureString
@@ -103,14 +95,11 @@ func (fvc _futurekeytype) Get() (v KeyType, error Error) {
 	v = GetKeyType(gv)
 	return v, nil
 }
-func (fvc _futurekeytype) TryGet(ns time.Duration) (v KeyType, error Error, ok bool) {
-	gv, err, ok := fvc.future.TryGet(ns)
-	if !ok {
-		return RT_NONE, nil, ok
+func (fvc _futurekeytype) TryGet(ns time.Duration) (KeyType, Error, bool) {
+	gv, err, timedout := fvc.future.TryGet(ns)
+	if timedout || err != nil {
+		var defv KeyType
+		return defv, err, timedout
 	}
-	if err != nil {
-		return RT_NONE, err, ok
-	}
-	v = GetKeyType(gv)
-	return v, nil, ok
+	return GetKeyType(gv), nil, timedout
 }

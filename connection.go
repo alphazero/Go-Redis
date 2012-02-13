@@ -574,11 +574,11 @@ func heartbeatTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *tas
 		if e != nil {
 			return nil, &taskStatus{reqerr, e}
 		}
-		stat, re, ok := response.future.(FutureBool).TryGet(1 * time.Second)
+		stat, re, timedout := response.future.(FutureBool).TryGet(1 * time.Second)
 		if re != nil {
 			log.Println("ERROR: Heartbeat recieved error response on PING")
 			return nil, &taskStatus{error_, re}
-		} else if !ok {
+		} else if timedout {
 			log.Println("Warning: Heartbeat timeout on get PING response.")
 		} else {
 			// flytrap

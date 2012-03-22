@@ -20,7 +20,7 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
+//	"os"
 	"time"
 )
 
@@ -176,15 +176,7 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 		hdl.spec = spec
 		hdl.conn = conn
 		bufsize := 4096
-		hdl.reader, e = bufio.NewReaderSize(conn, bufsize)
-		if e != nil {
-			msg := fmt.Sprintf("%s(): bufio.NewReaderSize (%d) error", here, bufsize)
-			err = NewErrorWithCause(SYSTEM_ERR, msg, e)
-		} else {
-			if err = hdl.onConnect(); err == nil && debug() {
-				log.Println("[Go-Redis] Opened SynchConnection connection to ", addr)
-			}
-		}
+		hdl.reader = bufio.NewReaderSize(conn, bufsize)
 	}
 	return hdl, err
 }
@@ -390,27 +382,22 @@ func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
 		async = new(asyncConnHdl)
 		if async != nil {
 			async.super = connHdl
-			var e error
-			async.writer, e = bufio.NewWriterSize(connHdl.conn, spec.wBufSize)
-			if e == nil {
-				async.pendingReqs = make(chan asyncReqPtr, spec.reqChanCap)
-				async.pendingResps = make(chan asyncReqPtr, spec.rspChanCap)
-				async.faults = make(chan asyncReqPtr, spec.reqChanCap) // not sure about sizing here ...
+//			var e error
+			async.writer = bufio.NewWriterSize(connHdl.conn, spec.wBufSize)
 
-				async.reqProcCtl = make(workerCtl)
-				async.rspProcCtl = make(workerCtl)
-				async.heartbeatCtl = make(workerCtl)
-				async.managerCtl = make(workerCtl)
+			async.pendingReqs = make(chan asyncReqPtr, spec.reqChanCap)
+			async.pendingResps = make(chan asyncReqPtr, spec.rspChanCap)
+			async.faults = make(chan asyncReqPtr, spec.reqChanCap) // not sure about sizing here ...
 
-				async.feedback = make(chan workerStatus)
-				async.shutdown = make(chan bool, 1)
+			async.reqProcCtl = make(workerCtl)
+			async.rspProcCtl = make(workerCtl)
+			async.heartbeatCtl = make(workerCtl)
+			async.managerCtl = make(workerCtl)
 
-				return
-			} else {
-				connHdl.conn.Close()
-				msg := fmt.Sprintf("NewWriterSize(%d) failed.", spec.wBufSize)
-				err = NewErrorWithCause(SYSTEM_ERR, msg, e)
-			}
+			async.feedback = make(chan workerStatus)
+			async.shutdown = make(chan bool, 1)
+
+			return
 		}
 	}
 	// fall through here on errors only
@@ -776,14 +763,14 @@ func sendRequest(w io.Writer, data []byte) (e error) {
 	n, e := w.Write(data)
 	if e != nil {
 		var msg string
-		switch {
-		case e == os.EAGAIN:
-			// socket timeout -- don't handle that yet but may in future ..
-			msg = fmt.Sprintf("%s(): timeout (os.EAGAIN) error on Write", here)
-		default:
+//		switch {
+//		case e == os.EAGAIN:
+//			// socket timeout -- don't handle that yet but may in future ..
+//			msg = fmt.Sprintf("%s(): timeout (os.EAGAIN) error on Write", here)
+//		default:
 			// anything else
 			msg = fmt.Sprintf("%s(): error on Write", here)
-		}
+//		}
 		return withOsError(msg, e)
 	}
 

@@ -75,6 +75,7 @@ e.g. on my Mac OS X (64b)
 ## run the benchmarks
 	
 Basic benchmarks are in ~/bench.  Use Go tool (go run <bench>) to run the individual bench apps.
+
 	cd bench
 	# run the asyncbench.go 
 	go run asyncbench.go

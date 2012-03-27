@@ -149,6 +149,9 @@ type connHdl struct {
 	reader *bufio.Reader
 }
 
+func (chdl *connHdl) String() string {
+	return fmt.Sprintf("conn<redis-server@%s>", chdl.conn.RemoteAddr())
+}
 // Creates and opens a new connection to server per ConnectionSpec.
 // The new connection is wrapped by a new connHdl with its bufio.Reader
 // delegating to the net.Conn's reader.
@@ -177,7 +180,7 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 		hdl.conn = conn
 		bufsize := 4096
 		hdl.reader = bufio.NewReaderSize(conn, bufsize)
-		log.Printf("Connected to %s", addr)
+		log.Printf("<INFO> Connected to %s", hdl)
 	}
 	return hdl, err
 }
@@ -449,7 +452,7 @@ func (c *asyncConnHdl) startup() {
 	go c.worker(heartbeatworker, "response-processor", rspProcessingTask, c.rspProcCtl, c.feedback)
 	c.rspProcCtl <- start
 
-	log.Println("Async connection started")
+	log.Println("<INFO> Async connection started")
 }
 
 // This could find a happy home in a generalized worker package ...

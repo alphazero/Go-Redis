@@ -194,9 +194,9 @@ func configureConn(conn *net.TCPConn, spec *ConnectionSpec) {
 	conn.SetWriteBuffer(spec.wBufSize)
 }
 
-// TODO: return redis.Error
+// onConnect event handler will issue AUTH/SELECT on new connection
+// if required.
 func (c *connHdl) onConnect() (e Error) {
-	log.Print("onConnect")
 	if c.spec.password != DefaultRedisPassword {
 		_, e = c.ServiceRequest(&AUTH, [][]byte{[]byte(c.spec.password)})
 		if e != nil {
@@ -425,23 +425,24 @@ func NewAsynchConnection(spec *ConnectionSpec) (conn AsyncConnection, err Error)
 }
 
 func (c *asyncConnHdl) onConnect() (e Error) {
-	var spec = c.super.spec
-
-	if spec.password != DefaultRedisPassword {
-		_, e = c.super.ServiceRequest(&AUTH, [][]byte{[]byte(spec.password)})
-		if e != nil {
-			log.Printf("Error on AUTH - e:%s", e.Message())
-			return
-		}
-	}
-	if spec.db != DefaultRedisDB {
-		_, e = c.super.ServiceRequest(&SELECT, [][]byte{[]byte(fmt.Sprintf("%d", spec.db))})
-		if e != nil {
-			log.Printf("Error on SELECT - e:%s", e.Message())
-			return
-		}
-	}
-	return
+	return c.super.onConnect()
+//	var spec = c.super.spec
+//
+//	if spec.password != DefaultRedisPassword {
+//		_, e = c.super.ServiceRequest(&AUTH, [][]byte{[]byte(spec.password)})
+//		if e != nil {
+//			log.Printf("Error on AUTH - e:%s", e.Message())
+//			return
+//		}
+//	}
+//	if spec.db != DefaultRedisDB {
+//		_, e = c.super.ServiceRequest(&SELECT, [][]byte{[]byte(fmt.Sprintf("%d", spec.db))})
+//		if e != nil {
+//			log.Printf("Error on SELECT - e:%s", e.Message())
+//			return
+//		}
+//	}
+//	return
 }
 func (c *asyncConnHdl) onDisconnect() (e Error) {
 	return

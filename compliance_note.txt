@@ -1,14 +1,12 @@
 Redis: 
-	2.4.6 
+	2.4.9
 
 Go:
-	release (as of 4/18/2011)
-	6g version weekly.2012-01-27 11507
-	6l version weekly.2012-01-27 11507
+	Go version weekly.2012-03-22
 
 Test platform
 	darwin/amd64
 
 --
-February 06, 2012
+March 27, 2012
 bushwick/nyc

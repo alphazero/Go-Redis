@@ -59,31 +59,32 @@ Confirm:
 
 ## build and install
 
-To build and install Go-Redis, from the root directory of the git clone:
+Go-Redis is built using the Go tool. The tool assumes the code will be in a folder $GOPATH/src/redis .  
 
-	cd src/pkg/redis
-	make clean && make install
-	cd -
+	cd $GOPATH/src/redis
+	go install
 
-Confirm the install:
+Confirm the install has created redis.a in your $GOPATH/pkg/<arch> folder:
 
-	ls -l $GOROOT/pkg/"$GOOS"_"$GOARCH"/redis.a
+	ls -l $GOPATH/pkg/"$GOOS"_"$GOARCH"/redis.a
 
+e.g. on my Mac OS X (64b) 
+
+	ls -l <my-gopath>/pkg/darwin_amd64
 
 ## run the benchmarks
 	
-After installing Go-Redis (per above), try (again from the root dir of Go-Redis):
-
+Basic benchmarks are in ~/bench.  Use Go tool (go run <bench>) to run the individual bench apps.
 	cd bench
-	./runbench synchclient
-	./runbench gosynchclient
+	# run the asyncbench.go 
+	go run asyncbench.go
 
 ## examples
 
 [Ciao.go][ciao] is a sort of hello world for redis and should get you started for the barebones necessities of getting a client and issuing commands.
 
 	cd examples
-	./run ciao
+	go run ciao.go
 
 [Go]: http://golang.org/
 [Redis]: http://github.com/antirez/redis

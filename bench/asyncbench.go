@@ -107,10 +107,12 @@ func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool)
 func setup (client redis.AsyncClient) {
 	fr, e := client.Flushdb(); if e!=nil {
 		log.Println("Error creating client for worker: ", e)
+		log.Println("fr: ", fr)
 		panic(e)
 	}
-	_, e2 := fr.Get(); if e2 != nil {
-		log.Println("Error creating client for worker: ", e)
+	frr, e2 := fr.Get(); if e2 != nil {
+		log.Println("Error creating client for worker: ", e2)
+		log.Println("frr: ", frr)
 		panic(e)
 	}
 }

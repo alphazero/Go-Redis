@@ -424,26 +424,12 @@ func NewAsynchConnection(spec *ConnectionSpec) (conn AsyncConnection, err Error)
 	return async, err
 }
 
+// onConnect event handler.
+// See connHdl#onConnect
 func (c *asyncConnHdl) onConnect() (e Error) {
 	return c.super.onConnect()
-//	var spec = c.super.spec
-//
-//	if spec.password != DefaultRedisPassword {
-//		_, e = c.super.ServiceRequest(&AUTH, [][]byte{[]byte(spec.password)})
-//		if e != nil {
-//			log.Printf("Error on AUTH - e:%s", e.Message())
-//			return
-//		}
-//	}
-//	if spec.db != DefaultRedisDB {
-//		_, e = c.super.ServiceRequest(&SELECT, [][]byte{[]byte(fmt.Sprintf("%d", spec.db))})
-//		if e != nil {
-//			log.Printf("Error on SELECT - e:%s", e.Message())
-//			return
-//		}
-//	}
-//	return
 }
+
 func (c *asyncConnHdl) onDisconnect() (e Error) {
 	return
 }
@@ -463,19 +449,20 @@ func (c *asyncConnHdl) startup() {
 	go c.worker(heartbeatworker, "response-processor", rspProcessingTask, c.rspProcCtl, c.feedback)
 	c.rspProcCtl <- start
 
-	log.Println("Connection started ...")
+	log.Println("Async connection started")
 }
 
 // This could find a happy home in a generalized worker package ...
 // TODO
 func (c *asyncConnHdl) worker(id int, name string, task workerTask, ctl workerCtl, fb chan workerStatus) {
+	log.Printf("<INFO> %s started.", name)
 	var signal interrupt_code
 	var tstat *taskStatus
 
 	// todo: add startup hook for worker
 
 await_signal:
-	log.Println(name, "_worker: await_signal.")
+//	log.Println(name, "_worker: await_signal.")
 	signal = <-ctl
 
 on_interrupt:
@@ -541,7 +528,7 @@ func managementTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *ta
 	on_exit:
 		?
 	*/
-	log.Println("MGR: do task ...")
+//	log.Println("MGR: do task ...")
 	select {
 	case stat := <-c.feedback:
 		log.Println("MGR: Feedback from one of my minions: ", stat)

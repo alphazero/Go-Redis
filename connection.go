@@ -20,7 +20,7 @@ import (
 	"io"
 	"log"
 	"net"
-//	"os"
+	//	"os"
 	"time"
 )
 
@@ -177,6 +177,7 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 		hdl.conn = conn
 		bufsize := 4096
 		hdl.reader = bufio.NewReaderSize(conn, bufsize)
+		log.Printf("Connected to %s", addr)
 	}
 	return hdl, err
 }
@@ -195,15 +196,18 @@ func configureConn(conn *net.TCPConn, spec *ConnectionSpec) {
 
 // TODO: return redis.Error
 func (c *connHdl) onConnect() (e Error) {
+	log.Print("onConnect")
 	if c.spec.password != DefaultRedisPassword {
 		_, e = c.ServiceRequest(&AUTH, [][]byte{[]byte(c.spec.password)})
 		if e != nil {
+			log.Printf("Error on AUTH - e:%s", e.Message())
 			return
 		}
 	}
 	if c.spec.db != DefaultRedisDB {
 		_, e = c.ServiceRequest(&SELECT, [][]byte{[]byte(fmt.Sprintf("%d", c.spec.db))})
 		if e != nil {
+			log.Printf("Error on SELECT - e:%s", e.Message())
 			return
 		}
 	}
@@ -239,10 +243,9 @@ type SyncConnection interface {
 
 // Creates a new SyncConnection using the provided ConnectionSpec
 func NewSyncConnection(spec *ConnectionSpec) (c SyncConnection, err Error) {
-	//	connHdl, e := newConnHdl(spec);
-	//	connHdl.onConnect();
-	//	return connHdl, e;
-	return newConnHdl(spec)
+	connHdl, e := newConnHdl(spec)
+	connHdl.onConnect()
+	return connHdl, e
 }
 
 // Implementation of SyncConnection.ServiceRequest.
@@ -382,7 +385,7 @@ func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
 		async = new(asyncConnHdl)
 		if async != nil {
 			async.super = connHdl
-//			var e error
+			//			var e error
 			async.writer = bufio.NewWriterSize(connHdl.conn, spec.wBufSize)
 
 			async.pendingReqs = make(chan asyncReqPtr, spec.reqChanCap)
@@ -421,7 +424,25 @@ func NewAsynchConnection(spec *ConnectionSpec) (conn AsyncConnection, err Error)
 	return async, err
 }
 
-func (c *asyncConnHdl) onConnect() (e Error) { return }
+func (c *asyncConnHdl) onConnect() (e Error) {
+	var spec = c.super.spec
+
+	if spec.password != DefaultRedisPassword {
+		_, e = c.super.ServiceRequest(&AUTH, [][]byte{[]byte(spec.password)})
+		if e != nil {
+			log.Printf("Error on AUTH - e:%s", e.Message())
+			return
+		}
+	}
+	if spec.db != DefaultRedisDB {
+		_, e = c.super.ServiceRequest(&SELECT, [][]byte{[]byte(fmt.Sprintf("%d", spec.db))})
+		if e != nil {
+			log.Printf("Error on SELECT - e:%s", e.Message())
+			return
+		}
+	}
+	return
+}
 func (c *asyncConnHdl) onDisconnect() (e Error) {
 	return
 }
@@ -563,7 +584,7 @@ func heartbeatTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *tas
 		}
 		stat, re, timedout := response.future.(FutureBool).TryGet(1 * time.Second)
 		if re != nil {
-			log.Println("ERROR: Heartbeat recieved error response on PING")
+			log.Printf("ERROR: Heartbeat recieved error response on PING: %d\n", re)
 			return nil, &taskStatus{error_, re}
 		} else if timedout {
 			log.Println("Warning: Heartbeat timeout on get PING response.")
@@ -763,14 +784,14 @@ func sendRequest(w io.Writer, data []byte) (e error) {
 	n, e := w.Write(data)
 	if e != nil {
 		var msg string
-//		switch {
-//		case e == os.EAGAIN:
-//			// socket timeout -- don't handle that yet but may in future ..
-//			msg = fmt.Sprintf("%s(): timeout (os.EAGAIN) error on Write", here)
-//		default:
-			// anything else
-			msg = fmt.Sprintf("%s(): error on Write", here)
-//		}
+		//		switch {
+		//		case e == os.EAGAIN:
+		//			// socket timeout -- don't handle that yet but may in future ..
+		//			msg = fmt.Sprintf("%s(): timeout (os.EAGAIN) error on Write", here)
+		//		default:
+		// anything else
+		msg = fmt.Sprintf("%s(): error on Write", here)
+		//		}
 		return withOsError(msg, e)
 	}
 

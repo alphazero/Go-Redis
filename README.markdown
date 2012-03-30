@@ -12,7 +12,13 @@ Also am not sure regarding the efficiency of the implementation (for the obvious
 The code is consolidated into a single 'redis' package and various elements of it are usable independently (for example if you wish to roll your own API but want to use the raw bytes protocol handling aspects).
 
 # Compliance
-Refer to compliance_note.txt.
+
+Both Go and Redis are dynamic projects and present a challenge in fully covering the possible combinations in the wild.  Given the release of Go 1, this project will focus on Go 1 based Redis compatibility; we'll deal with the far off prospect of renewed major weekly changes in Go if and when that arises.   
+
+Current status is compatible with Redis 2.4.n (2.4.9 tested)  and Go 1.  Redis feature set is not fully covered and is WIP.
+
+(Always refer to compliance_note.txt for current (accurate) status for specific branches.)
+ 
 
 # Getting started:
 

@@ -37,14 +37,10 @@ func NewSynchClient() (c Client, err Error) {
 	spec := DefaultSpec()
 	c, err = NewSynchClientWithSpec(spec)
 	if err != nil {
-		if debug() {
-			log.Println("NewSynchClientWithSpec raised error: ", err)
-		}
+		log.Println("NewSynchClientWithSpec raised error: ", err)
 	}
 	if c == nil {
-		if debug() {
-			log.Println("NewSynchClientWithSpec returned nil Client.")
-		}
+		log.Println("NewSynchClientWithSpec returned nil Client.")
 		err = NewError(SYSTEM_ERR, "NewSynchClientWithSpec returned nil Client")
 	}
 	return
@@ -55,13 +51,12 @@ func NewSynchClient() (c Client, err Error) {
 //
 func NewSynchClientWithSpec(spec *ConnectionSpec) (c Client, err Error) {
 	_c := new(syncClient)
-	_c.conn, err = NewSyncConnection(spec)
+	conn, err := NewSyncConnection(spec)
 	if err != nil {
-		if debug() {
-			log.Println("NewSyncConnection() raised error: ", err)
-		}
+		log.Println("NewSyncConnection() raised error: ", err.Message())
 		return nil, err
 	}
+	_c.conn = conn
 	return _c, nil
 }
 

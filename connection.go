@@ -152,6 +152,7 @@ type connHdl struct {
 func (chdl *connHdl) String() string {
 	return fmt.Sprintf("conn<redis-server@%s>", chdl.conn.RemoteAddr())
 }
+
 // Creates and opens a new connection to server per ConnectionSpec.
 // The new connection is wrapped by a new connHdl with its bufio.Reader
 // delegating to the net.Conn's reader.
@@ -172,8 +173,12 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 	switch {
 	case e != nil:
 		err = NewErrorWithCause(SYSTEM_ERR, fmt.Sprintf("%s(): could not open connection", here), e)
+		log.Println(err.Message())
+		return nil, err
 	case conn == nil:
 		err = NewError(SYSTEM_ERR, fmt.Sprintf("%s(): net.Dial returned nil, nil (?)", here))
+		log.Println(err.Message())
+		return nil, err
 	default:
 		configureConn(conn, spec)
 		hdl.spec = spec
@@ -182,7 +187,7 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 		hdl.reader = bufio.NewReaderSize(conn, bufsize)
 		log.Printf("<INFO> Connected to %s", hdl)
 	}
-	return hdl, err
+	return hdl, nil
 }
 
 func configureConn(conn *net.TCPConn, spec *ConnectionSpec) {
@@ -247,6 +252,11 @@ type SyncConnection interface {
 // Creates a new SyncConnection using the provided ConnectionSpec
 func NewSyncConnection(spec *ConnectionSpec) (c SyncConnection, err Error) {
 	connHdl, e := newConnHdl(spec)
+	if e != nil {
+		log.Println("newConnHdl failed: " + e.Message())
+		return nil, e
+	}
+
 	connHdl.onConnect()
 	return connHdl, e
 }
@@ -465,7 +475,7 @@ func (c *asyncConnHdl) worker(id int, name string, task workerTask, ctl workerCt
 	// todo: add startup hook for worker
 
 await_signal:
-//	log.Println(name, "_worker: await_signal.")
+	//	log.Println(name, "_worker: await_signal.")
 	signal = <-ctl
 
 on_interrupt:
@@ -531,7 +541,7 @@ func managementTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *ta
 	on_exit:
 		?
 	*/
-//	log.Println("MGR: do task ...")
+	//	log.Println("MGR: do task ...")
 	select {
 	case stat := <-c.feedback:
 		log.Println("MGR: Feedback from one of my minions: ", stat)

@@ -44,7 +44,15 @@ const (
 	REDIS_ERR
 	SYSTEM_ERR
 )
-
+func (ec ErrorCategory) String() (s string) {
+	switch ec {
+	case SYSTEM_ERR:
+		s = "SYSTEM_ERROR"
+	case REDIS_ERR:
+		s = "REDIS_ERROR"
+	}
+	return
+}
 // Defines the interfce to get details of an Error.
 //
 type Error interface {
@@ -61,7 +69,7 @@ type redisError struct {
 }
 
 func (e redisError) Cause() error            { return e.cause }
-func (e redisError) Error() string           { return e.Error() }
+func (e redisError) Error() string           { return e.String() }
 func (e redisError) Category() ErrorCategory { return e.category }
 func (e redisError) Message() string         { return e.msg }
 func (e redisError) String() string {
@@ -79,30 +87,35 @@ func (e redisError) String() string {
 	return fmt.Sprintf("[go-redis|%d|%s]: %s %s", e.category, errCat, e.msg, causeDetails)
 }
 
+func _newRedisError(cat ErrorCategory, msg string) redisError {
+	var e redisError
+	e.msg = msg
+	e.category = cat
+	return e
+}
+
 // Creates an Error of REDIS_ERR category with the message.
 //
 func NewRedisError(msg string) Error {
-	e := new(redisError)
-	e.msg = msg
-	e.category = REDIS_ERR
-	return e
+	return _newRedisError(REDIS_ERR, msg)
+}
+
+// Creates an Error of REDIS_ERR category with the message.
+//
+func NewSystemError(msg string) Error {
+	return _newRedisError(SYSTEM_ERR, msg)
 }
 
 // Creates an Error of specified category with the message.
 //
-func NewError(t ErrorCategory, msg string) Error {
-	e := new(redisError)
-	e.msg = msg
-	e.category = t
-	return e
+func NewError(cat ErrorCategory, msg string) Error {
+	return _newRedisError(cat, msg)
 }
 
 // Creates an Error of specified category with the message and cause.
 //
 func NewErrorWithCause(cat ErrorCategory, msg string, cause error) Error {
-	e := new(redisError)
-	e.msg = msg
-	e.category = cat
+	e := _newRedisError(cat, msg)
 	e.cause = cause
 	return e
 }

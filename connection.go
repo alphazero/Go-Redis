@@ -173,12 +173,10 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 	switch {
 	case e != nil:
 		err = NewErrorWithCause(SYSTEM_ERR, fmt.Sprintf("%s(): could not open connection", here), e)
-		log.Println(err.Message())
-		return nil, err
+		return nil, withError(err)
 	case conn == nil:
 		err = NewError(SYSTEM_ERR, fmt.Sprintf("%s(): net.Dial returned nil, nil (?)", here))
-		log.Println(err.Message())
-		return nil, err
+		return nil, withError(err)
 	default:
 		configureConn(conn, spec)
 		hdl.spec = spec
@@ -208,14 +206,14 @@ func (c *connHdl) onConnect() (e Error) {
 	if c.spec.password != DefaultRedisPassword {
 		_, e = c.ServiceRequest(&AUTH, [][]byte{[]byte(c.spec.password)})
 		if e != nil {
-			log.Printf("Error on AUTH - e:%s", e.Message())
+			log.Printf("<ERROR> Authentication failed - %s", e.Message())
 			return
 		}
 	}
 	if c.spec.db != DefaultRedisDB {
 		_, e = c.ServiceRequest(&SELECT, [][]byte{[]byte(fmt.Sprintf("%d", c.spec.db))})
 		if e != nil {
-			log.Printf("Error on SELECT - e:%s", e.Message())
+			log.Printf("<ERROR> DB Select failed - %s", e.Message())
 			return
 		}
 	}
@@ -253,11 +251,10 @@ type SyncConnection interface {
 func NewSyncConnection(spec *ConnectionSpec) (c SyncConnection, err Error) {
 	connHdl, e := newConnHdl(spec)
 	if e != nil {
-		log.Println("newConnHdl failed: " + e.Message())
 		return nil, e
 	}
 
-	connHdl.onConnect()
+	e = connHdl.onConnect()
 	return connHdl, e
 }
 

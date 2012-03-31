@@ -13,6 +13,8 @@ type tspec_sct struct {
 	connspec *ConnectionSpec
 }
 
+// default values for test
+//
 func testspec_sct() tspec_sct {
 	var spec tspec_sct
 
@@ -25,16 +27,29 @@ func testspec_sct() tspec_sct {
 	return spec
 }
 
+func TestClientConnectWithBadSpec(t *testing.T) {
+	spec := testspec_sct()
+	spec.connspec.Password("bad-password")
+	c, err := NewSynchClientWithSpec(spec.connspec)
+	if err == nil {
+		t.Error("BUG: Expected a RedisError")
+	}
+	if c != nil {
+		t.Error("BUG: client reference expected to be nil")
+	}
+}
+
 func TestClientConnectWithSpec(t *testing.T) {
 	spec := testspec_sct()
 
 	c, err := NewSynchClientWithSpec(spec.connspec)
 	if err != nil {
-		t.Error("failed to create client with spec. Error: %s", err.Message())
+		t.Error("failed to create client with spec. Error: ", err.Message())
 	} else if c == nil {
-		t.Error("failed to create client with spec. Error: %s")
+		t.Error("BUG: client is nil")
 	}
 }
+
 func TestEnd_sct(t *testing.T) {
 	log.Println("synchclient test")
 }

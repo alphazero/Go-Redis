@@ -27,16 +27,16 @@ func testspec_et() tspec_et {
 
 func commonErrorTest(t *testing.T, e Error, category ErrorCategory) {
 	if e.Error() == "" {
-		t.Error ("BUG: nil results for e.Error()")
+		t.Error("BUG: nil results for e.Error()")
 	}
 	if e.Message() == "" {
-		t.Error ("BUG: nil results for e.Message()")
+		t.Error("BUG: nil results for e.Message()")
 	}
 	if e.String() == "" {
-		t.Error ("BUG: nil results for e.String()")
+		t.Error("BUG: nil results for e.String()")
 	}
 	if e.Category() != category {
-		t.Errorf ("BUG: category not set correctly (exp:%s | got:%s)", category, e.Category())
+		t.Errorf("BUG: category not set correctly (exp:%s | got:%s)", category, e.Category())
 	}
 }
 
@@ -59,6 +59,10 @@ func TestNewRedisError(t *testing.T) {
 	spec := testspec_et()
 	e := NewRedisError(spec.msg)
 	commonErrorTest(t, e, REDIS_ERR)
+
+	if !e.IsRedisError() {
+		t.Error("BUG: IsRedisError")
+	}
 }
 
 func TestNewSystemError(t *testing.T) {
@@ -66,13 +70,17 @@ func TestNewSystemError(t *testing.T) {
 	spec := testspec_et()
 	e := NewSystemError(spec.msg)
 	commonErrorTest(t, e, SYSTEM_ERR)
+
+	if e.IsRedisError() {
+		t.Error("BUG: IsRedisError")
+	}
 }
 
 func TestNewErrorWithCause(t *testing.T) {
 
 	spec := testspec_et()
 
-	var cause simpleError;
+	var cause simpleError
 	e := NewErrorWithCause(spec.category, spec.msg, cause)
 
 	commonErrorTest(t, e, spec.category)

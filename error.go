@@ -44,6 +44,7 @@ const (
 	REDIS_ERR
 	SYSTEM_ERR
 )
+
 func (ec ErrorCategory) String() (s string) {
 	switch ec {
 	case SYSTEM_ERR:
@@ -53,14 +54,30 @@ func (ec ErrorCategory) String() (s string) {
 	}
 	return
 }
+
 // Defines the interfce to get details of an Error.
 //
 type Error interface {
+	// underlying error that caused this error - or nil
 	Cause() error
+
+	// support std. Go Error interface
 	Error() string
+
+	// category of error -- never nil
 	Category() ErrorCategory
+
+	// the error message - if a Redis error these are exactly
+	// as provided by the server e.g. "ERR - invalid password"
+	// possibly "" if SYSTEM-ERR
 	Message() string
+
+	// conv to String
 	String() string
+
+	// check if error is a Redis error e.g. "ERR - invalid password"
+	// a convenience method
+	IsRedisError() bool
 }
 type redisError struct {
 	msg      string
@@ -68,6 +85,7 @@ type redisError struct {
 	cause    error
 }
 
+func (e redisError) IsRedisError() bool            { return e.category == REDIS_ERR}
 func (e redisError) Cause() error            { return e.cause }
 func (e redisError) Error() string           { return e.String() }
 func (e redisError) Category() ErrorCategory { return e.category }
@@ -120,17 +138,29 @@ func NewErrorWithCause(cat ErrorCategory, msg string, cause error) Error {
 	return e
 }
 
-// ----------------
-// impl. utils
-//
-// a utility function for various components
-//
+
+// utility function emits log if _debug flag /debug() is true
+// Error is returned.
+// usage:
+//      foo, e := FooBar()
+//      if e != nil {
+//          return withError(e)
+//      }
 func withError(e Error) Error {
 	if debug() {
 		log.Println(e)
 	}
 	return e
 }
+
+// creates a new generic (Go) error
+// and emits log if _debug flag /debug() is true
+// Error is returned.
+// usage:
+//      v := FooBar()
+//      if v != expected {
+//          return withNewError("value v is unexpected")
+//      }
 func withNewError(m string) error {
 	e := errors.New(m)
 	if debug() {
@@ -138,6 +168,15 @@ func withNewError(m string) error {
 	}
 	return e
 }
+
+// creates a new redis.Error of category SYSTEM_ERR
+// and emits log if _debug flag /debug() is true
+// Error is returned.
+// usage:
+//      _, e := SomeLibraryOrGoCall()
+//      if e != nil {
+//          return withNewError("value v is unexpected", e)
+//      }
 func withOsError(m string, cause error) error {
 	return withNewError(fmt.Sprintf("%s [cause: %s]", m, cause))
 }

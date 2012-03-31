@@ -94,7 +94,7 @@ package redis
 
 import (
 	"flag"
-	//	"runtime";
+	"runtime";
 )
 
 // Common interface supported by all clients
@@ -518,8 +518,8 @@ type AsyncClient interface {
 // for this package are all prefixed by "redis:" to prevent possible name collisions.
 //
 func init() {
-	//	runtime.GOMAXPROCS(2);
-	//	flag.Parse(); 
+		runtime.GOMAXPROCS(2);
+		flag.Parse();
 }
 
 // redis:d
@@ -527,4 +527,6 @@ func init() {
 // global debug flag for redis package components.
 // 
 var _debug *bool = flag.Bool("redis:d", false, "debug flag for go-redis") // TEMP: should default to false
-func debug() bool                                                         { return *_debug }
+func debug() bool {
+	return *_debug
+}

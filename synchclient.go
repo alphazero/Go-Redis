@@ -51,12 +51,11 @@ func NewSynchClient() (c Client, err Error) {
 //
 func NewSynchClientWithSpec(spec *ConnectionSpec) (c Client, err Error) {
 	_c := new(syncClient)
-	conn, err := NewSyncConnection(spec)
+	_c.conn, err = NewSyncConnection(spec)
 	if err != nil {
-		log.Println("NewSyncConnection() raised error: ", err.Message())
-		return nil, err
+		return nil, withError (err)
 	}
-	_c.conn = conn
+//	_c.conn = conn
 	return _c, nil
 }
 

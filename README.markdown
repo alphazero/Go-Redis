@@ -63,11 +63,14 @@ Confirm:
     alphazero[14]:entrevous$ 
 
 
-## build and install
+## get, and install, Go-Redis
 
 Go-Redis is built using the Go tool. The tool assumes the code will be in a folder $GOPATH/src/redis .  
 
-	cd $GOPATH/src/redis
+
+	cd $GOPATH/src
+	git clone git://github.com/alphazero/Go-Redis.git redis
+	cd redis
 	go install
 
 Confirm the install has created redis.a in your $GOPATH/pkg/<arch> folder:

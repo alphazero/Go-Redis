@@ -500,12 +500,38 @@ func (c *asyncClient) Lpop(arg0 string) (result FutureBytes, err Error) {
 
 }
 
+// Redis BLPOP command.
+func (c *asyncClient) Blpop(arg0 string) (result FutureBytes, err Error) {
+	arg0bytes := []byte(arg0)
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&BLPOP, [][]byte{arg0bytes})
+	if err == nil {
+		result = resp.future.(FutureBytes)
+	}
+	return result, err
+
+}
+
 // Redis RPOP command.
 func (c *asyncClient) Rpop(arg0 string) (result FutureBytes, err Error) {
 	arg0bytes := []byte(arg0)
 
 	var resp *PendingResponse
 	resp, err = c.conn.QueueRequest(&RPOP, [][]byte{arg0bytes})
+	if err == nil {
+		result = resp.future.(FutureBytes)
+	}
+	return result, err
+
+}
+
+// Redis BRPOP command.
+func (c *asyncClient) Brpop(arg0 string) (result FutureBytes, err Error) {
+	arg0bytes := []byte(arg0)
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&BRPOP, [][]byte{arg0bytes})
 	if err == nil {
 		result = resp.future.(FutureBytes)
 	}
@@ -520,6 +546,20 @@ func (c *asyncClient) Rpoplpush(arg0 string, arg1 string) (result FutureBytes, e
 
 	var resp *PendingResponse
 	resp, err = c.conn.QueueRequest(&RPOPLPUSH, [][]byte{arg0bytes, arg1bytes})
+	if err == nil {
+		result = resp.future.(FutureBytes)
+	}
+	return result, err
+
+}
+
+// Redis BRPOPLPUSH command.
+func (c *asyncClient) Brpoplpush(arg0 string, arg1 string) (result FutureBytes, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(arg1)
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&BRPOPLPUSH, [][]byte{arg0bytes, arg1bytes})
 	if err == nil {
 		result = resp.future.(FutureBytes)
 	}

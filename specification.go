@@ -145,8 +145,11 @@ var (
 	LSET          Command = Command{"LSET", KEY_IDX_VALUE, STATUS}
 	LREM          Command = Command{"LREM", KEY_CNT_VALUE, NUMBER}
 	LPOP          Command = Command{"LPOP", KEY, BULK}
+	BLPOP         Command = Command{"BLPOP", KEY, BULK}
 	RPOP          Command = Command{"RPOP", KEY, BULK}
+	BRPOP         Command = Command{"BRPOP", KEY, BULK}
 	RPOPLPUSH     Command = Command{"RPOPLPUSH", KEY_VALUE, BULK}
+	BRPOPLPUSH    Command = Command{"BRPOPLPUSH", KEY_VALUE, BULK}
 	SADD          Command = Command{"SADD", KEY_VALUE, BOOLEAN}
 	SREM          Command = Command{"SREM", KEY_VALUE, BOOLEAN}
 	SCARD         Command = Command{"SCARD", KEY, NUMBER}

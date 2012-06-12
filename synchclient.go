@@ -510,12 +510,38 @@ func (c *syncClient) Lpop(arg0 string) (result []byte, err Error) {
 
 }
 
+// Redis BLPOP command.
+func (c *syncClient) Blpop(arg0 string) (result []byte, err Error) {
+	arg0bytes := []byte(arg0)
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&BLPOP, [][]byte{arg0bytes})
+	if err == nil {
+		result = resp.GetBulkData()
+	}
+	return result, err
+
+}
+
 // Redis RPOP command.
 func (c *syncClient) Rpop(arg0 string) (result []byte, err Error) {
 	arg0bytes := []byte(arg0)
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&RPOP, [][]byte{arg0bytes})
+	if err == nil {
+		result = resp.GetBulkData()
+	}
+	return result, err
+
+}
+
+// Redis BRPOP command.
+func (c *syncClient) Brpop(arg0 string) (result []byte, err Error) {
+	arg0bytes := []byte(arg0)
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&BRPOP, [][]byte{arg0bytes})
 	if err == nil {
 		result = resp.GetBulkData()
 	}
@@ -530,6 +556,20 @@ func (c *syncClient) Rpoplpush(arg0 string, arg1 string) (result []byte, err Err
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&RPOPLPUSH, [][]byte{arg0bytes, arg1bytes})
+	if err == nil {
+		result = resp.GetBulkData()
+	}
+	return result, err
+
+}
+
+// Redis BRPOPLPUSH command.
+func (c *syncClient) Brpoplpush(arg0 string, arg1 string) (result []byte, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(arg1)
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&BRPOPLPUSH, [][]byte{arg0bytes, arg1bytes})
 	if err == nil {
 		result = resp.GetBulkData()
 	}

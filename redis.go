@@ -225,11 +225,20 @@ type Client interface {
 	// Redis LPOP command.
 	Lpop(key string) (result []byte, err Error)
 
+	// Redis BLPOP command.
+	Blpop(key string, timeout int) (result [][]byte, err Error)
+
 	// Redis RPOP command.
 	Rpop(key string) (result []byte, err Error)
 
+	// Redis BRPOP command.
+	Brpop(key string, timeout int) (result [][]byte, err Error)
+
 	// Redis RPOPLPUSH command.
 	Rpoplpush(key string, arg1 string) (result []byte, err Error)
+
+	// Redis BRPOPLPUSH command.
+	Brpoplpush(key string, arg1 string, timeout int) (result [][]byte, err Error)
 
 	// Redis SADD command.
 	Sadd(key string, arg1 []byte) (result bool, err Error)

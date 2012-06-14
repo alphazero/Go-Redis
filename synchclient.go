@@ -869,6 +869,43 @@ func (c *syncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (res
 
 }
 
+// Redis HGET command.
+func (c *syncClient) Hget(arg0 string, arg1 string) (result []byte, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(arg1)
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&HGET, [][]byte{arg0bytes, arg1bytes})
+	if err == nil {
+		result = resp.GetBulkData()
+	}
+	return result, err
+
+}
+
+// Redis HSET command.
+func (c *syncClient) Hset(arg0 string, arg1 string, arg2 []byte) (err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(arg1)
+	arg2bytes := arg2
+
+	_, err = c.conn.ServiceRequest(&HSET, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	return
+}
+
+// Redis HGETALL command.
+func (c *syncClient) Hgetall(arg0 string) (result [][]byte, err Error) {
+	arg0bytes := []byte(arg0)
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&HGETALL, [][]byte{arg0bytes})
+	if err == nil {
+		result = resp.GetMultiBulkData()
+	}
+	return result, err
+
+}
+
 // Redis FLUSHDB command.
 func (c *syncClient) Flushdb() (err Error) {
 	_, err = c.conn.ServiceRequest(&FLUSHDB, [][]byte{})

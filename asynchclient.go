@@ -848,6 +848,47 @@ func (c *asyncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (re
 
 }
 
+// Redis HGET command.
+func (c *asyncClient) Hget(arg0 string, arg1 string) (result FutureBytes, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(arg1)
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&HGET, [][]byte{arg0bytes, arg1bytes})
+	if err == nil {
+		result = resp.future.(FutureBytes)
+	}
+	return result, err
+
+}
+
+// Redis HSET command.
+func (c *asyncClient) Hset(arg0 string, arg1 string, arg2 []byte) (stat FutureBool, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(arg1)
+	arg2bytes := arg2
+
+	resp, err := c.conn.QueueRequest(&HSET, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		stat = resp.future.(FutureBool)
+	}
+
+	return
+}
+
+// Redis HGETALL command.
+func (c *asyncClient) Hgetall(arg0 string) (result FutureBytes, err Error) {
+	arg0bytes := []byte(arg0)
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&HGETALL, [][]byte{arg0bytes})
+	if err == nil {
+		result = resp.future.(FutureBytes)
+	}
+	return result, err
+
+}
+
 // Redis FLUSHDB command.
 func (c *asyncClient) Flushdb() (stat FutureBool, err Error) {
 	resp, err := c.conn.QueueRequest(&FLUSHDB, [][]byte{})

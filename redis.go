@@ -297,6 +297,9 @@ type Client interface {
 	// Redis ZREVRANGE command.
 	Zrevrange(key string, arg1 int64, arg2 int64) (result [][]byte, err Error)
 
+	// Redis ZREVRANGE command.
+	ZrevrangeWithScores(key string, arg1 int64, arg2 int64) (result [][]byte, err Error)
+
 	// Redis ZRANGEBYSCORE command.
 	Zrangebyscore(key string, arg1 float64, arg2 float64) (result [][]byte, err Error)
 

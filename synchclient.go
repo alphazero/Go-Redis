@@ -854,6 +854,20 @@ func (c *syncClient) Zrevrange(arg0 string, arg1 int64, arg2 int64) (result [][]
 
 }
 
+func (c *syncClient) ZrevrangeWithScores(arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&ZREVRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes, []byte("WITHSCORES")})
+	if err == nil {
+		result = resp.GetMultiBulkData()
+	}
+	return result, err
+
+}
+
 // Redis ZRANGEBYSCORE command.
 func (c *syncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (result [][]byte, err Error) {
 	arg0bytes := []byte(arg0)

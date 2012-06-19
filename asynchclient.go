@@ -833,6 +833,20 @@ func (c *asyncClient) Zrevrange(arg0 string, arg1 int64, arg2 int64) (result Fut
 
 }
 
+func (c *asyncClient) ZrevrangeWithScores(arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&ZREVRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes, []byte("WITHSCORES")})
+	if err == nil {
+		result = resp.future.(FutureBytesArray)
+	}
+	return result, err
+
+}
+
 // Redis ZRANGEBYSCORE command.
 func (c *asyncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (result FutureBytesArray, err Error) {
 	arg0bytes := []byte(arg0)

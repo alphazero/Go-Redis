@@ -291,6 +291,9 @@ type Client interface {
 	// Redis ZSCORE command.
 	Zscore(key string, arg1 []byte) (result float64, err Error)
 
+	// Redis ZINCRBY command.
+	Zincrby(key string, arg1 float64, arg2 []byte) (result int64, err Error)
+
 	// Redis ZRANGE command.
 	Zrange(key string, arg1 int64, arg2 int64) (result [][]byte, err Error)
 
@@ -502,6 +505,9 @@ type AsyncClient interface {
 
 	// Redis ZSCORE command.
 	Zscore(key string, arg1 []byte) (result FutureFloat64, err Error)
+
+	// Redis ZINCRBY command.
+	Zincrby(key string, arg1 float64, arg2 []byte) (result FutureFloat64, err Error)
 
 	// Redis ZRANGE command.
 	Zrange(key string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error)

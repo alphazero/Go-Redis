@@ -824,6 +824,20 @@ func Btof64(buff []byte) (num float64, e Error) {
 	return
 }
 
+// Redis ZINCRBY command.
+func (c *syncClient) Zincrby(arg0 string, arg1 float64, arg2 []byte) (result int64, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&ZINCRBY, [][]byte{arg0bytes, arg1bytes, arg2})
+	if err == nil {
+		result = resp.GetNumberValue()
+	}
+	return result, err
+
+}
+
 // Redis ZRANGE command.
 func (c *syncClient) Zrange(arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error) {
 	arg0bytes := []byte(arg0)

@@ -803,6 +803,20 @@ func (c *asyncClient) Zscore(arg0 string, arg1 []byte) (result FutureFloat64, er
 
 }
 
+// Redis ZINCRBY command.
+func (c *asyncClient) Zincrby(arg0 string, arg1 float64, arg2 []byte) (result FutureFloat64, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
+
+	var resp *PendingResponse 
+	resp, err = c.conn.QueueRequest(&ZINCRBY, [][]byte{arg0bytes, arg1bytes, arg2})
+	if err == nil {
+		result = newFutureFloat64(resp.future.(FutureBytes))
+	}
+	return result, err
+
+}
+
 // Redis ZRANGE command.
 func (c *asyncClient) Zrange(arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error) {
 	arg0bytes := []byte(arg0)

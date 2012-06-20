@@ -515,6 +515,9 @@ type AsyncClient interface {
 	// Redis ZREVRANGE command.
 	Zrevrange(key string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error)
 
+	// Redis ZREVRANGE command.
+	ZrevrangeWithScores(key string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error)
+
 	// Redis ZRANGEBYSCORE command.
 	Zrangebyscore(key string, arg1 float64, arg2 float64) (result FutureBytesArray, err Error)
 
@@ -546,7 +549,6 @@ type AsyncClient interface {
 //
 func init() {
 		runtime.GOMAXPROCS(2);
-		flag.Parse();
 }
 
 // redis:d

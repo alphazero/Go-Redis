@@ -97,6 +97,10 @@ import (
 	"runtime";
 )
 
+func Version() string {
+    return "0.2"
+}
+
 // Common interface supported by all clients
 // to consolidate common ops
 type RedisClient interface {

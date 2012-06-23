@@ -94,7 +94,6 @@ package redis
 
 import (
 	"flag"
-	"runtime";
 )
 
 // Common interface supported by all clients
@@ -526,19 +525,8 @@ type AsyncClient interface {
 }
 
 // ----------------------------------------------------------------------------
-// package initiatization and internal ops and flags
+// internal ops and flags
 // ----------------------------------------------------------------------------
-
-// ----------------
-// flags
-//
-// go-redis will make use of command line flags where available.  flag names
-// for this package are all prefixed by "redis:" to prevent possible name collisions.
-//
-func init() {
-		runtime.GOMAXPROCS(2);
-		flag.Parse();
-}
 
 // redis:d
 //

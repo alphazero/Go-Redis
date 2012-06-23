@@ -16,8 +16,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/nshah/Go-Redis"
 	"log"
-	"redis"
 	"time"
 )
 

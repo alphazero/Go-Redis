@@ -53,9 +53,9 @@ func NewSynchClientWithSpec(spec *ConnectionSpec) (c Client, err Error) {
 	_c := new(syncClient)
 	_c.conn, err = NewSyncConnection(spec)
 	if err != nil {
-		return nil, withError (err)
+		return nil, withError(err)
 	}
-//	_c.conn = conn
+	//	_c.conn = conn
 	return _c, nil
 }
 

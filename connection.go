@@ -26,7 +26,7 @@ import (
 
 const (
 	TCP       = "tcp"
-	UNIX       = "unix"
+	UNIX      = "unix"
 	LOCALHOST = "127.0.0.1"
 	//	ns1MSec   = 1000000
 	////	ns1Sec    = ns1MSec * 1000
@@ -165,19 +165,19 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 		return nil, NewError(SYSTEM_ERR, fmt.Sprintf("%s(): failed to allocate connHdl", here))
 	}
 
-    var mode, addr string
-	if (spec.port == 0) {
-    	mode = UNIX
-    	addr = spec.host
-    } else {
-    	mode = TCP
-    	addr = fmt.Sprintf("%s:%d", spec.host, spec.port)
-        _, e := net.ResolveTCPAddr(TCP, addr)
-        if e != nil {
-            msg := fmt.Sprintf("%s(): failed to resolve remote address %s", here, addr)
-            return nil, NewErrorWithCause(SYSTEM_ERR, msg, e)
-        }
-    }
+	var mode, addr string
+	if spec.port == 0 {
+		mode = UNIX
+		addr = spec.host
+	} else {
+		mode = TCP
+		addr = fmt.Sprintf("%s:%d", spec.host, spec.port)
+		_, e := net.ResolveTCPAddr(TCP, addr)
+		if e != nil {
+			msg := fmt.Sprintf("%s(): failed to resolve remote address %s", here, addr)
+			return nil, NewErrorWithCause(SYSTEM_ERR, msg, e)
+		}
+	}
 
 	conn, e := net.Dial(mode, addr)
 	switch {
@@ -204,12 +204,12 @@ func configureConn(conn net.Conn, spec *ConnectionSpec) {
 	// but we absolutely need to be able to use timeouts.
 	//			conn.SetReadTimeout(spec.rTimeout);
 	//			conn.SetWriteTimeout(spec.wTimeout);
-    if tcp, ok := conn.(*net.TCPConn); ok {
-        tcp.SetLinger(spec.lingerspec)
-        tcp.SetKeepAlive(spec.keepalive)
-        tcp.SetReadBuffer(spec.rBufSize)
-        tcp.SetWriteBuffer(spec.wBufSize)
-    }
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		tcp.SetLinger(spec.lingerspec)
+		tcp.SetKeepAlive(spec.keepalive)
+		tcp.SetReadBuffer(spec.rBufSize)
+		tcp.SetWriteBuffer(spec.wBufSize)
+	}
 }
 
 // onConnect event handler will issue AUTH/SELECT on new connection

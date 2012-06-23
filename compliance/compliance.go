@@ -16,9 +16,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/nshah/Go-Redis"
 	"io/ioutil"
 	"log"
-	"redis"
 	"reflect"
 	"strings"
 )

@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/nshah/Go-Redis"
 	"log"
-	"redis"
 	"runtime"
 	"time"
 )

@@ -17,9 +17,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/nshah/Go-Redis"
 	"log"
 	"os"
-	"redis"
 )
 
 /*

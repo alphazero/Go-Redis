@@ -917,6 +917,20 @@ func (c *asyncClient) Hgetall(arg0 string) (result FutureBytes, err Error) {
 
 }
 
+// Redis HINCRBY command.
+func (c *asyncClient) Hincrby(arg0 string, arg1 string, arg2 int64) (result FutureInt64, err Error) {
+	arg0bytes := []byte(arg0)
+    arg1bytes := []byte(arg1)
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&HINCRBY, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		result = resp.future.(FutureInt64)
+	}
+	return result, err
+}
+
 // Redis FLUSHDB command.
 func (c *asyncClient) Flushdb() (stat FutureBool, err Error) {
 	resp, err := c.conn.QueueRequest(&FLUSHDB, [][]byte{})

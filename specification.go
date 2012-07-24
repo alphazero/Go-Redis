@@ -166,6 +166,7 @@ var (
 	HGET          Command = Command{"HGET", KEY_KEY, BULK}
 	HSET          Command = Command{"HSET", KEY_KEY_VALUE, STATUS}
 	HGETALL       Command = Command{"HGETALL", KEY, MULTI_BULK}
+	HINCRBY       Command = Command{"HINCRBY", KEY_KEY_VALUE, NUMBER}
 	ZADD          Command = Command{"ZADD", KEY_IDX_VALUE, BOOLEAN}
 	ZREM          Command = Command{"ZREM", KEY_VALUE, BOOLEAN}
 	ZCARD         Command = Command{"ZCARD", KEY, NUMBER}

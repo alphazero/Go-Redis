@@ -931,7 +931,20 @@ func (c *syncClient) Hgetall(arg0 string) (result [][]byte, err Error) {
 		result = resp.GetMultiBulkData()
 	}
 	return result, err
+}
 
+// Redis HINCRBY command.
+func (c *syncClient) Hincrby(arg0 string, arg1 string, arg2 int64) (result int64, err Error) {
+	arg0bytes := []byte(arg0)
+    arg1bytes := []byte(arg1)
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&HINCRBY, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		result = resp.GetNumberValue()
+	}
+	return result, err
 }
 
 // Redis FLUSHDB command.

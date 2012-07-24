@@ -98,7 +98,7 @@ import (
 )
 
 func Version() string {
-    return "0.2"
+    return "0.3"
 }
 
 // Common interface supported by all clients
@@ -318,6 +318,9 @@ type Client interface {
 
 	// Redis HGETALL command.
 	Hgetall(key string) (result [][]byte, err Error)
+
+	// Redis HINCRBY command.
+	Hincrby(key string, hashkey string, arg1 int64) (result int64, err Error)
 
 	// Redis FLUSHDB command.
 	Flushdb() Error

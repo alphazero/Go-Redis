@@ -803,6 +803,20 @@ func (c *asyncClient) Zscore(arg0 string, arg1 []byte) (result FutureFloat64, er
 
 }
 
+// Redis ZINCRBY command.
+func (c *asyncClient) Zincrby(arg0 string, arg1 float64, arg2 []byte) (result FutureFloat64, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
+
+	var resp *PendingResponse 
+	resp, err = c.conn.QueueRequest(&ZINCRBY, [][]byte{arg0bytes, arg1bytes, arg2})
+	if err == nil {
+		result = newFutureFloat64(resp.future.(FutureBytes))
+	}
+	return result, err
+
+}
+
 // Redis ZRANGE command.
 func (c *asyncClient) Zrange(arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error) {
 	arg0bytes := []byte(arg0)
@@ -826,6 +840,20 @@ func (c *asyncClient) Zrevrange(arg0 string, arg1 int64, arg2 int64) (result Fut
 
 	var resp *PendingResponse
 	resp, err = c.conn.QueueRequest(&ZREVRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		result = resp.future.(FutureBytesArray)
+	}
+	return result, err
+
+}
+
+func (c *asyncClient) ZrevrangeWithScores(arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&ZREVRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes, []byte("WITHSCORES")})
 	if err == nil {
 		result = resp.future.(FutureBytesArray)
 	}
@@ -887,6 +915,20 @@ func (c *asyncClient) Hgetall(arg0 string) (result FutureBytes, err Error) {
 	}
 	return result, err
 
+}
+
+// Redis HINCRBY command.
+func (c *asyncClient) Hincrby(arg0 string, arg1 string, arg2 int64) (result FutureInt64, err Error) {
+	arg0bytes := []byte(arg0)
+    arg1bytes := []byte(arg1)
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&HINCRBY, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		result = resp.future.(FutureInt64)
+	}
+	return result, err
 }
 
 // Redis FLUSHDB command.

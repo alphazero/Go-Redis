@@ -824,6 +824,20 @@ func Btof64(buff []byte) (num float64, e Error) {
 	return
 }
 
+// Redis ZINCRBY command.
+func (c *syncClient) Zincrby(arg0 string, arg1 float64, arg2 []byte) (result int64, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&ZINCRBY, [][]byte{arg0bytes, arg1bytes, arg2})
+	if err == nil {
+		result = resp.GetNumberValue()
+	}
+	return result, err
+
+}
+
 // Redis ZRANGE command.
 func (c *syncClient) Zrange(arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error) {
 	arg0bytes := []byte(arg0)
@@ -847,6 +861,20 @@ func (c *syncClient) Zrevrange(arg0 string, arg1 int64, arg2 int64) (result [][]
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&ZREVRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		result = resp.GetMultiBulkData()
+	}
+	return result, err
+
+}
+
+func (c *syncClient) ZrevrangeWithScores(arg0 string, arg1 int64, arg2 int64) (result [][]byte, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&ZREVRANGE, [][]byte{arg0bytes, arg1bytes, arg2bytes, []byte("WITHSCORES")})
 	if err == nil {
 		result = resp.GetMultiBulkData()
 	}
@@ -903,7 +931,20 @@ func (c *syncClient) Hgetall(arg0 string) (result [][]byte, err Error) {
 		result = resp.GetMultiBulkData()
 	}
 	return result, err
+}
 
+// Redis HINCRBY command.
+func (c *syncClient) Hincrby(arg0 string, arg1 string, arg2 int64) (result int64, err Error) {
+	arg0bytes := []byte(arg0)
+    arg1bytes := []byte(arg1)
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&HINCRBY, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		result = resp.GetNumberValue()
+	}
+	return result, err
 }
 
 // Redis FLUSHDB command.

@@ -166,10 +166,12 @@ var (
 	HGET          Command = Command{"HGET", KEY_KEY, BULK}
 	HSET          Command = Command{"HSET", KEY_KEY_VALUE, STATUS}
 	HGETALL       Command = Command{"HGETALL", KEY, MULTI_BULK}
+	HINCRBY       Command = Command{"HINCRBY", KEY_KEY_VALUE, NUMBER}
 	ZADD          Command = Command{"ZADD", KEY_IDX_VALUE, BOOLEAN}
 	ZREM          Command = Command{"ZREM", KEY_VALUE, BOOLEAN}
 	ZCARD         Command = Command{"ZCARD", KEY, NUMBER}
 	ZSCORE        Command = Command{"ZSCORE", KEY_VALUE, BULK}
+	ZINCRBY       Command = Command{"ZINCRBY", KEY_IDX_VALUE, BULK}
 	ZRANGE        Command = Command{"ZRANGE", KEY_NUM_NUM, MULTI_BULK}
 	ZREVRANGE     Command = Command{"ZREVRANGE", KEY_NUM_NUM, MULTI_BULK}
 	ZRANGEBYSCORE Command = Command{"ZRANGEBYSCORE", KEY_NUM_NUM, MULTI_BULK}

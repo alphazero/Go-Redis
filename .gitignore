@@ -3,3 +3,4 @@ temp
 *_obj
 *.iml
 *.goide
+*.sw[po]

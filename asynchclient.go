@@ -877,13 +877,13 @@ func (c *asyncClient) Hset(arg0 string, arg1 string, arg2 []byte) (stat FutureBo
 }
 
 // Redis HGETALL command.
-func (c *asyncClient) Hgetall(arg0 string) (result FutureBytes, err Error) {
+func (c *asyncClient) Hgetall(arg0 string) (result FutureBytesArray, err Error) {
 	arg0bytes := []byte(arg0)
 
 	var resp *PendingResponse
 	resp, err = c.conn.QueueRequest(&HGETALL, [][]byte{arg0bytes})
 	if err == nil {
-		result = resp.future.(FutureBytes)
+		result = resp.future.(FutureBytesArray)
 	}
 	return result, err
 

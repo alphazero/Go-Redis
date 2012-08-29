@@ -15,10 +15,11 @@
 package main 
 
 import (
-	"os";
 	"bufio";
 	"log";
+	"flag"
 	"fmt";
+	"os";
 	"redis";
 )
 
@@ -27,6 +28,9 @@ import (
 */
 
 func main () {
+
+	// Parse command-line flags; needed to let flags used by Go-Redis be parsed.
+	flag.Parse()
 
 	// create the client.  Here we are using a synchronous client.
 	// Using the default ConnectionSpec, we are specifying the client to connect

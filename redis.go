@@ -94,7 +94,6 @@ package redis
 
 import (
 	"flag"
-	"runtime";
 )
 
 // Common interface supported by all clients
@@ -535,10 +534,11 @@ type AsyncClient interface {
 // go-redis will make use of command line flags where available.  flag names
 // for this package are all prefixed by "redis:" to prevent possible name collisions.
 //
-func init() {
-		runtime.GOMAXPROCS(2);
-		flag.Parse();
-}
+// Note that because flag.Parse() can only be called once, add all flags must have
+// been defined by the time it is called, we CAN NOT call flag.Parse() in our init()
+// function, as that will prevent any invokers from defining their own flags.
+//
+// It is your responsibility to call flag.Parse() at the start of your main().
 
 // redis:d
 //

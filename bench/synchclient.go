@@ -15,6 +15,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"redis"
@@ -30,6 +31,7 @@ func failedTest(msg string) error {
 	return nil
 }
 func main() {
+	flag.Parse()
 	cnt := 20000
 
 	doOne(cnt)

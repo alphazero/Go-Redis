@@ -85,7 +85,7 @@ type redisError struct {
 	cause    error
 }
 
-func (e redisError) IsRedisError() bool            { return e.category == REDIS_ERR}
+func (e redisError) IsRedisError() bool      { return e.category == REDIS_ERR }
 func (e redisError) Cause() error            { return e.cause }
 func (e redisError) Error() string           { return e.String() }
 func (e redisError) Category() ErrorCategory { return e.category }
@@ -137,7 +137,6 @@ func NewErrorWithCause(cat ErrorCategory, msg string, cause error) Error {
 	e.cause = cause
 	return e
 }
-
 
 // utility function emits log if _debug flag /debug() is true
 // Error is returned.

@@ -20,43 +20,35 @@ import (
 	"io"
 	"log"
 	"net"
-	//	"os"
 	"time"
 )
 
 const (
-	TCP       = "tcp"
-	UNIX       = "unix"
-	LOCALHOST = "127.0.0.1"
-	//	ns1MSec   = 1000000
-	////	ns1Sec    = ns1MSec * 1000
-	//	ns1Sec    = 1*time.Second
+	TCP  = "tcp"
+	UNIX = "unix"
 )
 
-// various default sizes for the connections
-// exported for user convenience if nedded
+// various defaults for the connections
+// exported for user convenience.
 const (
-	DefaultReqChanSize  = 1000000
-	DefaultRespChanSize = 1000000
-
-	DefaultTCPReadBuffSize  = 1024 * 256
-	DefaultTCPWriteBuffSize = 1024 * 256
-	//	DefaultTCPReadTimeoutNSecs  = ns1Sec * 10
-	//	DefaultTCPWriteTimeoutNSecs = ns1Sec * 10
+	DefaultReqChanSize          = 1000000
+	DefaultRespChanSize         = 1000000
+	DefaultTCPReadBuffSize      = 1024 * 256
+	DefaultTCPWriteBuffSize     = 1024 * 256
 	DefaultTCPReadTimeoutNSecs  = 10 * time.Second
 	DefaultTCPWriteTimeoutNSecs = 10 * time.Second
-	DefaultTCPLinger            = 0
+	DefaultTCPLinger            = 0 // -n: finish io; 0: discard, +n: wait for n secs to finish
 	DefaultTCPKeepalive         = true
 	DefaultHeartbeatSecs        = 1 * time.Second
 )
 
 // Redis specific default settings
-// exported for user convenience if nedded
+// exported for user convenience.
 const (
 	DefaultRedisPassword = ""
 	DefaultRedisDB       = 0
 	DefaultRedisPort     = 6379
-	DefaultRedisHost     = LOCALHOST
+	DefaultRedisHost     = "127.0.0.1"
 )
 
 // ----------------------------------------------------------------------------
@@ -66,22 +58,19 @@ const (
 // Defines the set of parameters that are used by the client connections
 //
 type ConnectionSpec struct {
-	host     string
-	port     int
-	password string
-	db       int
-	// tcp specific specs
-	rBufSize   int
-	wBufSize   int
-	rTimeout   time.Duration
-	wTimeout   time.Duration
-	keepalive  bool
-	lingerspec int // -n: finish io; 0: discard, +n: wait for n secs to finish
-	// async specs
-	reqChanCap int
-	rspChanCap int
-	//
-	heartbeat time.Duration // 0 means no heartbeat
+	host       string        // redis connection host
+	port       int           // redis connection port
+	password   string        // redis connection password
+	db         int           // Redis connection db #
+	rBufSize   int           // tcp read buffer size
+	wBufSize   int           // tcp write buffer size
+	rTimeout   time.Duration // tcp read timeout
+	wTimeout   time.Duration // tcp write timeout
+	keepalive  bool          // keepalive flag
+	lingerspec int           // -n: finish io; 0: discard, +n: wait for n secs to finish
+	reqChanCap int           // async request channel capacity - see DefaultReqChanSize
+	rspChanCap int           // async response channel capacity - see DefaultRespChanSize
+	heartbeat  time.Duration // 0 means no heartbeat
 }
 
 // Creates a ConnectionSpec using default settings.
@@ -159,33 +148,33 @@ func (chdl *connHdl) String() string {
 // delegating to the net.Conn's reader.
 //
 func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
-	here := "newConnHdl"
+	loginfo := "newConnHdl"
 
 	if hdl = new(connHdl); hdl == nil {
-		return nil, NewError(SYSTEM_ERR, fmt.Sprintf("%s(): failed to allocate connHdl", here))
+		return nil, NewError(SYSTEM_ERR, fmt.Sprintf("%s(): failed to allocate connHdl", loginfo))
 	}
 
-    var mode, addr string
-	if (spec.port == 0) {
-    	mode = UNIX
-    	addr = spec.host
-    } else {
-    	mode = TCP
-    	addr = fmt.Sprintf("%s:%d", spec.host, spec.port)
-        _, e := net.ResolveTCPAddr(TCP, addr)
-        if e != nil {
-            msg := fmt.Sprintf("%s(): failed to resolve remote address %s", here, addr)
-            return nil, NewErrorWithCause(SYSTEM_ERR, msg, e)
-        }
-    }
+	var mode, addr string
+	if spec.port == 0 { // REVU - no special values (it was a contrib) TODO add flag to connspec.
+		mode = UNIX
+		addr = spec.host
+	} else {
+		mode = TCP
+		addr = fmt.Sprintf("%s:%d", spec.host, spec.port)
+		_, e := net.ResolveTCPAddr(TCP, addr)
+		if e != nil {
+			msg := fmt.Sprintf("%s(): failed to resolve remote address %s", loginfo, addr)
+			return nil, NewErrorWithCause(SYSTEM_ERR, msg, e)
+		}
+	}
 
 	conn, e := net.Dial(mode, addr)
 	switch {
 	case e != nil:
-		err = NewErrorWithCause(SYSTEM_ERR, fmt.Sprintf("%s(): could not open connection", here), e)
+		err = NewErrorWithCause(SYSTEM_ERR, fmt.Sprintf("%s(): could not open connection", loginfo), e)
 		return nil, withError(err)
 	case conn == nil:
-		err = NewError(SYSTEM_ERR, fmt.Sprintf("%s(): net.Dial returned nil, nil (?)", here))
+		err = NewError(SYSTEM_ERR, fmt.Sprintf("%s(): net.Dial returned nil, nil (?)", loginfo))
 		return nil, withError(err)
 	default:
 		configureConn(conn, spec)
@@ -204,12 +193,12 @@ func configureConn(conn net.Conn, spec *ConnectionSpec) {
 	// but we absolutely need to be able to use timeouts.
 	//			conn.SetReadTimeout(spec.rTimeout);
 	//			conn.SetWriteTimeout(spec.wTimeout);
-    if tcp, ok := conn.(*net.TCPConn); ok {
-        tcp.SetLinger(spec.lingerspec)
-        tcp.SetKeepAlive(spec.keepalive)
-        tcp.SetReadBuffer(spec.rBufSize)
-        tcp.SetWriteBuffer(spec.wBufSize)
-    }
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		tcp.SetLinger(spec.lingerspec)
+		tcp.SetKeepAlive(spec.keepalive)
+		tcp.SetReadBuffer(spec.rBufSize)
+		tcp.SetWriteBuffer(spec.wBufSize)
+	}
 }
 
 // onConnect event handler will issue AUTH/SELECT on new connection
@@ -273,7 +262,7 @@ func NewSyncConnection(spec *ConnectionSpec) (c SyncConnection, err Error) {
 // Implementation of SyncConnection.ServiceRequest.
 //
 func (chdl *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response, err Error) {
-	here := "connHdl.ServiceRequest"
+	loginfo := "connHdl.ServiceRequest"
 	errmsg := ""
 	ok := false
 	buff, e := CreateRequestBytes(cmd, args) // 2<<<
@@ -288,13 +277,13 @@ func (chdl *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response,
 				}
 				ok = true
 			} else {
-				errmsg = fmt.Sprintf("%s(%s): failed to get response", here, cmd.Code)
+				errmsg = fmt.Sprintf("%s(%s): failed to get response", loginfo, cmd.Code)
 			}
 		} else {
-			errmsg = fmt.Sprintf("%s(%s): failed to send request", here, cmd.Code)
+			errmsg = fmt.Sprintf("%s(%s): failed to send request", loginfo, cmd.Code)
 		}
 	} else {
-		errmsg = fmt.Sprintf("%s(%s): failed to create request buffer", here, cmd.Code)
+		errmsg = fmt.Sprintf("%s(%s): failed to create request buffer", loginfo, cmd.Code)
 	}
 
 	if !ok {
@@ -323,9 +312,9 @@ const (
 
 type interrupt_code byte
 
+// connection process control interrupt codes
 const (
 	_ interrupt_code = iota
-	// connection process control
 	start
 	pause
 	stop
@@ -401,7 +390,6 @@ type asyncConnHdl struct {
 // Note it does not start the processing goroutines for the channels.
 
 func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
-	//	here := "newAsynConnHDL";
 	connHdl, err := newConnHdl(spec)
 	if err == nil && connHdl != nil {
 		async = new(asyncConnHdl)
@@ -412,7 +400,7 @@ func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
 
 			async.pendingReqs = make(chan asyncReqPtr, spec.reqChanCap)
 			async.pendingResps = make(chan asyncReqPtr, spec.rspChanCap)
-			async.faults = make(chan asyncReqPtr, spec.reqChanCap) // not sure about sizing here ...
+			async.faults = make(chan asyncReqPtr, spec.reqChanCap) // REVU - not sure about sizing
 
 			async.reqProcCtl = make(workerCtl)
 			async.rspProcCtl = make(workerCtl)
@@ -425,10 +413,9 @@ func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
 			return
 		}
 	}
-	// fall through here on errors only
+	// reached on errors only
 	if debug() {
 		log.Println("Error creating asyncConnHdl: ", err)
-		//		err =  os.NewError("Error creating asyncConnHdl");
 	}
 	return nil, err
 }
@@ -721,7 +708,7 @@ func (c *asyncConnHdl) processAsyncRequest(req asyncReqPtr) (blen int, e error) 
 		}
 	} else {
 		log.Println("<BUG> lazy programmer >> ERROR in processRequest goroutine -req requeued for now")
-		// TODO: set stat on future & inform conn control and put it in fauls
+		// TODO: set stat on future & inform conn control and put it in faulted list
 		c.pendingReqs <- req
 	}
 	return
@@ -786,9 +773,9 @@ func (c *asyncConnHdl) nextId() (id int64) {
 // Either writes all the bytes or it fails and returns an error
 //
 func sendRequest(w io.Writer, data []byte) (e error) {
-	here := "connHdl.sendRequest"
+	loginfo := "connHdl.sendRequest"
 	if w == nil {
-		return withNewError(fmt.Sprintf("<BUG> in %s(): nil Writer", here))
+		return withNewError(fmt.Sprintf("<BUG> in %s(): nil Writer", loginfo))
 	}
 
 	n, e := w.Write(data)
@@ -797,20 +784,20 @@ func sendRequest(w io.Writer, data []byte) (e error) {
 		//		switch {
 		//		case e == os.EAGAIN:
 		//			// socket timeout -- don't handle that yet but may in future ..
-		//			msg = fmt.Sprintf("%s(): timeout (os.EAGAIN) error on Write", here)
+		//			msg = fmt.Sprintf("%s(): timeout (os.EAGAIN) error on Write", loginfo)
 		//		default:
 		// anything else
-		msg = fmt.Sprintf("%s(): error on Write", here)
+		msg = fmt.Sprintf("%s(): error on Write", loginfo)
 		//		}
 		return withOsError(msg, e)
 	}
 
 	// doc isn't too clear but the underlying netFD may return n<len(data) AND
-	// e == nil, but that's precisely what we're testing for here.
+	// e == nil, but that's precisely what we're checking.
 	// presumably we can try sending the remaining bytes but that is precisely
 	// what netFD.Write is doing (and it couldn't) so ...
 	if n < len(data) {
-		msg := fmt.Sprintf("%s(): connection Write wrote %d bytes only.", here, n)
+		msg := fmt.Sprintf("%s(): connection Write wrote %d bytes only.", loginfo, n)
 		return withNewError(msg)
 	}
 	return

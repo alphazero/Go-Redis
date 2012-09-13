@@ -22,6 +22,7 @@ import (
 	"strconv"
 	//	"log"
 	//	"fmt"
+	"fmt"
 )
 
 // ----------------------------------------------------------------------------
@@ -158,7 +159,36 @@ func GetResponse(reader *bufio.Reader, cmd *Command) (resp Response, err error) 
 }
 
 // ----------------------------------------------------------------------------
-// internal ops
+// request processing
+// ----------------------------------------------------------------------------
+
+// Either writes all the bytes or it fails and returns an error
+//
+func sendRequest(w io.Writer, data []byte) (e error) {
+	loginfo := "sendRequest"
+	if w == nil {
+		return withNewError(fmt.Sprintf("<BUG> in %s(): nil Writer", loginfo))
+	}
+
+	n, e := w.Write(data)
+	if e != nil {
+		msg := fmt.Sprintf("%s(): connection Write wrote %d bytes only.", loginfo, n)
+		return withNewError(msg)
+	}
+
+	// doc isn't too clear but the underlying netFD may return n<len(data) AND
+	// e == nil, but that's precisely what we're checking.
+	// presumably we can try sending the remaining bytes but that is precisely
+	// what netFD.Write is doing (and it couldn't) so ...
+	if n < len(data) {
+		msg := fmt.Sprintf("%s(): connection Write wrote %d bytes only.", loginfo, n)
+		return withNewError(msg)
+	}
+	return
+}
+
+// ----------------------------------------------------------------------------
+// response processing
 // ----------------------------------------------------------------------------
 
 func getStatusResponse(conn *bufio.Reader, cmd *Command) (resp Response, e error) {

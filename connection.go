@@ -17,15 +17,15 @@ package redis
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"time"
 )
 
+// connection socket modes
 const (
-	TCP  = "tcp"
-	UNIX = "unix"
+	TCP  = "tcp"  // tcp/ip socket
+	UNIX = "unix" // unix domain socket
 )
 
 // various defaults for the connections
@@ -128,7 +128,34 @@ func (spec *ConnectionSpec) Heartbeat(period time.Duration) *ConnectionSpec {
 }
 
 // ----------------------------------------------------------------------------
-// Generic Conn handle and methods
+// SyncConnection API
+// ----------------------------------------------------------------------------
+
+// Defines the service contract supported by synchronous (Request/Reply)
+// connections.
+
+type SyncConnection interface {
+	ServiceRequest(cmd *Command, args [][]byte) (Response, Error)
+}
+
+// ----------------------------------------------------------------------------
+// AsyncConnection API
+// ----------------------------------------------------------------------------
+
+// Defines the service contract supported by asynchronous (Request/FutureReply)
+// connections.
+
+type AsyncConnection interface {
+	QueueRequest(cmd *Command, args [][]byte) (*PendingResponse, Error)
+}
+
+// Handle to a future response
+type PendingResponse struct {
+	future interface{} // TODO: stop using runtime casts
+}
+
+// ----------------------------------------------------------------------------
+// Generic Conn handle and methods - supports SyncConnection interface
 // ----------------------------------------------------------------------------
 
 // General control structure used by connections.
@@ -140,8 +167,8 @@ type connHdl struct {
 	connected bool // TODO
 }
 
+// Returns minimal info string for logging, etc
 func (c *connHdl) String() string {
-	//	return fmt.Sprintf("conn<redis-server@%s>", c.conn.RemoteAddr())
 	return fmt.Sprintf("conn<redis-server@%s:%d [db %d]>", c.spec.host, c.spec.port, c.spec.db)
 }
 
@@ -185,12 +212,12 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 		hdl.connected = true
 		bufsize := 4096
 		hdl.reader = bufio.NewReaderSize(conn, bufsize)
-		//		log.Printf("<INFO> Connected to %s", hdl)
 	}
 	return hdl, nil
 }
 
 func configureConn(conn net.Conn, spec *ConnectionSpec) {
+	// REVU [jh] - TODO look into this 09-13-2012
 	// these two -- the most important -- are causing problems on my osx/64
 	// where a "service unavailable" pops up in the async reads
 	// but we absolutely need to be able to use timeouts.
@@ -202,18 +229,6 @@ func configureConn(conn net.Conn, spec *ConnectionSpec) {
 		tcp.SetReadBuffer(spec.rBufSize)
 		tcp.SetWriteBuffer(spec.wBufSize)
 	}
-}
-
-// ----------------------------------------------------------------------------
-// Connection SyncConnection
-// ----------------------------------------------------------------------------
-
-// Defines the service contract supported by synchronous (Request/Reply)
-// connections.
-
-type SyncConnection interface {
-	ServiceRequest(cmd *Command, args [][]byte) (Response, Error)
-	//	Close() Error
 }
 
 // connect event handler will issue AUTH/SELECT on new connection
@@ -249,7 +264,8 @@ func (hdl *connHdl) disconnect() Error {
 	return nil
 }
 
-// Creates a new SyncConnection using the provided ConnectionSpec
+// Creates a new SyncConnection using the provided ConnectionSpec.
+// Note that this function will also connect to the specified redis server.
 func NewSyncConnection(spec *ConnectionSpec) (c SyncConnection, err Error) {
 	connHdl, e := newConnHdl(spec)
 	if e != nil {
@@ -261,22 +277,21 @@ func NewSyncConnection(spec *ConnectionSpec) (c SyncConnection, err Error) {
 }
 
 // Implementation of SyncConnection.ServiceRequest.
-//
-func (chdl *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response, err Error) {
+func (hdl *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response, err Error) {
 	loginfo := "connHdl.ServiceRequest"
 	errmsg := ""
-	if !chdl.connected {
+	if !hdl.connected {
 		return nil, NewError(REDIS_ERR, "Connection is closed")
 	}
 	if cmd == &QUIT {
-		return nil, chdl.disconnect()
+		return nil, hdl.disconnect()
 	}
 	ok := false
 	buff, e := CreateRequestBytes(cmd, args) // 2<<<
 	if e == nil {
-		e = sendRequest(chdl.conn, buff)
+		e = sendRequest(hdl.conn, buff)
 		if e == nil {
-			resp, e = GetResponse(chdl.reader, cmd)
+			resp, e = GetResponse(hdl.reader, cmd)
 			if e == nil {
 				if resp.IsError() {
 					redismsg := fmt.Sprintf(" [%s]: %s", cmd.Code, resp.GetMessage())
@@ -301,7 +316,7 @@ func (chdl *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response,
 }
 
 // ----------------------------------------------------------------------------
-// Asynchronous connections
+// Asynchronous connection handle and friends
 // ----------------------------------------------------------------------------
 
 type status_code byte
@@ -440,6 +455,42 @@ func NewAsynchConnection(spec *ConnectionSpec) (conn AsyncConnection, err Error)
 	return async, err
 }
 
+// ----------------------------------------------------------------------------
+// asyncConnHdl support for AsyncConnection interface
+// ----------------------------------------------------------------------------
+
+func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (*PendingResponse, Error) {
+	select {
+	case <-c.shutdown:
+		log.Println("<DEBUG> we're shutdown and not accepting any more requests ...")
+		return nil, NewError(SYSTEM_ERR, "Connection is shutdown.")
+	default:
+	}
+
+	future := CreateFuture(cmd)
+
+	request := &asyncRequestInfo{0, 0, cmd, nil, future, nil}
+	buff, e1 := CreateRequestBytes(cmd, args)
+	if e1 == nil {
+		request.outbuff = &buff
+		c.pendingReqs <- request
+	} else {
+		errmsg := fmt.Sprintf("Failed to create asynchrequest - %s aborted", cmd.Code)
+		request.stat = inierr
+		request.error = NewErrorWithCause(SYSTEM_ERR, errmsg, e1) // only makes sense if using go ...
+		request.future.(FutureResult).onError(request.error)
+
+		return nil, request.error // remove if restoring go
+	}
+	//}();
+	// done.
+	return &PendingResponse{future}, nil
+}
+
+// ----------------------------------------------------------------------------
+// asyncConnHdl internal ops
+// ----------------------------------------------------------------------------
+
 // connect event handler.
 // See connHdl#connect
 func (c *asyncConnHdl) connect() (e Error) {
@@ -528,7 +579,7 @@ before_stop:
 }
 
 // ----------------------------------------------------------------------------
-// aync tasks
+// asynchronous tasks (go routine/workers)
 // ----------------------------------------------------------------------------
 
 func managementTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
@@ -699,6 +750,10 @@ proc_error:
 	return nil, &taskStatus{snderr, err}
 }
 
+// ----------------------------------------------------------------------------
+// asyncConnHdl internal ops
+// ----------------------------------------------------------------------------
+
 func (c *asyncConnHdl) processAsyncRequest(req asyncReqPtr) (blen int, e error) {
 	//	req := <-c.pendingReqs;
 	req.id = c.nextId()
@@ -721,83 +776,10 @@ func (c *asyncConnHdl) processAsyncRequest(req asyncReqPtr) (blen int, e error) 
 	return
 }
 
-// ----------------------------------------------------------------------------
-// AsyncConnection interface & Impl
-// ----------------------------------------------------------------------------
-
-// Defines the service contract supported by asynchronous (Request/FutureReply)
-// connections.
-
-type AsyncConnection interface {
-	QueueRequest(cmd *Command, args [][]byte) (*PendingResponse, Error)
-}
-
-// Handle to a future response
-type PendingResponse struct {
-	future interface{} // TODO: stop using runtime casts
-}
-
-func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (*PendingResponse, Error) {
-	select {
-	case <-c.shutdown:
-		log.Println("<DEBUG> we're shutdown and not accepting any more requests ...")
-		return nil, NewError(SYSTEM_ERR, "Connection is shutdown.")
-	default:
-	}
-
-	future := CreateFuture(cmd)
-
-	request := &asyncRequestInfo{0, 0, cmd, nil, future, nil}
-	buff, e1 := CreateRequestBytes(cmd, args)
-	if e1 == nil {
-		request.outbuff = &buff
-		c.pendingReqs <- request
-	} else {
-		errmsg := fmt.Sprintf("Failed to create asynchrequest - %s aborted", cmd.Code)
-		request.stat = inierr
-		request.error = NewErrorWithCause(SYSTEM_ERR, errmsg, e1) // only makes sense if using go ...
-		request.future.(FutureResult).onError(request.error)
-
-		return nil, request.error // remove if restoring go
-	}
-	//}();
-	// done.
-	return &PendingResponse{future}, nil
-}
-
-// ----------------------------------------------------------------------------
-// internal ops
-// ----------------------------------------------------------------------------
-
 // request id needs to be unique in context of associated connection
 // only one goroutine calls this so no need to provide concurrency guards
 func (c *asyncConnHdl) nextId() (id int64) {
 	id = c.nextid
 	c.nextid++
-	return
-}
-
-// Either writes all the bytes or it fails and returns an error
-//
-func sendRequest(w io.Writer, data []byte) (e error) {
-	loginfo := "connHdl.sendRequest"
-	if w == nil {
-		return withNewError(fmt.Sprintf("<BUG> in %s(): nil Writer", loginfo))
-	}
-
-	n, e := w.Write(data)
-	if e != nil {
-		msg := fmt.Sprintf("%s(): connection Write wrote %d bytes only.", loginfo, n)
-		return withNewError(msg)
-	}
-
-	// doc isn't too clear but the underlying netFD may return n<len(data) AND
-	// e == nil, but that's precisely what we're checking.
-	// presumably we can try sending the remaining bytes but that is precisely
-	// what netFD.Write is doing (and it couldn't) so ...
-	if n < len(data) {
-		msg := fmt.Sprintf("%s(): connection Write wrote %d bytes only.", loginfo, n)
-		return withNewError(msg)
-	}
 	return
 }

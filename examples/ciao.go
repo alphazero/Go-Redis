@@ -12,22 +12,22 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 //
-package main 
+package main
 
 import (
-	"bufio";
-	"log";
+	"bufio"
 	"flag"
-	"fmt";
-	"os";
-	"redis";
+	"fmt"
+	"log"
+	"os"
+	"redis"
 )
 
 /*
 	hello world, redis style.
 */
 
-func main () {
+func main() {
 
 	// Parse command-line flags; needed to let flags used by Go-Redis be parsed.
 	flag.Parse()
@@ -35,27 +35,33 @@ func main () {
 	// create the client.  Here we are using a synchronous client.
 	// Using the default ConnectionSpec, we are specifying the client to connect
 	// to db 13 (e.g. SELECT 13), and a password of go-redis (e.g. AUTH go-redis)
-	
-	spec := redis.DefaultSpec().Db(13).Password("go-redis");
-	client, e := redis.NewSynchClientWithSpec (spec);
-	if e != nil { log.Println ("failed to create the client", e); return }
-	
-	key := "examples/hello/user.name";
-	value, e := client.Get(key);
-	if e!= nil { log.Println ("error on Get", e); return }
-	
+
+	spec := redis.DefaultSpec().Db(13).Password("go-redis")
+	client, e := redis.NewSynchClientWithSpec(spec)
+	if e != nil {
+		log.Println("failed to create the client", e)
+		return
+	}
+
+	key := "examples/hello/user.name"
+	value, e := client.Get(key)
+	if e != nil {
+		log.Println("error on Get", e)
+		return
+	}
+
 	if value == nil {
-		fmt.Printf("\nHello, don't believe we've met before!\nYour name? ");
-		reader:= bufio.NewReader(os.Stdin);
-		user, _ := reader.ReadString(byte('\n'));
+		fmt.Printf("\nHello, don't believe we've met before!\nYour name? ")
+		reader := bufio.NewReader(os.Stdin)
+		user, _ := reader.ReadString(byte('\n'))
 		if len(user) > 1 {
-			user = user[0:len(user)-1];
-			value = []byte(user);
-			client.Set(key, value);
-		} else { 
-			fmt.Printf ("vafanculo!\n");
-			return;
+			user = user[0 : len(user)-1]
+			value = []byte(user)
+			client.Set(key, value)
+		} else {
+			fmt.Printf("vafanculo!\n")
+			return
 		}
 	}
-	fmt.Printf ("Hey, ciao %s!\n", fmt.Sprintf("%s", value));
+	fmt.Printf("Hey, ciao %s!\n", fmt.Sprintf("%s", value))
 }

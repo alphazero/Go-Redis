@@ -147,7 +147,7 @@ type Client interface {
 	Exists(key string) (result bool, err Error)
 
 	// Redis RENAME command.
-	Rename(key string, arg1 string) Error
+	Rename(key, arg1 string) Error
 
 	// Redis INFO command.
 	Info() (result map[string]string, err Error)
@@ -362,7 +362,7 @@ type AsyncClient interface {
 	Exists(key string) (result FutureBool, err Error)
 
 	// Redis RENAME command.
-	Rename(key string, arg1 string) (status FutureBool, err Error)
+	Rename(key, arg1 string) (status FutureBool, err Error)
 
 	// Redis INFO command.
 	Info() (result FutureInfo, err Error)

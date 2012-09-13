@@ -10,7 +10,7 @@ var testdata = make(map[string]interface{})
 
 const (
 	_testdata_keys     string = "keys"     // []string of keys used in k/v
-	_testdata_kv       string = "k/v"      // a map of strings -> []byte
+	_testdata_kv              = "k/v"      // a map of strings -> []byte
 	_testdata_counters        = "counters" // a map of strings -> int64
 	_testdata_nums            = "counters" // []int64
 

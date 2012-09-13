@@ -1,10 +1,9 @@
 package redis
 
 import (
+	"fmt"
 	"log"
 	"testing"
-
-//	"testing/quick"
 )
 
 func _test_getDefConnSpec() *ConnectionSpec {
@@ -88,7 +87,86 @@ func TestQuit(t *testing.T) {
 	}
 }
 
-func TestSetGet(t *testing.T) {
+func TestSet(t *testing.T) {
+	client, e := _test_getDefaultClient()
+	if e != nil {
+		t.Fatalf("on getDefaultClient", e)
+	}
+
+	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
+		if e := client.Set(k, v); e != nil {
+			t.Errorf("on Set(%s, %s) - %s", k, v, e)
+		}
+	}
+
+	flushAndQuitOnCompletion(t, client)
+}
+
+func TestSetnx(t *testing.T) {
+	client, e := _test_getDefaultClient()
+	if e != nil {
+		t.Fatalf("on getDefaultClient", e)
+	}
+
+	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
+		ok, e := client.Setnx(k, v)
+		if e != nil {
+			t.Errorf("on Setnx(%s, %s) - %s", k, v, e)
+		}
+		if !ok {
+			t.Errorf("unexpected false returned by Setnx(%s, %s) - %s", k, v)
+		}
+	}
+	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
+		ok, e := client.Setnx(k, v)
+		if e != nil {
+			t.Errorf("on Setnx(%s, %s) - %s", k, v, e)
+		}
+		if ok {
+			t.Errorf("on Setnx(%s, %s) expected false on existing key- %s", k, v)
+		}
+	}
+
+	flushAndQuitOnCompletion(t, client)
+}
+
+func TestGetset(t *testing.T) {
+	client, e := _test_getDefaultClient()
+	if e != nil {
+		t.Fatalf("on getDefaultClient", e)
+	}
+
+	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
+		// set some
+		e := client.Set(k, v)
+		if e != nil {
+			t.Errorf("on Set(%s, %s) - %s", k, v, e)
+		}
+		// Getset with new new value newv
+		newv := []byte(fmt.Sprint("newone_%s", k))
+		prev, e := client.Getset(k, newv)
+		if e != nil {
+			t.Errorf("on Getset(%s, %s) - %s", k, newv, e)
+		}
+		// check previous prev value against expected v
+		if prev == nil || !compareByteArrays(prev, v) {
+			t.Errorf("on Getset(%s, %s) - got: %s", k, newv, prev)
+		}
+		// now check that newvalue was correctly set as well
+		got, e := client.Get(k)
+		if e != nil {
+			t.Errorf("on Getset(%s, %s) - %s", k, newv, e)
+		}
+		if !compareByteArrays(got, newv) {
+			t.Errorf("on Get(%s) - got: %s expected:%s", k, got, newv)
+		}
+
+	}
+
+	flushAndQuitOnCompletion(t, client)
+}
+
+func TestSetThenGet(t *testing.T) {
 	client, e := _test_getDefaultClient()
 	if e != nil {
 		t.Fatalf("on getDefaultClient", e)
@@ -223,6 +301,45 @@ func TestAllKeys(t *testing.T) {
 	flushAndQuitOnCompletion(t, client)
 }
 
+func TestKeys(t *testing.T) {
+	client, e := _test_getDefaultClient()
+	if e != nil {
+		t.Fatalf("on getDefaultClient", e)
+	}
+
+	prefix := "prefix_"
+	kvmap := testdata[_testdata_kv].(map[string][]byte)
+	// add dataset keys and keys prefixed
+	for key, v := range kvmap {
+		k := fmt.Sprintf("%s%s", prefix, key)
+		if e := client.Set(k, v); e != nil {
+			t.Errorf("on Set(%s, %s) - %s", k, v, e)
+		}
+		if e := client.Set(key, v); e != nil {
+			t.Errorf("on Set(%s, %s) - %s", key, v, e)
+		}
+	}
+	got, e := client.Keys(prefix + "*")
+	if e != nil {
+		t.Errorf("on Keys() - %s", e)
+	}
+	if got == nil {
+		t.Errorf("on Keys() - got nil")
+	}
+
+	// if same length and all elements in kvmap, its ok
+	if len(got) != len(kvmap) {
+		t.Errorf("on Keys() - Len mismatch - got:%d expected:%d", len(got), len(kvmap))
+	}
+	for _, k := range got {
+		if kvmap[k[len(prefix):]] == nil {
+			t.Errorf("on Keys() - key %s is not in original kvmap", k)
+		}
+	}
+
+	flushAndQuitOnCompletion(t, client)
+}
+
 func TestExists(t *testing.T) {
 	client, e := _test_getDefaultClient()
 	if e != nil {
@@ -253,6 +370,48 @@ func TestExists(t *testing.T) {
 	flushAndQuitOnCompletion(t, client)
 }
 
+func TestRename(t *testing.T) {
+	client, e := _test_getDefaultClient()
+	if e != nil {
+		t.Fatalf("on getDefaultClient", e)
+	}
+
+	prefix := "renamed_"
+	kvmap := testdata[_testdata_kv].(map[string][]byte)
+	// add dataset keys and keys prefixed
+	for k, v := range kvmap {
+		if e := client.Set(k, v); e != nil {
+			t.Errorf("on Set(%s, %s) - %s", k, v, e)
+		}
+	}
+	for key, _ := range kvmap {
+		newkey := fmt.Sprintf("%s%s", prefix, key)
+		if e := client.Rename(key, newkey); e != nil {
+			t.Errorf("on Rename(%s, %s) - %s", key, newkey, e)
+		}
+	}
+
+	got, e := client.Keys(prefix + "*")
+	if e != nil {
+		t.Errorf("on Keys() - %s", e)
+	}
+	if got == nil {
+		t.Errorf("on Keys() - got nil")
+	}
+
+	// if same length and all elements in kvmap, its ok
+	if len(got) != len(kvmap) {
+		t.Errorf("on Keys() testing Rename() - Len mismatch - got:%d expected:%d", len(got), len(kvmap))
+	}
+	for _, k := range got {
+		if kvmap[k[len(prefix):]] == nil {
+			t.Errorf("on Keys() testing Rename() - key %s is not in original kvmap", k)
+		}
+	}
+
+	flushAndQuitOnCompletion(t, client)
+}
+
 func compareStringArrays(got, expected []string) bool {
 	if len(got) != len(expected) {
 		return false
@@ -263,6 +422,15 @@ func compareStringArrays(got, expected []string) bool {
 		}
 	}
 	return true
+}
+
+func reverseBytes(in []byte) (out []byte) {
+	size := len(in)
+	out = make([]byte, size)
+	for i, v := range in {
+		out[size-i-1] = v
+	}
+	return
 }
 func compareByteArrays(got, expected []byte) bool {
 	if len(got) != len(expected) {

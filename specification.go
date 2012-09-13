@@ -177,12 +177,12 @@ var (
 	FLUSHDB       Command = Command{"FLUSHDB", NO_ARG, STATUS}
 	FLUSHALL      Command = Command{"FLUSHALL", NO_ARG, STATUS}
 	MOVE          Command = Command{"MOVE", KEY_NUM, BOOLEAN}
-	// TODO	SORT		(RequestType.MULTI_KEY,		ResponseType.MULTI_BULK), 
-	SORT     Command = Command{"SORT", KEY_SPEC, MULTI_BULK}
-	SAVE     Command = Command{"SAVE", NO_ARG, STATUS}
-	BGSAVE   Command = Command{"BGSAVE", NO_ARG, STATUS}
-	LASTSAVE Command = Command{"LASTSAVE", NO_ARG, NUMBER}
-	SHUTDOWN Command = Command{"SHUTDOWN", NO_ARG, VIRTUAL}
-	INFO     Command = Command{"INFO", NO_ARG, BULK}
-	MONITOR  Command = Command{"MONITOR", NO_ARG, VIRTUAL}
+	SORT          Command = Command{"SORT", KEY_SPEC, MULTI_BULK}
+	SAVE          Command = Command{"SAVE", NO_ARG, STATUS}
+	BGSAVE        Command = Command{"BGSAVE", NO_ARG, STATUS}
+	LASTSAVE      Command = Command{"LASTSAVE", NO_ARG, NUMBER}
+	SHUTDOWN      Command = Command{"SHUTDOWN", NO_ARG, VIRTUAL}
+	INFO          Command = Command{"INFO", NO_ARG, BULK}
+	MONITOR       Command = Command{"MONITOR", NO_ARG, VIRTUAL}
+	// TODO	SORT		(RequestType.MULTI_KEY,		ResponseType.MULTI_BULK),
 )

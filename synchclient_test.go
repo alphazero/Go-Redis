@@ -191,6 +191,61 @@ func TestSetThenGet(t *testing.T) {
 	flushAndQuitOnCompletion(t, client)
 }
 
+func TestMget(t *testing.T) {
+	client, e := _test_getDefaultClient()
+	if e != nil {
+		t.Fatalf("on getDefaultClient", e)
+	}
+
+	vprefix := "the-value"
+	key := "mget-test"
+	if e := client.Set(key, []byte(vprefix)); e != nil {
+		t.Errorf("on Set(%s, %s) - %s", key, vprefix, e)
+	}
+	vset, e := client.Mget(key, nil)
+	if e != nil {
+		t.Errorf("on Mget(%s) - %s", key, e)
+	}
+	if vset == nil {
+		t.Errorf("on Mget(%s) - got nil", key)
+	}
+	if len(vset) != 1 {
+		t.Errorf("on Mget(%s) - expected len(vset) == 1, got: %d", key, len(vset))
+	}
+	if !compareByteArrays(vset[0], []byte(vprefix)) {
+		t.Errorf("on Mget(%s) - expected %s, got: %s", key, vprefix, vset[0])
+	}
+
+	keys := testdata[_testdata_keys].([]string)
+	for i, k := range keys {
+		if i > 10 {
+			break
+		}
+		v := []byte(fmt.Sprintf("%s_%03d", vprefix, i))
+		if e := client.Set(k, v); e != nil {
+			t.Errorf("on Set(%s, %s) - %s", k, v, e)
+		}
+		vset, e := client.Mget(key, keys[0:i])
+		if e != nil {
+			t.Errorf("on Mget(%s) - %s", key, e)
+		}
+		if vset == nil {
+			t.Errorf("on Mget(%s) - got nil", key)
+		}
+		if len(vset) != 1+i {
+			t.Errorf("on Mget(%s) - expected len(vset) == %d, got: %d", key, i+1, len(vset))
+		}
+		for j := 1; j < len(vset); j++ {
+			expected := []byte(fmt.Sprintf("%s_%03d", vprefix, j-1))
+			if !compareByteArrays(vset[j], expected) {
+				t.Errorf("on Mget(%s) - expected %s, got: %s", key, expected, vset[j])
+			}
+		}
+	}
+
+	flushAndQuitOnCompletion(t, client)
+}
+
 func TestGetType(t *testing.T) {
 	client, e := _test_getDefaultClient()
 	if e != nil {

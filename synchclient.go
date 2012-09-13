@@ -222,13 +222,6 @@ func (c *syncClient) Ping() (err Error) {
 	return
 }
 
-//// Redis QUIT command.
-//func (c *syncClient) Quit() (err Error) {
-//	c.conn.Close()
-//	//	_, err = c.conn.ServiceRequest(&QUIT);
-//	return
-//}
-
 // Redis SETNX command.
 func (c *syncClient) Setnx(arg0 string, arg1 []byte) (result bool, err Error) {
 	arg0bytes := []byte(arg0)
@@ -259,16 +252,13 @@ func (c *syncClient) Getset(arg0 string, arg1 []byte) (result []byte, err Error)
 
 // Redis MGET command.
 func (c *syncClient) Mget(arg0 string, arg1 []string) (result [][]byte, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
-
+	args := appendAndConvert(arg0, arg1...)
 	var resp Response
-	resp, err = c.conn.ServiceRequest(&MGET, [][]byte{arg0bytes, arg1bytes})
+	resp, err = c.conn.ServiceRequest(&MGET, args)
 	if err == nil {
 		result = resp.GetMultiBulkData()
 	}
 	return result, err
-
 }
 
 // Redis INCR command.
@@ -649,6 +639,8 @@ func (c *syncClient) Scard(arg0 string) (result int64, err Error) {
 
 }
 
+// REVU - this is buggy in conjunction with callsite usage (when arr is nil)
+// deprecated - TODO convert asynchclient.go to use appendAndConvert
 func concatAndGetBytes(arr []string, delim string) []byte {
 	cstr := ""
 	for _, s := range arr {
@@ -658,13 +650,20 @@ func concatAndGetBytes(arr []string, delim string) []byte {
 	return []byte(cstr)
 }
 
+// REVU - use this instead of concatAndGetBytes TODO - for asynch
+func appendAndConvert(a0 string, arr ...string) [][]byte {
+	sarr := make([][]byte, 1+len(arr))
+	sarr[0] = []byte(a0)
+	for i, v := range arr {
+		sarr[i+1] = []byte(v)
+	}
+	return sarr
+}
+
 // Redis SINTER command.
 func (c *syncClient) Sinter(arg0 string, arg1 []string) (result [][]byte, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
-
 	var resp Response
-	resp, err = c.conn.ServiceRequest(&SINTER, [][]byte{arg0bytes, arg1bytes})
+	resp, err = c.conn.ServiceRequest(&SINTER, appendAndConvert(arg0, arg1...))
 	if err == nil {
 		result = resp.GetMultiBulkData()
 	}
@@ -674,20 +673,15 @@ func (c *syncClient) Sinter(arg0 string, arg1 []string) (result [][]byte, err Er
 
 // Redis SINTERSTORE command.
 func (c *syncClient) Sinterstore(arg0 string, arg1 []string) (err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
-
-	_, err = c.conn.ServiceRequest(&SINTERSTORE, [][]byte{arg0bytes, arg1bytes})
+	_, err = c.conn.ServiceRequest(&SINTERSTORE, appendAndConvert(arg0, arg1...))
 	return
 }
 
 // Redis SUNION command.
 func (c *syncClient) Sunion(arg0 string, arg1 []string) (result [][]byte, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
-
 	var resp Response
-	resp, err = c.conn.ServiceRequest(&SUNION, [][]byte{arg0bytes, arg1bytes})
+	//		resp, err = c.conn.ServiceRequest(&SUNION, [][]byte{arg0bytes, arg1bytes})
+	resp, err = c.conn.ServiceRequest(&SUNION, appendAndConvert(arg0, arg1...))
 	if err == nil {
 		result = resp.GetMultiBulkData()
 	}
@@ -697,20 +691,14 @@ func (c *syncClient) Sunion(arg0 string, arg1 []string) (result [][]byte, err Er
 
 // Redis SUNIONSTORE command.
 func (c *syncClient) Sunionstore(arg0 string, arg1 []string) (err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
-
-	_, err = c.conn.ServiceRequest(&SUNIONSTORE, [][]byte{arg0bytes, arg1bytes})
+	_, err = c.conn.ServiceRequest(&SUNIONSTORE, appendAndConvert(arg0, arg1...))
 	return
 }
 
 // Redis SDIFF command.
 func (c *syncClient) Sdiff(arg0 string, arg1 []string) (result [][]byte, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
-
 	var resp Response
-	resp, err = c.conn.ServiceRequest(&SDIFF, [][]byte{arg0bytes, arg1bytes})
+	resp, err = c.conn.ServiceRequest(&SDIFF, appendAndConvert(arg0, arg1...))
 	if err == nil {
 		result = resp.GetMultiBulkData()
 	}
@@ -720,10 +708,7 @@ func (c *syncClient) Sdiff(arg0 string, arg1 []string) (result [][]byte, err Err
 
 // Redis SDIFFSTORE command.
 func (c *syncClient) Sdiffstore(arg0 string, arg1 []string) (err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
-
-	_, err = c.conn.ServiceRequest(&SDIFFSTORE, [][]byte{arg0bytes, arg1bytes})
+	_, err = c.conn.ServiceRequest(&SDIFFSTORE, appendAndConvert(arg0, arg1...))
 	return
 }
 

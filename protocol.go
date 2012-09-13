@@ -18,11 +18,9 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
-	//	"log"
-	//	"fmt"
-	"fmt"
 )
 
 // ----------------------------------------------------------------------------
@@ -79,6 +77,7 @@ func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, error) {
 		buffer.Write(CRLF)
 	}
 
+	//	fmt.Printf("BUFFER: \n%s\n", buffer)
 	return buffer.Bytes(), nil
 }
 
@@ -288,6 +287,7 @@ func getBulkResponse(conn *bufio.Reader, cmd *Command) (Response, error) {
 
 func getMultiBulkResponse(conn *bufio.Reader, cmd *Command) (Response, error) {
 	buf, e1 := readToCRLF(conn)
+	//	fmt.Printf("buf: `%s`\n", buf);
 	if e1 != nil {
 		return nil, e1
 	}
@@ -304,7 +304,7 @@ func getMultiBulkResponse(conn *bufio.Reader, cmd *Command) (Response, error) {
 		return nil, e2
 	}
 
-	//log.Println("multibulk data count: ", num)
+	//	fmt.Println("multibulk data count: ", num)
 	if num < 0 {
 		return newMultiBulkResponse(nil, false), nil
 	}
@@ -321,7 +321,8 @@ func getMultiBulkResponse(conn *bufio.Reader, cmd *Command) (Response, error) {
 		if e2 != nil {
 			return nil, e2
 		}
-		//		log.Println("item: bulk data size: ", size);
+		//		fmt.Println("item: bulk data size: ", size);
+		//		fmt.Printf("item: `%s`\n", sbuf);
 		if size < 0 {
 			multibulkdata[i] = nil
 		} else {
@@ -427,7 +428,6 @@ func readToCRLF(reader *bufio.Reader) (buffer []byte, err error) {
 		if b != LF_BYTE {
 			err = errors.New("<BUG> Expecting a Linefeed byte here!")
 		}
-		//		log.Println("readToCRLF: ", buf);
 		buffer = buf[0 : len(buf)-1]
 	}
 	return

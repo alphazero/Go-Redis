@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"redis"
+	redis "github.com/alphazero/Go-redis"
 	"time"
 )
 

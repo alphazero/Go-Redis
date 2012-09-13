@@ -167,15 +167,3 @@ func withNewError(m string) error {
 	}
 	return e
 }
-
-// creates a new redis.Error of category SYSTEM_ERR
-// and emits log if _debug flag /debug() is true
-// Error is returned.
-// usage:
-//      _, e := SomeLibraryOrGoCall()
-//      if e != nil {
-//          return withNewError("value v is unexpected", e)
-//      }
-func withOsError(m string, cause error) error {
-	return withNewError(fmt.Sprintf("%s [cause: %s]", m, cause))
-}

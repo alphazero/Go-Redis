@@ -35,11 +35,11 @@ func flushAndQuitOnCompletion(t *testing.T, client Client) {
 func TestClientConnectWithBadSpec(t *testing.T) {
 	spec := _test_getDefConnSpec()
 	spec.Password("bad-password")
-	c, expected := NewSynchClientWithSpec(spec)
+	client, expected := NewSynchClientWithSpec(spec)
 	if expected == nil {
 		t.Error("BUG: Expected a RedisError")
 	}
-	if c != nil {
+	if client != nil {
 		t.Error("BUG: client reference on error MUST be nil")
 	}
 }
@@ -48,12 +48,13 @@ func TestClientConnectWithBadSpec(t *testing.T) {
 func TestClientConnectWithSpec(t *testing.T) {
 	spec := _test_getDefConnSpec()
 
-	c, err := NewSynchClientWithSpec(spec)
+	client, err := NewSynchClientWithSpec(spec)
 	if err != nil {
 		t.Error("failed to create client with spec. Error: ", err.Message())
-	} else if c == nil {
+	} else if client == nil {
 		t.Error("BUG: client is nil")
 	}
+	client.Quit()
 }
 
 func TestPing(t *testing.T) {
@@ -67,6 +68,24 @@ func TestPing(t *testing.T) {
 	}
 
 	flushAndQuitOnCompletion(t, client)
+}
+
+func TestQuit(t *testing.T) {
+	client, e := _test_getDefaultClient()
+	if e != nil {
+		t.Fatalf("on getDefaultClient", e)
+	}
+
+	if e := client.Quit(); e != nil {
+		t.Errorf("on Quit() - %s", e)
+	}
+
+	// now ping
+	if e := client.Ping(); e == nil {
+		t.Fatal("post Quit Ping() did not raise error")
+	} else {
+		log.Printf("expected - %s", e)
+	}
 }
 
 func TestSetGet(t *testing.T) {

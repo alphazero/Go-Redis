@@ -134,13 +134,15 @@ func (spec *ConnectionSpec) Heartbeat(period time.Duration) *ConnectionSpec {
 // General control structure used by connections.
 //
 type connHdl struct {
-	spec   *ConnectionSpec
-	conn   net.Conn // may want to change this to TCPConn
-	reader *bufio.Reader
+	spec      *ConnectionSpec
+	conn      net.Conn // may want to change this to TCPConn - TODO REVU
+	reader    *bufio.Reader
+	connected bool // TODO
 }
 
-func (chdl *connHdl) String() string {
-	return fmt.Sprintf("conn<redis-server@%s>", chdl.conn.RemoteAddr())
+func (c *connHdl) String() string {
+	//	return fmt.Sprintf("conn<redis-server@%s>", c.conn.RemoteAddr())
+	return fmt.Sprintf("conn<redis-server@%s:%d [db %d]>", c.spec.host, c.spec.port, c.spec.db)
 }
 
 // Creates and opens a new connection to server per ConnectionSpec.
@@ -180,9 +182,10 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 		configureConn(conn, spec)
 		hdl.spec = spec
 		hdl.conn = conn
+		hdl.connected = true
 		bufsize := 4096
 		hdl.reader = bufio.NewReaderSize(conn, bufsize)
-		log.Printf("<INFO> Connected to %s", hdl)
+		//		log.Printf("<INFO> Connected to %s", hdl)
 	}
 	return hdl, nil
 }
@@ -201,9 +204,21 @@ func configureConn(conn net.Conn, spec *ConnectionSpec) {
 	}
 }
 
-// onConnect event handler will issue AUTH/SELECT on new connection
+// ----------------------------------------------------------------------------
+// Connection SyncConnection
+// ----------------------------------------------------------------------------
+
+// Defines the service contract supported by synchronous (Request/Reply)
+// connections.
+
+type SyncConnection interface {
+	ServiceRequest(cmd *Command, args [][]byte) (Response, Error)
+	//	Close() Error
+}
+
+// connect event handler will issue AUTH/SELECT on new connection
 // if required.
-func (c *connHdl) onConnect() (e Error) {
+func (c *connHdl) connect() (e Error) {
 	if c.spec.password != DefaultRedisPassword {
 		_, e = c.ServiceRequest(&AUTH, [][]byte{[]byte(c.spec.password)})
 		if e != nil {
@@ -218,34 +233,20 @@ func (c *connHdl) onConnect() (e Error) {
 			return
 		}
 	}
+	log.Printf("<INFO> Connected to %s", c)
 	return
 }
 
-func (c *connHdl) onDisconnect() Error {
-	return nil // for now
-}
-
-// closes the connHdl's net.Conn connection.
-// Is public so that connHdl struct can be used as SyncConnection (TODO: review that.)
-//
-func (hdl connHdl) Close() error {
-	err := hdl.conn.Close()
-	if debug() {
-		log.Println("[Go-Redis] Closed connection: ", hdl)
+func (hdl *connHdl) disconnect() Error {
+	// silently ignore repeated calls to closed connections
+	if hdl.connected {
+		if e := hdl.conn.Close(); e != nil {
+			return NewErrorWithCause(SYSTEM_ERR, "on connHdl.Close()", e)
+		}
+		hdl.connected = false
+		log.Printf("<INFO> Disconnected from %s", hdl)
 	}
-	return err
-}
-
-// ----------------------------------------------------------------------------
-// Connection SyncConnection
-// ----------------------------------------------------------------------------
-
-// Defines the service contract supported by synchronous (Request/Reply)
-// connections.
-
-type SyncConnection interface {
-	ServiceRequest(cmd *Command, args [][]byte) (Response, Error)
-	Close() error
+	return nil
 }
 
 // Creates a new SyncConnection using the provided ConnectionSpec
@@ -255,7 +256,7 @@ func NewSyncConnection(spec *ConnectionSpec) (c SyncConnection, err Error) {
 		return nil, e
 	}
 
-	e = connHdl.onConnect()
+	e = connHdl.connect()
 	return connHdl, e
 }
 
@@ -264,6 +265,12 @@ func NewSyncConnection(spec *ConnectionSpec) (c SyncConnection, err Error) {
 func (chdl *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response, err Error) {
 	loginfo := "connHdl.ServiceRequest"
 	errmsg := ""
+	if !chdl.connected {
+		return nil, NewError(REDIS_ERR, "Connection is closed")
+	}
+	if cmd == &QUIT {
+		return nil, chdl.disconnect()
+	}
 	ok := false
 	buff, e := CreateRequestBytes(cmd, args) // 2<<<
 	if e == nil {
@@ -427,19 +434,19 @@ func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
 func NewAsynchConnection(spec *ConnectionSpec) (conn AsyncConnection, err Error) {
 	var async *asyncConnHdl
 	if async, err = newAsyncConnHdl(spec); err == nil {
-		async.onConnect()
+		async.connect()
 		async.startup()
 	}
 	return async, err
 }
 
-// onConnect event handler.
-// See connHdl#onConnect
-func (c *asyncConnHdl) onConnect() (e Error) {
-	return c.super.onConnect()
+// connect event handler.
+// See connHdl#connect
+func (c *asyncConnHdl) connect() (e Error) {
+	return c.super.connect()
 }
 
-func (c *asyncConnHdl) onDisconnect() (e Error) {
+func (c *asyncConnHdl) disconnect() (e Error) {
 	return
 }
 
@@ -780,16 +787,8 @@ func sendRequest(w io.Writer, data []byte) (e error) {
 
 	n, e := w.Write(data)
 	if e != nil {
-		var msg string
-		//		switch {
-		//		case e == os.EAGAIN:
-		//			// socket timeout -- don't handle that yet but may in future ..
-		//			msg = fmt.Sprintf("%s(): timeout (os.EAGAIN) error on Write", loginfo)
-		//		default:
-		// anything else
-		msg = fmt.Sprintf("%s(): error on Write", loginfo)
-		//		}
-		return withOsError(msg, e)
+		msg := fmt.Sprintf("%s(): connection Write wrote %d bytes only.", loginfo, n)
+		return withNewError(msg)
 	}
 
 	// doc isn't too clear but the underlying netFD may return n<len(data) AND

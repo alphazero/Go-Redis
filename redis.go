@@ -155,9 +155,6 @@ type Client interface {
 	// Redis PING command.
 	Ping() Error
 
-//	// Redis QUIT command.
-//	Quit() Error
-
 	// Redis SETNX command.
 	Setnx(key string, arg1 []byte) (result bool, err Error)
 
@@ -372,9 +369,6 @@ type AsyncClient interface {
 
 	// Redis PING command.
 	Ping() (status FutureBool, err Error)
-
-//	// Redis QUIT command.
-//	Quit() (err Error)
 
 	// Redis SETNX command.
 	Setnx(key string, arg1 []byte) (result FutureBool, err Error)

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"runtime"
 	"flag"
 	"fmt"
 	"log"
 	"redis"
+	"runtime"
 	"time"
 )
 
@@ -49,7 +49,7 @@ var opcnt = flag.Int("n", 20, "number of task iterations per worker")
 
 func main() {
 	// DEBUG
-	runtime.GOMAXPROCS(2);
+	runtime.GOMAXPROCS(2)
 
 	log.SetPrefix("[go-redis|bench] ")
 	flag.Parse()
@@ -104,13 +104,15 @@ func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool)
 	return
 }
 
-func setup (client redis.AsyncClient) {
-	fr, e := client.Flushdb(); if e!=nil {
+func setup(client redis.AsyncClient) {
+	fr, e := client.Flushdb()
+	if e != nil {
 		log.Println("Error creating client for worker: ", e)
 		log.Println("fr: ", fr)
 		panic(e)
 	}
-	frr, e2 := fr.Get(); if e2 != nil {
+	frr, e2 := fr.Get()
+	if e2 != nil {
 		log.Println("Error creating client for worker: ", e2)
 		log.Println("frr: ", frr)
 		panic(e)
@@ -147,8 +149,8 @@ func doIncr(id string, signal chan int, client redis.AsyncClient, cnt int) {
 		log.Fatalf("BUG: expecting counter %s to be %d but it is %d\n", key, cnt, v)
 		panic(1)
 	}
-// debug sanity check
-//	log.Printf("worker[%s] - last INCR result %s=%d\n", id, key, v)
+	// debug sanity check
+	//	log.Printf("worker[%s] - last INCR result %s=%d\n", id, key, v)
 	signal <- 1
 }
 func doDecr(id string, signal chan int, client redis.AsyncClient, cnt int) {

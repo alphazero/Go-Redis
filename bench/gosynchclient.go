@@ -86,7 +86,6 @@ func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool)
 	delta = time.Now().Sub(t0)
 	for i := 0; i < workers; i++ {
 		clients[i].Quit() // will be deprecated soon
-		clients[i].RedisClient().Quit()
 	}
 
 	if printReport {

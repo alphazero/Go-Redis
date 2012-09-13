@@ -65,8 +65,7 @@ func NewSynchClientWithSpec(spec *ConnectionSpec) (c Client, err Error) {
 
 // Redis QUIT command.
 func (c *syncClient) Quit() (err Error) {
-	c.conn.Close()
-	//	_, err = c.conn.ServiceRequest(&QUIT);
+	_, err = c.conn.ServiceRequest(&QUIT, [][]byte{})
 	return
 }
 

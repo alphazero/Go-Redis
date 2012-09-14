@@ -194,16 +194,6 @@ func (c *asyncClient) Ping() (stat FutureBool, err Error) {
 	return
 }
 
-//// Redis QUIT command.
-////func (c *asyncClient) Quit () (stat FutureBool, err Error){
-//func (c *asyncClient) Quit () (err Error){
-////	c.conn.Close();
-//////	resp, err = c.conn.QueueRequest(&QUIT);
-////	if err == nil {stat = resp.future.(FutureBool);}
-//    log.Println("<BUG> Lazy programmer hasn't implemented Quit!")
-//	return NewError(SYSTEM_ERR, "<BUG> Lazy programmer hasn't implemented Quit!")
-//}
-
 // Redis SETNX command.
 func (c *asyncClient) Setnx(arg0 string, arg1 []byte) (result FutureBool, err Error) {
 	arg0bytes := []byte(arg0)

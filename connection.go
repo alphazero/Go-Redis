@@ -248,7 +248,7 @@ func (c *connHdl) connect() (e Error) {
 			return
 		}
 	}
-	log.Printf("<INFO> Connected to %s", c)
+	log.Printf("<INFO> %s - CONNECTED", c)
 	return
 }
 
@@ -259,7 +259,7 @@ func (hdl *connHdl) disconnect() Error {
 			return NewErrorWithCause(SYSTEM_ERR, "on connHdl.Close()", e)
 		}
 		hdl.connected = false
-		log.Printf("<INFO> Disconnected from %s", hdl)
+		log.Printf("<INFO> %s - DISCONNECTED", hdl)
 	}
 	return nil
 }
@@ -281,7 +281,7 @@ func (hdl *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response, 
 	loginfo := "connHdl.ServiceRequest"
 	errmsg := ""
 	if !hdl.connected {
-		return nil, NewError(REDIS_ERR, "Connection is closed")
+		return nil, NewError(REDIS_ERR, "Connection"+hdl.String()+" is closed")
 	}
 	if cmd == &QUIT {
 		return nil, hdl.disconnect()
@@ -408,6 +408,10 @@ type asyncConnHdl struct {
 	shutdown chan bool
 }
 
+func (c *asyncConnHdl) String() string {
+	return fmt.Sprintf("async-%s", c.super.String())
+}
+
 // Creates a new asyncConnHdl with a new connHdl as its delegated 'super'.
 // Note it does not start the processing goroutines for the channels.
 
@@ -518,13 +522,13 @@ func (c *asyncConnHdl) startup() {
 	go c.worker(heartbeatworker, "response-processor", rspProcessingTask, c.rspProcCtl, c.feedback)
 	c.rspProcCtl <- start
 
-	log.Println("<INFO> Async connection started")
+	log.Printf("<INFO> %s - READY", c)
 }
 
 // This could find a happy home in a generalized worker package ...
 // TODO
 func (c *asyncConnHdl) worker(id int, name string, task workerTask, ctl workerCtl, fb chan workerStatus) {
-	log.Printf("<INFO> %s started.", name)
+	log.Printf("<INFO> %s - %s STARTED.", c, name)
 	var signal interrupt_code
 	var tstat *taskStatus
 

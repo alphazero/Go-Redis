@@ -16,6 +16,23 @@ const (
 
 )
 
+// ----------------------------------------------------------------------
+// test data setup
+// ----------------------------------------------------------------------
+
+// connection spec used in tests, using db 13 and password 'go-redis'.
+// db 13 will be repeatedly flushed, as noted elsewhere.
+func _test_getDefConnSpec() *ConnectionSpec {
+
+	host := "localhost"
+	port := 6379
+	db := 13
+	password := "go-redis"
+
+	connspec := DefaultSpec().Host(host).Port(port).Db(db).Password(password)
+	return connspec
+}
+
 // Its a hack to use the testing/quick functions to load up some
 // test data.  And that is it.
 //
@@ -62,4 +79,40 @@ func _test_getDefaultClient() (Client, error) {
 	spec := DefaultSpec()
 	spec.Db(13).Password("go-redis")
 	return NewSynchClientWithSpec(spec)
+}
+
+// ----------------------------------------------------------------------
+// test utility functions
+// ----------------------------------------------------------------------
+
+func _test_compareStringArrays(got, expected []string) bool {
+	if len(got) != len(expected) {
+		return false
+	}
+	for i, b := range expected {
+		if got[i] != b {
+			return false
+		}
+	}
+	return true
+}
+
+func _test_reverseBytes(in []byte) (out []byte) {
+	size := len(in)
+	out = make([]byte, size)
+	for i, v := range in {
+		out[size-i-1] = v
+	}
+	return
+}
+func _test_compareByteArrays(got, expected []byte) bool {
+	if len(got) != len(expected) {
+		return false
+	}
+	for i, b := range expected {
+		if got[i] != b {
+			return false
+		}
+	}
+	return true
 }

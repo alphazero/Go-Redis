@@ -33,23 +33,22 @@ type asyncClient struct {
 //
 func NewAsynchClient() (c AsyncClient, err Error) {
 	spec := DefaultSpec()
-	c, err = NewAsynchClientWithSpec(spec)
-	return
+	return NewAsynchClientWithSpec(spec)
 }
 
 // Create a new asynClient and connects to the Redis server using the
 // specified ConnectionSpec.
 //
-func NewAsynchClientWithSpec(spec *ConnectionSpec) (c AsyncClient, err Error) {
-	_c := new(asyncClient)
-	_c.conn, err = NewAsynchConnection(spec)
+func NewAsynchClientWithSpec(spec *ConnectionSpec) (client AsyncClient, err Error) {
+	c := new(asyncClient)
+	c.conn, err = NewAsynchConnection(spec)
 	if err != nil {
 		if debug() {
 			log.Println("NewAsyncConnection() raised error: ", err)
 		}
 		return nil, err
 	}
-	return _c, nil
+	return c, nil
 }
 
 // -----------------------------------------------------------------------------

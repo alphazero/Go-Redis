@@ -444,13 +444,15 @@ func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
 
 // Creates and opens a new AsyncConnection and starts the goroutines for
 // request and response processing
-// TODO: NewXConnection methods need to return redis.Error due to initial connect
 // interaction with redis (AUTH &| SELECT)
 func NewAsynchConnection(spec *ConnectionSpec) (conn AsyncConnection, err Error) {
 	var async *asyncConnHdl
 	if async, err = newAsyncConnHdl(spec); err == nil {
-		async.connect()
-		async.startup()
+		if err = async.connect(); err == nil {
+			async.startup()
+		} else {
+			async = nil // do not return a ref if we could not connect
+		}
 	}
 	return async, err
 }

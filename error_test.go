@@ -94,5 +94,5 @@ func TestNewErrorWithCause(t *testing.T) {
 }
 
 func TestEnd_et(t *testing.T) {
-	log.Println("error test")
+	log.Println("-- error test completed")
 }

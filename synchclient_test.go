@@ -6,17 +6,6 @@ import (
 	"testing"
 )
 
-func _test_getDefConnSpec() *ConnectionSpec {
-
-	host := "localhost"
-	port := 6379
-	db := 13
-	password := "go-redis"
-
-	connspec := DefaultSpec().Host(host).Port(port).Db(db).Password(password)
-	return connspec
-}
-
 func flushAndQuitOnCompletion(t *testing.T, client Client) {
 	// flush it
 	e := client.Flushdb()
@@ -31,7 +20,7 @@ func flushAndQuitOnCompletion(t *testing.T, client Client) {
 
 // Check that connection is actually passing passwords from spec
 // and catching AUTH ERRs.
-func TestClientConnectWithBadSpec(t *testing.T) {
+func TestSyncClientConnectWithBadSpec(t *testing.T) {
 	spec := _test_getDefConnSpec()
 	spec.Password("bad-password")
 	client, expected := NewSynchClientWithSpec(spec)
@@ -39,12 +28,12 @@ func TestClientConnectWithBadSpec(t *testing.T) {
 		t.Error("BUG: Expected a RedisError")
 	}
 	if client != nil {
-		t.Error("BUG: client reference on error MUST be nil")
+		t.Error("BUG: sync client reference on error MUST be nil")
 	}
 }
 
 // Check that connection is actually passing passwords from spec
-func TestClientConnectWithSpec(t *testing.T) {
+func TestSyncClientConnectWithSpec(t *testing.T) {
 	spec := _test_getDefConnSpec()
 
 	client, err := NewSynchClientWithSpec(spec)
@@ -149,7 +138,7 @@ func TestGetset(t *testing.T) {
 			t.Errorf("on Getset(%s, %s) - %s", k, newv, e)
 		}
 		// check previous prev value against expected v
-		if prev == nil || !compareByteArrays(prev, v) {
+		if prev == nil || !_test_compareByteArrays(prev, v) {
 			t.Errorf("on Getset(%s, %s) - got: %s", k, newv, prev)
 		}
 		// now check that newvalue was correctly set as well
@@ -157,7 +146,7 @@ func TestGetset(t *testing.T) {
 		if e != nil {
 			t.Errorf("on Getset(%s, %s) - %s", k, newv, e)
 		}
-		if !compareByteArrays(got, newv) {
+		if !_test_compareByteArrays(got, newv) {
 			t.Errorf("on Get(%s) - got: %s expected:%s", k, got, newv)
 		}
 
@@ -183,7 +172,7 @@ func TestSetThenGet(t *testing.T) {
 		if got == nil {
 			t.Errorf("on Get(%s) - got nil", k)
 		}
-		if !compareByteArrays(got, v) {
+		if !_test_compareByteArrays(got, v) {
 			t.Errorf("on Get(%s) - got:%s expected:%s", k, got, v)
 		}
 	}
@@ -212,7 +201,7 @@ func TestMget(t *testing.T) {
 	if len(vset) != 1 {
 		t.Errorf("on Mget(%s) - expected len(vset) == 1, got: %d", key, len(vset))
 	}
-	if !compareByteArrays(vset[0], []byte(vprefix)) {
+	if !_test_compareByteArrays(vset[0], []byte(vprefix)) {
 		t.Errorf("on Mget(%s) - expected %s, got: %s", key, vprefix, vset[0])
 	}
 
@@ -237,7 +226,7 @@ func TestMget(t *testing.T) {
 		}
 		for j := 1; j < len(vset); j++ {
 			expected := []byte(fmt.Sprintf("%s_%03d", vprefix, j-1))
-			if !compareByteArrays(vset[j], expected) {
+			if !_test_compareByteArrays(vset[j], expected) {
 				t.Errorf("on Mget(%s) - expected %s, got: %s", key, expected, vset[j])
 			}
 		}
@@ -467,39 +456,7 @@ func TestRename(t *testing.T) {
 	flushAndQuitOnCompletion(t, client)
 }
 
-func compareStringArrays(got, expected []string) bool {
-	if len(got) != len(expected) {
-		return false
-	}
-	for i, b := range expected {
-		if got[i] != b {
-			return false
-		}
-	}
-	return true
-}
-
-func reverseBytes(in []byte) (out []byte) {
-	size := len(in)
-	out = make([]byte, size)
-	for i, v := range in {
-		out[size-i-1] = v
-	}
-	return
-}
-func compareByteArrays(got, expected []byte) bool {
-	if len(got) != len(expected) {
-		return false
-	}
-	for i, b := range expected {
-		if got[i] != b {
-			return false
-		}
-	}
-	return true
-}
-
 /* --------------- KEEP THIS AS LAST FUNCTION -------------- */
 func TestEnd_sct(t *testing.T) {
-	log.Println("synchclient test completed")
+	log.Println("-- synchclient test completed")
 }

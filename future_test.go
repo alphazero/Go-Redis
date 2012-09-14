@@ -161,5 +161,5 @@ func TestFutureTimedBlockingGet(t *testing.T) {
 
 func TestEnd_future(t *testing.T) {
 	// nop
-	log.Println("future test completed")
+	log.Println("-- future test completed")
 }

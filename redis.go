@@ -338,7 +338,7 @@ type AsyncClient interface {
 
 	// psuedo inheritance to coerce to RedisClient type
 	// for the common API (not "algorithm", not "data", but interface ...)
-	RedisClient() RedisClient
+	RedisClient
 
 	// Redis GET command.
 	Get(key string) (result FutureBytes, err Error)

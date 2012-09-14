@@ -30,7 +30,43 @@ func TestAsyncClientConnectWithSpec(t *testing.T) {
 	} else if client == nil {
 		t.Error("BUG: client is nil")
 	}
-	client.Quit()
+
+	// quit once -- OK
+	futureBool, err := client.Quit()
+	if err != nil {
+		t.Errorf("BUG - initial Quit on asyncClient should not return error - %s ", err)
+	}
+	if futureBool == nil {
+		t.Errorf("BUG - non-error asyncClient response should not return nil future")
+	}
+	// block until we get results
+	ok, fe := futureBool.Get()
+	if fe != nil {
+		t.Errorf("BUG - non-Error Quit future result get must never return error - got: %s", fe)
+	}
+	if !ok {
+		t.Errorf("BUG - non-Error Quit future result must always be true ")
+	}
+
+	// subsequent quit should raise error
+	futureBool, err = client.Quit()
+	if err == nil {
+		t.Errorf("BUG - Quit on shutdown asyncClient should return error")
+	}
+	if futureBool != nil {
+		t.Errorf("BUG - Quit on shutdown asyncClient should not return future. got: %s", futureBool)
+	}
+
+	futureBool, err = client.Quit()
+	if err == nil {
+		t.Errorf("BUG - Quit on shutdown asyncClient should return error")
+	}
+	if futureBool != nil {
+		t.Errorf("BUG - Quit on shutdown asyncClient should not return future. got: %s", futureBool)
+	}
+
+	//	ch := make(chan bool, 0)
+	//	<-ch
 }
 
 /* --------------- KEEP THIS AS LAST FUNCTION -------------- */

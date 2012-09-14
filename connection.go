@@ -351,6 +351,7 @@ const (
 	ready
 	working
 	faulted
+	quit_processed
 )
 
 type workerStatus struct {
@@ -405,7 +406,8 @@ type asyncConnHdl struct {
 
 	feedback chan workerStatus
 
-	shutdown chan bool
+	shutdown   chan bool
+	isShutdown bool
 }
 
 func (c *asyncConnHdl) String() string {
@@ -436,6 +438,8 @@ func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
 			async.feedback = make(chan workerStatus)
 			async.shutdown = make(chan bool, 1)
 
+			async.isShutdown = false
+
 			return
 		}
 	}
@@ -465,21 +469,29 @@ func NewAsynchConnection(spec *ConnectionSpec) (conn AsyncConnection, err Error)
 // asyncConnHdl support for AsyncConnection interface
 // ----------------------------------------------------------------------------
 
+// TODO Quit - see REVU notes added for adding Quit to async in body
 func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (*PendingResponse, Error) {
+
+	if c.isShutdown {
+		return nil, NewError(SYSTEM_ERR, "Connection is shutdown.")
+	}
+
 	select {
 	case <-c.shutdown:
-		log.Println("<DEBUG> we're shutdown and not accepting any more requests ...")
+		c.isShutdown = true
+		c.shutdown <- true // put it back REVU likely to be a bug under heavy load ..
+		//		log.Println("<DEBUG> we're shutdown and not accepting any more requests ...")
 		return nil, NewError(SYSTEM_ERR, "Connection is shutdown.")
 	default:
 	}
 
 	future := CreateFuture(cmd)
-
 	request := &asyncRequestInfo{0, 0, cmd, nil, future, nil}
+
 	buff, e1 := CreateRequestBytes(cmd, args)
 	if e1 == nil {
 		request.outbuff = &buff
-		c.pendingReqs <- request
+		c.pendingReqs <- request // REVU - opt 1 TODO is handling QUIT and sending stop to workers
 	} else {
 		errmsg := fmt.Sprintf("Failed to create asynchrequest - %s aborted", cmd.Code)
 		request.stat = inierr
@@ -503,8 +515,11 @@ func (c *asyncConnHdl) connect() (e Error) {
 	return c.super.connect()
 }
 
+// REVU - TODO opt 2 for Quit here
 func (c *asyncConnHdl) disconnect() (e Error) {
-	return
+
+	panic("asyncConnHdl.disconnect NOT IMLEMENTED!")
+	//	return
 }
 
 // responsible for managing the various moving parts of the asyncConnHdl
@@ -581,7 +596,7 @@ before_stop:
 	//	fmt.Println(name, "_worker: before_stop!")
 	// TODO: add shutdown hook for worker
 
-	log.Println(name, "_worker: STOPPED!")
+	log.Printf("<INFO> %s - %s STOPPED.", c, name)
 }
 
 // ----------------------------------------------------------------------------
@@ -604,18 +619,19 @@ func managementTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *ta
 	//	log.Println("MGR: do task ...")
 	select {
 	case stat := <-c.feedback:
-		log.Println("MGR: Feedback from one of my minions: ", stat)
 		// do the shutdown for now -- TODO: try reconnect
-		if stat.event == faulted {
-			log.Println("MGR: Shutting down due to fault in ", stat.id)
+		if stat.event == faulted || stat.event == quit_processed {
+			if stat.event == faulted {
+				log.Printf("<INFO> - %s (manager task) FAULT EVENT ", c)
+			}
+			log.Printf("<INFO> %s - (manager task) SHUTTING DOWN ...", c)
+			c.shutdown <- true
+
+			log.Printf("<INFO> %s - (manager task) RAISING SIGNAL STOP ...", c)
 			go func() { c.reqProcCtl <- stop }()
 			go func() { c.rspProcCtl <- stop }()
 			go func() { c.heartbeatCtl <- stop }()
-
-			log.Println("MGR: Signal SHUTDOWN ... ")
-			c.shutdown <- true
-			// stop self // TODO: should manager really be a task or a FSM?
-			c.managerCtl <- stop
+			go func() { c.managerCtl <- stop }()
 		}
 	case s := <-ctl:
 		return &s, &ok_status
@@ -685,7 +701,7 @@ func rspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 	reader := c.super.reader
 	cmd := req.cmd
 
-	resp, e3 := GetResponse(reader, cmd)
+	resp, e3 := GetResponse(reader, cmd) // REVU - protocol modified to handle VIRTUALS
 	if e3 != nil {
 		// system error
 		log.Println("<TEMP DEBUG> Request sent to faults chan on error in GetResponse: ", e3)
@@ -694,8 +710,18 @@ func rspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 		c.faults <- req
 		return nil, &taskStatus{rcverr, e3}
 	}
-	SetFutureResult(req.future, cmd, resp)
 
+	// if responsed processed was for cmd QUIT then signal the rest of the crew
+	// REVU - ok, a bit hacky but it works.
+	if cmd == &QUIT {
+		c.feedback <- workerStatus{0, quit_processed, nil, nil}
+		fakesig := pause
+		c.isShutdown = true
+		SetFutureResult(req.future, cmd, resp)
+		return &fakesig, &ok_status
+	}
+
+	SetFutureResult(req.future, cmd, resp)
 	return nil, &ok_status
 }
 

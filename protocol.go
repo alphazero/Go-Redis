@@ -95,12 +95,12 @@ func CreateFuture(cmd *Command) (future interface{}) {
 	case NUMBER:
 		future = newFutureInt64()
 	case STATUS:
-		//		future = newFutureString();
 		future = newFutureBool()
 	case STRING:
 		future = newFutureString()
-		//	case VIRTUAL:		// TODO
-		//	    resp, err = getVirtualResponse ();
+	case VIRTUAL:
+		// REVU - treating virtual futures as FutureBools (always true)
+		future = newFutureBool()
 	}
 	return
 }
@@ -122,12 +122,12 @@ func SetFutureResult(future interface{}, cmd *Command, r Response) {
 		case NUMBER:
 			future.(FutureInt64).set(r.GetNumberValue())
 		case STATUS:
-			//		future.(FutureString).set(r.GetMessage());
 			future.(FutureBool).set(true)
 		case STRING:
 			future.(FutureString).set(r.GetStringValue())
-			//	case VIRTUAL:		// TODO
-			//	    resp, err = getVirtualResponse ();
+		case VIRTUAL:
+			// REVU - OK to treat virtual commands as FutureBool
+			future.(FutureBool).set(true)
 		}
 	}
 }
@@ -151,8 +151,12 @@ func GetResponse(reader *bufio.Reader, cmd *Command) (resp Response, err error) 
 		resp, err = getStatusResponse(reader, cmd)
 	case STRING:
 		resp, err = getStringResponse(reader, cmd)
-		//	case VIRTUAL:
-		//	    resp, err = getVirtualResponse ();
+	case VIRTUAL:
+		// REVU - no data expected from reader so no parsing
+		//		- response status is always OK/True
+		// 	    - no error expected
+		resp = newBooleanResponse(true, false)
+		err = nil
 	}
 	return
 }

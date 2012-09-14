@@ -80,7 +80,7 @@ func benchTask(taskspec taskSpec, iterations int, workers int, printReport bool)
 		return -1, e
 	}
 
-	defer client.RedisClient().Quit()
+	defer client.Quit()
 
 	// panics
 	setup(client)

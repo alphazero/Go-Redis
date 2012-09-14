@@ -53,7 +53,7 @@ func doOne(cnt int) error {
 		return failedTest("NewSynchClient returned nil!")
 	}
 	//	defer client.Quit()   // will be deprecated soon
-	defer client.RedisClient().Quit()
+	defer client.Quit()
 
 	client.Flushdb()
 

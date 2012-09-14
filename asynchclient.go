@@ -57,14 +57,14 @@ func NewAsynchClientWithSpec(spec *ConnectionSpec) (client AsyncClient, err Erro
 
 // Redis QUIT command.
 func (c *asyncClient) Quit() (stat FutureBool, err Error) {
-	log.Println("<BUG> Lazy programmer hasn't implemented Quit!")
-	return nil, NewError(SYSTEM_ERR, "<BUG> Lazy programmer hasn't implemented Quit!")
-	//	resp, err := c.conn.QueueRequest(&QUIT, [][]byte{})
-	//	if err == nil {
-	//		stat = resp.future.(FutureBool)
-	//	}
-	//
-	//	return
+	//	log.Println("<BUG> Lazy programmer hasn't implemented Quit!")
+	//	return nil, NewError(SYSTEM_ERR, "<BUG> Lazy programmer hasn't implemented Quit!")
+	resp, err := c.conn.QueueRequest(&QUIT, [][]byte{})
+	if err == nil {
+		stat = resp.future.(FutureBool)
+	}
+
+	return
 }
 
 // Redis GET command.

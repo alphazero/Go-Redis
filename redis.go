@@ -96,14 +96,6 @@ import (
 	"flag"
 )
 
-//// Common interface supported by all clients
-//// to consolidate common ops
-//type RedisClient interface {
-//
-//	// Redis QUIT command.
-//	Quit() (err Error)
-//}
-
 // The synchronous call semantics Client interface.
 //
 // Method names map one to one to the Redis command set.

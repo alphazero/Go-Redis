@@ -136,7 +136,7 @@ func getDefinedMethods(ctype clientType) (map[string]string, *error_) {
 	if client == nil {
 		return mmap, &error_{"client is nil", nil}
 	} else {
-		defer client.(redis.RedisClient).Quit()
+		defer client.Quit()
 	}
 
 	tc := reflect.TypeOf(client)

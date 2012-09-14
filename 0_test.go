@@ -75,10 +75,16 @@ func TestFu(t *testing.T) {
 	quick.Check(setup_nums, config)
 }
 
-func _test_getDefaultClient() (Client, error) {
+func _test_getDefaultSyncClient() (Client, Error) {
 	spec := DefaultSpec()
 	spec.Db(13).Password("go-redis")
 	return NewSynchClientWithSpec(spec)
+}
+
+func _test_getDefaultAsyncClient() (AsyncClient, Error) {
+	spec := DefaultSpec()
+	spec.Db(13).Password("go-redis")
+	return NewAsynchClientWithSpec(spec)
 }
 
 // ----------------------------------------------------------------------

@@ -26,9 +26,9 @@ func TestAsyncClientConnectWithSpec(t *testing.T) {
 
 	client, err := NewAsynchClientWithSpec(spec)
 	if err != nil {
-		t.Error("failed to create client with spec. Error: ", err.Message())
+		t.Fatalf("failed to create client with spec. Error: %s ", err)
 	} else if client == nil {
-		t.Error("BUG: client is nil")
+		t.Fatal("BUG: client is nil")
 	}
 
 	// quit once -- OK
@@ -49,24 +49,25 @@ func TestAsyncClientConnectWithSpec(t *testing.T) {
 	}
 
 	// subsequent quit should raise error
-	futureBool, err = client.Quit()
-	if err == nil {
-		t.Errorf("BUG - Quit on shutdown asyncClient should return error")
+	for i := 0; i < 10; i++ {
+		futureBool, err = client.Quit()
+		if err == nil {
+			t.Errorf("BUG - Quit on shutdown asyncClient should return error")
+		}
+		if futureBool != nil {
+			t.Errorf("BUG - Quit on shutdown asyncClient should not return future. got: %s", futureBool)
+		}
 	}
-	if futureBool != nil {
-		t.Errorf("BUG - Quit on shutdown asyncClient should not return future. got: %s", futureBool)
+}
+
+func TestAsyncMget(t *testing.T) {
+	client, e := _test_getDefaultAsyncClient()
+	if e != nil {
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
-	futureBool, err = client.Quit()
-	if err == nil {
-		t.Errorf("BUG - Quit on shutdown asyncClient should return error")
-	}
-	if futureBool != nil {
-		t.Errorf("BUG - Quit on shutdown asyncClient should not return future. got: %s", futureBool)
-	}
+	client.Quit()
 
-	//	ch := make(chan bool, 0)
-	//	<-ch
 }
 
 /* --------------- KEEP THIS AS LAST FUNCTION -------------- */

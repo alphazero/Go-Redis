@@ -38,17 +38,17 @@ func TestSyncClientConnectWithSpec(t *testing.T) {
 
 	client, err := NewSynchClientWithSpec(spec)
 	if err != nil {
-		t.Error("failed to create client with spec. Error: ", err.Message())
+		t.Fatalf("failed to create client with spec. Error: %s", err)
 	} else if client == nil {
-		t.Error("BUG: client is nil")
+		t.Fatal("BUG: client is nil")
 	}
 	client.Quit()
 }
 
 func TestPing(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	if e := client.Ping(); e != nil {
@@ -59,9 +59,9 @@ func TestPing(t *testing.T) {
 }
 
 func TestQuit(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	if e := client.Quit(); e != nil {
@@ -77,9 +77,9 @@ func TestQuit(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
@@ -92,9 +92,9 @@ func TestSet(t *testing.T) {
 }
 
 func TestSetnx(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
@@ -120,9 +120,9 @@ func TestSetnx(t *testing.T) {
 }
 
 func TestGetset(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
@@ -156,9 +156,9 @@ func TestGetset(t *testing.T) {
 }
 
 func TestSetThenGet(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
@@ -181,9 +181,9 @@ func TestSetThenGet(t *testing.T) {
 }
 
 func TestMget(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	vprefix := "the-value"
@@ -236,9 +236,9 @@ func TestMget(t *testing.T) {
 }
 
 func TestGetType(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	var expected, got KeyType
@@ -300,9 +300,9 @@ func TestGetType(t *testing.T) {
 }
 
 func TestSave(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	if e := client.Save(); e != nil {
@@ -313,9 +313,9 @@ func TestSave(t *testing.T) {
 }
 
 func TestAllKeys(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	kvmap := testdata[_testdata_kv].(map[string][]byte)
@@ -346,9 +346,9 @@ func TestAllKeys(t *testing.T) {
 }
 
 func TestKeys(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	prefix := "prefix_"
@@ -385,9 +385,9 @@ func TestKeys(t *testing.T) {
 }
 
 func TestExists(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	kvmap := testdata[_testdata_kv].(map[string][]byte)
@@ -415,9 +415,9 @@ func TestExists(t *testing.T) {
 }
 
 func TestRename(t *testing.T) {
-	client, e := _test_getDefaultClient()
+	client, e := _test_getDefaultSyncClient()
 	if e != nil {
-		t.Fatalf("on getDefaultClient", e)
+		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
 	prefix := "renamed_"

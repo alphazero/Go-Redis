@@ -96,13 +96,13 @@ import (
 	"flag"
 )
 
-// Common interface supported by all clients
-// to consolidate common ops
-type RedisClient interface {
-
-	// Redis QUIT command.
-	Quit() (err Error)
-}
+//// Common interface supported by all clients
+//// to consolidate common ops
+//type RedisClient interface {
+//
+//	// Redis QUIT command.
+//	Quit() (err Error)
+//}
 
 // The synchronous call semantics Client interface.
 //
@@ -121,9 +121,8 @@ type RedisClient interface {
 // See Error in this package for details of its interface.
 type Client interface {
 
-	// psuedo inheritance to coerce to RedisClient type
-	// for the common API (not "algorithm", not "data", but interface ...)
-	RedisClient
+	// Redis QUIT command.
+	Quit() (err Error)
 
 	// Redis GET command.
 	Get(key string) (result []byte, err Error)
@@ -336,9 +335,8 @@ type Client interface {
 // the server, or, Go-Redis (system) errors encountered in processing the response.
 type AsyncClient interface {
 
-	// psuedo inheritance to coerce to RedisClient type
-	// for the common API (not "algorithm", not "data", but interface ...)
-	RedisClient
+	// Redis QUIT command.
+	Quit() (status FutureBool, err Error)
 
 	// Redis GET command.
 	Get(key string) (result FutureBytes, err Error)

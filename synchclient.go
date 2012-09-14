@@ -60,23 +60,13 @@ func NewSynchClientWithSpec(spec *ConnectionSpec) (c Client, err Error) {
 }
 
 // -----------------------------------------------------------------------------
-// interface redis.RedisClient support
+// interface redis.Client support
 // -----------------------------------------------------------------------------
 
 // Redis QUIT command.
 func (c *syncClient) Quit() (err Error) {
 	_, err = c.conn.ServiceRequest(&QUIT, [][]byte{})
 	return
-}
-
-// -----------------------------------------------------------------------------
-// interface redis.Client support
-// -----------------------------------------------------------------------------
-
-// Coerce to RedisClient type
-func (c *syncClient) RedisClient() RedisClient {
-	var rc interface{} = c
-	return rc.(RedisClient)
 }
 
 // Redis GET command.

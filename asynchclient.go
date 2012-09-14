@@ -52,23 +52,19 @@ func NewAsynchClientWithSpec(spec *ConnectionSpec) (client AsyncClient, err Erro
 }
 
 // -----------------------------------------------------------------------------
-// interface redis.RedisClient support
-// -----------------------------------------------------------------------------
-
-// Redis QUIT command.
-func (c *asyncClient) Quit() (err Error) {
-	log.Println("<BUG> Lazy programmer hasn't implemented Quit!")
-	return NewError(SYSTEM_ERR, "<BUG> Lazy programmer hasn't implemented Quit!")
-}
-
-// -----------------------------------------------------------------------------
 // interface redis.AsyncClient support
 // -----------------------------------------------------------------------------
 
-// Coerce to RedisClient type
-func (c *asyncClient) RedisClient() RedisClient {
-	var rc interface{} = c
-	return rc.(RedisClient)
+// Redis QUIT command.
+func (c *asyncClient) Quit() (stat FutureBool, err Error) {
+	log.Println("<BUG> Lazy programmer hasn't implemented Quit!")
+	return nil, NewError(SYSTEM_ERR, "<BUG> Lazy programmer hasn't implemented Quit!")
+	//	resp, err := c.conn.QueueRequest(&QUIT, [][]byte{})
+	//	if err == nil {
+	//		stat = resp.future.(FutureBool)
+	//	}
+	//
+	//	return
 }
 
 // Redis GET command.

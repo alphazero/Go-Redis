@@ -6,6 +6,33 @@ import (
 	"testing"
 )
 
+func asyncFlushAndQuitOnCompletion(t *testing.T, client AsyncClient) {
+	// flush it
+	fStat, e := client.Flushdb()
+	if e != nil {
+		t.Errorf("on Flushdb - %s", e)
+	}
+	ok, fe := fStat.Get()
+	if fe != nil {
+		t.Fatalf("BUG - non-Error future result get must never return error - got: %s", fe)
+	}
+	if !ok {
+		t.Fatalf("BUG - non-Error flushdb future result must always be true ")
+	}
+
+	fStat, e = client.Quit()
+	if e != nil {
+		t.Errorf("on Quit - %s", e)
+	}
+	ok, fe = fStat.Get()
+	if fe != nil {
+		t.Fatalf("BUG - non-Error future result get must never return error - got: %s", fe)
+	}
+	if !ok {
+		t.Fatalf("BUG - non-Error quit future result must always be true ")
+	}
+}
+
 // Check that connection is actually passing passwords from spec
 // and catching AUTH ERRs.
 func TestAsyncClientConnectWithBadSpec(t *testing.T) {
@@ -66,7 +93,7 @@ func TestAsyncMget(t *testing.T) {
 		t.Fatalf("on getDefaultClient - %s", e)
 	}
 
-	client.Quit()
+	asyncFlushAndQuitOnCompletion(t, client)
 
 }
 

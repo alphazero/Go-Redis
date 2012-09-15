@@ -10,11 +10,11 @@ func flushAndQuitOnCompletion(t *testing.T, client Client) {
 	// flush it
 	e := client.Flushdb()
 	if e != nil {
-		t.Errorf("on Flushdb", e)
+		t.Errorf("on Flushdb - %s", e)
 	}
 	e = client.Quit()
 	if e != nil {
-		t.Errorf("on Quit", e)
+		t.Errorf("on Quit - %s", e)
 	}
 }
 

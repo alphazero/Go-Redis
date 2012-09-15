@@ -219,11 +219,13 @@ func (c *asyncClient) Getset(arg0 string, arg1 []byte) (result FutureBytes, err 
 
 // Redis MGET command.
 func (c *asyncClient) Mget(arg0 string, arg1 []string) (result FutureBytesArray, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
+	//	arg0bytes := []byte(arg0)
+	//	arg1bytes := concatAndGetBytes(arg1, " ")
+	args := appendAndConvert(arg0, arg1...)
 
 	var resp *PendingResponse
-	resp, err = c.conn.QueueRequest(&MGET, [][]byte{arg0bytes, arg1bytes})
+	//	resp, err = c.conn.QueueRequest(&MGET, [][]byte{arg0bytes, arg1bytes})
+	resp, err = c.conn.QueueRequest(&MGET, args)
 	if err == nil {
 		result = resp.future.(FutureBytesArray)
 	}
@@ -627,11 +629,12 @@ func (c *asyncClient) Scard(arg0 string) (result FutureInt64, err Error) {
 
 // Redis SINTER command.
 func (c *asyncClient) Sinter(arg0 string, arg1 []string) (result FutureBytesArray, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
-
+	//	arg0bytes := []byte(arg0)
+	//	arg1bytes := concatAndGetBytes(arg1, " ")
+	args := appendAndConvert(arg0, arg1...)
 	var resp *PendingResponse
-	resp, err = c.conn.QueueRequest(&SINTER, [][]byte{arg0bytes, arg1bytes})
+	//	resp, err = c.conn.QueueRequest(&SINTER, [][]byte{arg0bytes, arg1bytes})
+	resp, err = c.conn.QueueRequest(&SINTER, args)
 	if err == nil {
 		result = resp.future.(FutureBytesArray)
 	}
@@ -641,10 +644,12 @@ func (c *asyncClient) Sinter(arg0 string, arg1 []string) (result FutureBytesArra
 
 // Redis SINTERSTORE command.
 func (c *asyncClient) Sinterstore(arg0 string, arg1 []string) (stat FutureBool, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
+	//	arg0bytes := []byte(arg0)
+	//	arg1bytes := concatAndGetBytes(arg1, " ")
+	args := appendAndConvert(arg0, arg1...)
 
-	resp, err := c.conn.QueueRequest(&SINTERSTORE, [][]byte{arg0bytes, arg1bytes})
+	//	resp, err := c.conn.QueueRequest(&SINTERSTORE, [][]byte{arg0bytes, arg1bytes})
+	resp, err := c.conn.QueueRequest(&SINTERSTORE, args)
 	if err == nil {
 		stat = resp.future.(FutureBool)
 	}
@@ -654,11 +659,13 @@ func (c *asyncClient) Sinterstore(arg0 string, arg1 []string) (stat FutureBool, 
 
 // Redis SUNION command.
 func (c *asyncClient) Sunion(arg0 string, arg1 []string) (result FutureBytesArray, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
+	//	arg0bytes := []byte(arg0)
+	//	arg1bytes := concatAndGetBytes(arg1, " ")
+	args := appendAndConvert(arg0, arg1...)
 
 	var resp *PendingResponse
-	resp, err = c.conn.QueueRequest(&SUNION, [][]byte{arg0bytes, arg1bytes})
+	//	resp, err = c.conn.QueueRequest(&SUNION, [][]byte{arg0bytes, arg1bytes})
+	resp, err = c.conn.QueueRequest(&SUNION, args)
 	if err == nil {
 		result = resp.future.(FutureBytesArray)
 	}
@@ -668,10 +675,12 @@ func (c *asyncClient) Sunion(arg0 string, arg1 []string) (result FutureBytesArra
 
 // Redis SUNIONSTORE command.
 func (c *asyncClient) Sunionstore(arg0 string, arg1 []string) (stat FutureBool, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
+	//	arg0bytes := []byte(arg0)
+	//	arg1bytes := concatAndGetBytes(arg1, " ")
+	args := appendAndConvert(arg0, arg1...)
 
-	resp, err := c.conn.QueueRequest(&SUNIONSTORE, [][]byte{arg0bytes, arg1bytes})
+	//	resp, err := c.conn.QueueRequest(&SUNIONSTORE, [][]byte{arg0bytes, arg1bytes})
+	resp, err := c.conn.QueueRequest(&SUNIONSTORE, args)
 	if err == nil {
 		stat = resp.future.(FutureBool)
 	}
@@ -681,11 +690,13 @@ func (c *asyncClient) Sunionstore(arg0 string, arg1 []string) (stat FutureBool, 
 
 // Redis SDIFF command.
 func (c *asyncClient) Sdiff(arg0 string, arg1 []string) (result FutureBytesArray, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
+	//	arg0bytes := []byte(arg0)
+	//	arg1bytes := concatAndGetBytes(arg1, " ")
+	args := appendAndConvert(arg0, arg1...)
 
 	var resp *PendingResponse
-	resp, err = c.conn.QueueRequest(&SDIFF, [][]byte{arg0bytes, arg1bytes})
+	//	resp, err = c.conn.QueueRequest(&SDIFF, [][]byte{arg0bytes, arg1bytes})
+	resp, err = c.conn.QueueRequest(&SDIFF, args)
 	if err == nil {
 		result = resp.future.(FutureBytesArray)
 	}
@@ -695,10 +706,12 @@ func (c *asyncClient) Sdiff(arg0 string, arg1 []string) (result FutureBytesArray
 
 // Redis SDIFFSTORE command.
 func (c *asyncClient) Sdiffstore(arg0 string, arg1 []string) (stat FutureBool, err Error) {
-	arg0bytes := []byte(arg0)
-	arg1bytes := concatAndGetBytes(arg1, " ")
+	//	arg0bytes := []byte(arg0)
+	//	arg1bytes := concatAndGetBytes(arg1, " ")
+	args := appendAndConvert(arg0, arg1...)
 
-	resp, err := c.conn.QueueRequest(&SDIFFSTORE, [][]byte{arg0bytes, arg1bytes})
+	//	resp, err := c.conn.QueueRequest(&SDIFFSTORE, [][]byte{arg0bytes, arg1bytes})
+	resp, err := c.conn.QueueRequest(&SDIFFSTORE, args)
 	if err == nil {
 		stat = resp.future.(FutureBool)
 	}

@@ -649,6 +649,14 @@ func appendAndConvert(a0 string, arr ...string) [][]byte {
 	}
 	return sarr
 }
+func packArrays(a0 []byte, arr ...[]byte) [][]byte {
+	sarr := make([][]byte, 1+len(arr))
+	sarr[0] = a0
+	for i, v := range arr {
+		sarr[i+1] = v
+	}
+	return sarr
+}
 
 // Redis SINTER command.
 func (c *syncClient) Sinter(arg0 string, arg1 []string) (result [][]byte, err Error) {

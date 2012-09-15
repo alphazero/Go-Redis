@@ -1,7 +1,7 @@
 package redis
 
 import (
-	//	"fmt"
+	"fmt"
 	"log"
 	"testing"
 )
@@ -91,6 +91,70 @@ func TestAsyncMget(t *testing.T) {
 	client, e := _test_getDefaultAsyncClient()
 	if e != nil {
 		t.Fatalf("on getDefaultClient - %s", e)
+	}
+
+	vprefix := "the-value"
+	key := "mget-test"
+	fSet, e := client.Set(key, []byte(vprefix))
+	if e != nil {
+		t.Fatalf("on Set(%s, %s) - %s", key, vprefix, e)
+	}
+	// REVU - this call to wait for Get res is strictly speaking not required ..
+	if _, fe := fSet.Get(); fe != nil {
+		t.Fatalf("on fset.Get - %s", fe)
+	}
+	var fMget FutureBytesArray
+	fMget, e = client.Mget(key, nil)
+	if e != nil {
+		t.Fatalf("on Set(%s, %s) - %s", key, vprefix, e)
+	}
+	if fMget == nil { // check not necessary for normal usage
+		t.Fatal("nil future returned on non-error MGet")
+	}
+	//	var vset [][]byte
+	vset, fe := fMget.Get()
+	if fe != nil {
+		t.Fatalf("on fset.Get - %s", fe)
+	}
+	if len(vset) != 1 {
+		t.Fatalf("len(vset) expected: 1 got: %d", len(vset))
+	}
+	expected := []byte(vprefix)
+	got := vset[0]
+	if !_test_compareByteArrays(expected, got) {
+		t.Fatalf("Mget res [0] - expected: %s got: %s", expected, got)
+	}
+
+	keys := testdata[_testdata_keys].([]string)
+	for i, k := range keys {
+		if i > 10 {
+			break
+		}
+		v := []byte(fmt.Sprintf("%s_%03d", vprefix, i))
+		// ignoring future stat on Get
+		if _, e := client.Set(k, v); e != nil {
+			t.Errorf("on Set(%s, %s) - %s", k, v, e)
+		}
+		fMget, e := client.Mget(key, keys[0:i])
+		if e != nil {
+			t.Errorf("on Mget(%s) - %s", key, e)
+		}
+		vset, fe = fMget.Get()
+		if fe != nil {
+			t.Fatalf("on fset.Get - %s", fe)
+		}
+		if vset == nil {
+			t.Errorf("on Mget(%s) - got nil", key)
+		}
+		if len(vset) != 1+i {
+			t.Errorf("on Mget(%s) - expected len(vset) == %d, got: %d", key, i+1, len(vset))
+		}
+		for j := 1; j < len(vset); j++ {
+			expected := []byte(fmt.Sprintf("%s_%03d", vprefix, j-1))
+			if !_test_compareByteArrays(vset[j], expected) {
+				t.Errorf("on Mget(%s) - expected %s, got: %s", key, expected, vset[j])
+			}
+		}
 	}
 
 	asyncFlushAndQuitOnCompletion(t, client)

@@ -310,6 +310,13 @@ type Client interface {
 
 	// Redis LASTSAVE command.
 	Lastsave() (result int64, err Error)
+
+	// Redis PUBLISH command.
+	// Publishes a message to the named channels.  This is a blocking call.
+	//
+	// Returns the number of PubSub subscribers that received the message.
+	// OR error if any.
+	Publish(channel string, message []byte) (recieverCout int64, err Error)
 }
 
 // The asynchronous client interface provides asynchronous call semantics with
@@ -506,6 +513,42 @@ type AsyncClient interface {
 
 	// Redis LASTSAVE command.
 	Lastsave() (result FutureInt64, err Error)
+
+	// Redis PUBLISH command.
+	// Publishes a message to the named channels.
+	//
+	// Returns the future for number of PubSub subscribers that received the message.
+	// OR error if any.
+	Publish(channel string, message []byte) (recieverCountFuture FutureInt64, err Error)
+}
+
+// PubSub Client
+type PubSubClient interface {
+	//	// REVU - publish can/should be be a method on both sync/async
+	//	Publish(channel string, message []byte) (recieverCout int, err Error)
+
+	// returns the incoming messages channel for this client.
+	// Never nil.
+	// If the client has not currently subscribed to any PubSub channels
+	// then (obviously) nothing ever appears on this channel.
+	Channel() <-chan []byte
+
+	// return the subscribed channel ids
+	Subscriptions() []string
+
+	// unsubscribe from 1 or more pubsub channels.
+	//
+	// Returns the number of currently subscribed channels OR error (if any)
+	Unsubscribe(channel string, otherChannels ...string) (subscriptionCount int, err Error)
+
+	// Subscribes to one or more pubsub channels.
+	//
+	// Returns the number of currently subscribed channels OR error (if any)
+	Subscribe(channel string, otherChannels ...string) (subscriptionCount int, err Error)
+
+	// Quit closes the client and client reference can be disposed.
+	// Returns error, if any, e.g. network issues.
+	Quit() Error
 }
 
 // ----------------------------------------------------------------------------

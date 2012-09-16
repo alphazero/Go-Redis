@@ -941,3 +941,15 @@ func (c *asyncClient) Lastsave() (result FutureInt64, err Error) {
 	return result, err
 
 }
+
+func (c *asyncClient) Publish(arg0 string, arg1 []byte) (result FutureInt64, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := arg1
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&PUBLISH, [][]byte{arg0bytes, arg1bytes})
+	if err == nil {
+		result = resp.future.(FutureInt64)
+	}
+	return result, err
+}

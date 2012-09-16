@@ -930,3 +930,16 @@ func (c *syncClient) Lastsave() (result int64, err Error) {
 	return result, err
 
 }
+
+// Redis PUBLISH command.
+func (c *syncClient) Publish(arg0 string, arg1 []byte) (rcvCnt int64, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := arg1
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&PUBLISH, [][]byte{arg0bytes, arg1bytes})
+	if err == nil {
+		rcvCnt = resp.GetNumberValue()
+	}
+	return rcvCnt, err
+}

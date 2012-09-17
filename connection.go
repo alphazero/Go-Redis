@@ -181,6 +181,26 @@ type PendingResponse struct {
 }
 
 // ----------------------------------------------------------------------------
+// PubSubConnection API
+// ----------------------------------------------------------------------------
+
+// Defines the service contract supported by asynchronous (Request/FutureReply)
+// connections.
+
+// REVU - does this need its own special connection structure or
+// can we get away with just using the asyncConnHdl structure?
+// REVU - BEST is to reuse asyncConnHdl and simple have that support this
+//	      interface.
+type PubSubConnection interface {
+	// TODO - this connector needs to be given a channel to feed responses
+	// into as it does not use futures.
+	//	SetOutputChannel(<-chan message) bool
+	// TODO - then either a generic ServiceRequest or explicit Sub/UnSub/Quit
+	// REVU - best to keep it simple and use a single method so using Command
+	//	    -
+}
+
+// ----------------------------------------------------------------------------
 // Generic Conn handle and methods - supports SyncConnection interface
 // ----------------------------------------------------------------------------
 
@@ -317,7 +337,10 @@ func (hdl *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response, 
 	if e == nil {
 		e = sendRequest(hdl.conn, buff)
 		if e == nil {
+			// REVU - this demands resp to be non-nil even in case of io errors
+			// TODO - refactor this
 			resp, e = GetResponse(hdl.reader, cmd)
+			//			fmt.Printf("DEBUG-TEMP - resp: %s\n", resp)   // REVU REMOVE TODO
 			if e == nil {
 				if resp.IsError() {
 					redismsg := fmt.Sprintf(" [%s]: %s", cmd.Code, resp.GetMessage())
@@ -536,6 +559,46 @@ func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (*PendingRespon
 }
 
 // ----------------------------------------------------------------------------
+// asyncConnHdl support for PubSubConnection interface
+// ----------------------------------------------------------------------------
+
+//// TODO Quit - see REVU notes added for adding Quit to async in body
+//func (c *asyncConnHdl) ServicePubSubRequest(cmd *Command, args [][]byte) (, Error) {
+//
+//	if c.isShutdown {
+//		return nil, NewError(SYSTEM_ERR, "Connection is shutdown.")
+//	}
+//
+//	select {
+//	case <-c.shutdown:
+//		c.isShutdown = true
+//		c.shutdown <- true // put it back REVU likely to be a bug under heavy load ..
+//		//		log.Println("<DEBUG> we're shutdown and not accepting any more requests ...")
+//		return nil, NewError(SYSTEM_ERR, "Connection is shutdown.")
+//	default:
+//	}
+//
+//	future := CreateFuture(cmd)
+//	request := &asyncRequestInfo{0, 0, cmd, nil, future, nil}
+//
+//	buff, e1 := CreateRequestBytes(cmd, args)
+//	if e1 == nil {
+//		request.outbuff = &buff
+//		c.pendingReqs <- request // REVU - opt 1 TODO is handling QUIT and sending stop to workers
+//	} else {
+//		errmsg := fmt.Sprintf("Failed to create asynchrequest - %s aborted", cmd.Code)
+//		request.stat = inierr
+//		request.error = NewErrorWithCause(SYSTEM_ERR, errmsg, e1) // only makes sense if using go ...
+//		request.future.(FutureResult).onError(request.error)
+//
+//		return nil, request.error // remove if restoring go
+//	}
+//	//}();
+//	// done.
+//	return &PendingResponse{future}, nil
+//}
+
+// ----------------------------------------------------------------------------
 // asyncConnHdl internal ops
 // ----------------------------------------------------------------------------
 
@@ -571,8 +634,10 @@ func (c *asyncConnHdl) startup() {
 
 	var rspProcTask workerTask
 	switch protocol {
-		case REDIS_DB: rspProcTask = dbRspProcessingTask
-		case REDIS_PUBSUB: rspProcTask = msgProcessingTask
+	case REDIS_DB:
+		rspProcTask = dbRspProcessingTask
+	case REDIS_PUBSUB:
+		rspProcTask = msgProcessingTask
 	}
 	go c.worker(heartbeatworker, "response-processor", rspProcTask, c.rspProcCtl, c.feedback)
 	c.rspProcCtl <- start
@@ -776,13 +841,9 @@ func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 		// continue to process
 	}
 	reader := c.super.reader
-//	cmd := &SUBSCRIBE
+	//	cmd := &SUBSCRIBE
 
-	// REVU can optimize by just reading MultiBulkResponse
-	// REVU it is NOT a multi bulk, it is a mix
-	// TODO getMessageResponse(reader)
-	// Almost like a multibulk but always *3, then 2 $size//string then number reponse
-	resp, e3 := getMultiBulkResponse(reader, nil)
+	message, e3 := getPubSubResponse(reader, nil)
 	if e3 != nil {
 		// system error
 		log.Println("<TEMP DEBUG> on error in msgProcessingTask: ", e3)
@@ -791,12 +852,12 @@ func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 		c.faults <- req
 		return nil, &taskStatus{rcverr, e3}
 	}
-	log.Printf("MSG IN: %s\n", resp.GetMultiBulkData())
+	log.Printf("MSG IN: %s\n", message)
 	//
 	panic("msgProcessingTask not implemented")
 }
 
-	// Pending further tests, this addresses bug in earlier version
+// Pending further tests, this addresses bug in earlier version
 // and can be interrupted
 
 func reqProcessingTask(c *asyncConnHdl, ctl workerCtl) (ic *interrupt_code, ts *taskStatus) {

@@ -305,7 +305,7 @@ func (c *asyncClient) Randomkey() (result FutureString, err Error) {
 	var resp *PendingResponse
 	resp, err = c.conn.QueueRequest(&RANDOMKEY, [][]byte{})
 	if err == nil {
-		result = resp.future.(FutureString)
+		result = resp.future.(FutureString) // REVU - this is broken
 	}
 	return result, err
 

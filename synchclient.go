@@ -323,7 +323,7 @@ func (c *syncClient) Randomkey() (result string, err Error) {
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&RANDOMKEY, [][]byte{})
 	if err == nil {
-		result = resp.GetStringValue()
+		result = string(resp.GetBulkData())
 	}
 	return result, err
 

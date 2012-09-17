@@ -54,6 +54,8 @@ func GetKeyType(typename string) (keytype KeyType) {
 		keytype = RT_SET
 	case typename == "zset":
 		keytype = RT_ZSET
+	default:
+		panic("BUG - unknown type: " + string(keytype))
 	}
 	return
 }
@@ -97,7 +99,7 @@ const (
 	VIRTUAL ResponseType = iota
 	BOOLEAN
 	NUMBER
-	STRING
+	STRING // REVU - rename to TYPE
 	STATUS
 	BULK
 	MULTI_BULK
@@ -130,7 +132,7 @@ var (
 	DEL           Command = Command{"DEL", KEY, BOOLEAN}
 	TYPE          Command = Command{"TYPE", KEY, STRING}
 	KEYS          Command = Command{"KEYS", KEY, MULTI_BULK}
-	RANDOMKEY     Command = Command{"RANDOMKEY", NO_ARG, STRING}
+	RANDOMKEY     Command = Command{"RANDOMKEY", NO_ARG, BULK}
 	RENAME        Command = Command{"RENAME", KEY_KEY, STATUS}
 	RENAMENX      Command = Command{"RENAMENX", KEY_KEY, BOOLEAN}
 	DBSIZE        Command = Command{"DBSIZE", NO_ARG, NUMBER}

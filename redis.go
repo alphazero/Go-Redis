@@ -522,6 +522,24 @@ type AsyncClient interface {
 	Publish(channel string, message []byte) (recieverCountFuture FutureInt64, err Error)
 }
 
+// REVU - ALL THE COMMENS NEEDS REVIEW AND REVISION
+// Most critical is the depth of channel for message publication
+// Demux is problematic on many levels.  Simply provide an example
+// such as
+/*
+	demux := make(PubSubChannel, depth)
+
+	__, __, serr :=  pubsub.Subscribe(subid); if serr != nil {
+	 // handle error
+	}
+	schan := pubsub.Mesages(subid)
+
+	go func() {
+       select
+	}()
+
+*/
+
 // PubSub Client
 //
 // Strictly speaking, this client can only subscribe, receive messages, and
@@ -561,11 +579,38 @@ type AsyncClient interface {
 // the client.
 //
 type PubSubClient interface {
-	// returns the incoming messages channel for this client.
-	// Never nil.
-	// If the client has not currently subscribed to any PubSub channels
-	// then (obviously) nothing ever appears on this channel.
-	Channel() <-chan *Message
+
+	//	// Allows client user to demux (e.g. merge) a given subscription's
+	//	// incoming messages chan to a common (user provided) channel
+	//	// of type <- chan PubSubMessage.
+	//	//
+	//	// The subscription specific channel (obtained on Subscribe() or via
+	//	// Messages method will still
+	//	//
+	//	// usage example (given initialized PubSubClient)
+	//	//    subid := "examples/subscription/123"
+	//	//    // we subscribe to subid
+	//	//    _, _, sube :- pubsub.Subscribe(subid)
+	//	//    if sube != nil { /* deal with error */}
+	//	//
+	//	//    // we also have (typically elsewhere) created a common
+	//	//	  // channel of depth n.
+	//	//    // e.g.
+	//	//    depth := 100
+	//	//    demuxchan := make(PubSubMessage, depth)
+	//	//
+	//	//    // Demux all messages for the subid to the provided demux chan
+	//	//	  // Note that unlike the subscription specific PubSubChannel
+	//	//    // the messages to this chan are PubSubMessage and not plain []bytes.
+	//	//    //
+	//
+	//	Demux (channel <- chan PubSubMessage, subscriptionId string) bool
+
+	// returns the incoming messages channel for this client, or nil
+	// if no such subscription is active.
+	// In event of Unsubscribing from a Redis channel, the
+	// client will close this channel.
+	Messages(subscriptionId string) PubSubChannel
 
 	// return the subscribed channel ids, whether specificly named, or
 	// pattern based.
@@ -577,7 +622,7 @@ type PubSubClient interface {
 	// Channel names can be explicit or pattern based (ending in '*')
 	//
 	// Returns the number of currently subscribed channels OR error (if any)
-	Subscribe(channel string, otherChannels ...string) (subscriptionCount int, err Error)
+	Subscribe(channel string, otherChannels ...string) (messages PubSubChannel, subscriptionCount int, err Error)
 
 	// Redis PUNSUBSCRIBE command.
 	// unsubscribe from 1 or more pubsub channels.  If arg is nil,
@@ -594,10 +639,9 @@ type PubSubClient interface {
 	Quit() Error
 }
 
-type Message struct {
-	Channel string
-	Data    []byte
-}
+// PubSubChannels are used by clients to forward received PubSub messages from Redis
+// See PubSubClient interface for details.
+type PubSubChannel <-chan []byte
 
 // ----------------------------------------------------------------------------
 // package initiatization and internal ops and flags

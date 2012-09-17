@@ -21,16 +21,20 @@ import ()
 // -----------------------------------------------------------------------------
 
 type pubsubClient struct {
-	messages      <-chan *Message
+	//	messages      chan []byte
 	subscriptions map[string]*subscriptionInfo
-	conn          AsyncConnection
+	conn          PubSubConnection
 }
-type subscriptionInfo struct{}
+
+type subscriptionInfo struct {
+	channel chan []byte
+}
 
 func NewPubSubClient() (PubSubClient, Error) {
 	spec := DefaultSpec().Protocol(REDIS_PUBSUB)
 	return NewPubSubClientWithSpec(spec)
 }
+
 func NewPubSubClientWithSpec(spec *ConnectionSpec) (PubSubClient, Error) {
 	c := new(pubsubClient)
 	spec.Protocol(REDIS_PUBSUB) // must be so set it regardless
@@ -40,14 +44,17 @@ func NewPubSubClientWithSpec(spec *ConnectionSpec) (PubSubClient, Error) {
 		return nil, err
 	}
 
-	c.messages = make(chan *Message, spec.rspChanCap)
+	//	c.messages = make(chan []byte, spec.rspChanCap)
 	c.subscriptions = make(map[string]*subscriptionInfo)
 
 	return c, nil
 }
 
-func (psc *pubsubClient) Channel() <-chan *Message {
-	return psc.messages
+func (psc *pubsubClient) Messages(id string) PubSubChannel {
+	if s := psc.subscriptions[id]; s != nil {
+		return s.channel
+	}
+	return nil
 }
 
 func (psc *pubsubClient) Subscriptions() []string {
@@ -58,7 +65,9 @@ func (psc *pubsubClient) Subscriptions() []string {
 	return ids
 }
 
-func (psc *pubsubClient) Subscribe(channel string, otherChannels ...string) (subscriptionCount int, err Error) {
+func (psc *pubsubClient) Subscribe(channel string, otherChannels ...string) (ch PubSubChannel, subscriptionCount int, err Error) {
+	//	args := appendAndConvert(channel, otherChannels...)
+
 	err = NewError(REDIS_ERR, "Subscribe() NOT IMPLEMENTED")
 	return
 }

@@ -40,6 +40,7 @@ const (
 	DefaultTCPLinger            = 0 // -n: finish io; 0: discard, +n: wait for n secs to finish
 	DefaultTCPKeepalive         = true
 	DefaultHeartbeatSecs        = 1 * time.Second
+	DefaultProtocol             = REDIS_DB
 )
 
 // Redis specific default settings
@@ -54,6 +55,23 @@ const (
 // ----------------------------------------------------------------------------
 // Connection ConnectionSpec
 // ----------------------------------------------------------------------------
+
+type Protocol int
+
+const (
+	REDIS_DB Protocol = iota
+	REDIS_PUBSUB
+)
+
+func (p Protocol) String() string {
+	switch p {
+	case REDIS_DB:
+		return "Protocol:REDIS_DB"
+	case REDIS_PUBSUB:
+		return "Protocol:PubSub"
+	}
+	return "BUG - unknown protocol value"
+}
 
 // Defines the set of parameters that are used by the client connections
 //
@@ -71,6 +89,7 @@ type ConnectionSpec struct {
 	reqChanCap int           // async request channel capacity - see DefaultReqChanSize
 	rspChanCap int           // async response channel capacity - see DefaultRespChanSize
 	heartbeat  time.Duration // 0 means no heartbeat
+	protocol   Protocol
 }
 
 // Creates a ConnectionSpec using default settings.
@@ -90,6 +109,7 @@ func DefaultSpec() *ConnectionSpec {
 		DefaultReqChanSize,
 		DefaultRespChanSize,
 		DefaultHeartbeatSecs,
+		DefaultProtocol,
 	}
 }
 
@@ -124,6 +144,12 @@ func (spec *ConnectionSpec) Password(password string) *ConnectionSpec {
 // return the address as string.
 func (spec *ConnectionSpec) Heartbeat(period time.Duration) *ConnectionSpec {
 	spec.heartbeat = period
+	return spec
+}
+
+// return the address as string.
+func (spec *ConnectionSpec) Protocol(protocol Protocol) *ConnectionSpec {
+	spec.protocol = protocol
 	return spec
 }
 
@@ -244,7 +270,7 @@ func (c *connHdl) connect() (e Error) {
 	if c.spec.db != DefaultRedisDB {
 		_, e = c.ServiceRequest(&SELECT, [][]byte{[]byte(fmt.Sprintf("%d", c.spec.db))})
 		if e != nil {
-			log.Printf("<ERROR> DB Select failed - %s", e.Message())
+			log.Printf("<ERROR> REDIS_DB Select failed - %s", e.Message())
 			return
 		}
 	}
@@ -411,12 +437,16 @@ type asyncConnHdl struct {
 }
 
 func (c *asyncConnHdl) String() string {
-	return fmt.Sprintf("async-%s", c.super.String())
+	return fmt.Sprintf("async [%s] %s", c.spec().protocol, c.super.String())
+}
+
+func (c *asyncConnHdl) spec() *ConnectionSpec {
+	return c.super.spec
 }
 
 // Creates a new asyncConnHdl with a new connHdl as its delegated 'super'.
 // Note it does not start the processing goroutines for the channels.
-
+// REVU - PubSub could be checked here
 func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
 	connHdl, err := newConnHdl(spec)
 	if err == nil && connHdl != nil {
@@ -525,16 +555,26 @@ func (c *asyncConnHdl) disconnect() (e Error) {
 // responsible for managing the various moving parts of the asyncConnHdl
 func (c *asyncConnHdl) startup() {
 
+	protocol := c.spec().protocol
+
 	go c.worker(manager, "manager", managementTask, c.managerCtl, nil)
 	c.managerCtl <- start
 
-	go c.worker(heartbeatworker, "heartbeat", heartbeatTask, c.heartbeatCtl, c.feedback)
-	c.heartbeatCtl <- start
+	// heartbeat only on REDIS_DB protocol
+	if protocol == REDIS_DB {
+		go c.worker(heartbeatworker, "heartbeat", heartbeatTask, c.heartbeatCtl, c.feedback)
+		c.heartbeatCtl <- start
+	}
 
 	go c.worker(heartbeatworker, "request-processor", reqProcessingTask, c.reqProcCtl, c.feedback)
 	c.reqProcCtl <- start
 
-	go c.worker(heartbeatworker, "response-processor", rspProcessingTask, c.rspProcCtl, c.feedback)
+	var rspProcTask workerTask
+	switch protocol {
+		case REDIS_DB: rspProcTask = dbRspProcessingTask
+		case REDIS_PUBSUB: rspProcTask = msgProcessingTask
+	}
+	go c.worker(heartbeatworker, "response-processor", rspProcTask, c.rspProcCtl, c.feedback)
 	c.rspProcCtl <- start
 
 	log.Printf("<INFO> %s - READY", c)
@@ -653,8 +693,8 @@ func managementTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *ta
 func heartbeatTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
 	var async AsyncConnection = c
 	select {
-	//	case <-NewTimer(ns1Sec * c.super.spec.heartbeat):
-	case <-time.NewTimer(c.super.spec.heartbeat).C:
+	//	case <-NewTimer(ns1Sec * c.spec().heartbeat):
+	case <-time.NewTimer(c.spec().heartbeat).C:
 		response, e := async.QueueRequest(&PING, [][]byte{})
 		if e != nil {
 			return nil, &taskStatus{reqerr, e}
@@ -686,7 +726,7 @@ func heartbeatTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *tas
 // KNOWN BUG:
 // until we figure out what's the problem with read timeout, can not
 // be interrupted if hanging on a read
-func rspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
+func dbRspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
 
 	var req asyncReqPtr
 	select {
@@ -725,7 +765,38 @@ func rspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 	return nil, &ok_status
 }
 
-// Pending further tests, this addresses bug in earlier version
+func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
+	var req asyncReqPtr
+	select {
+	case sig := <-ctl:
+		// interrupted
+		return &sig, &ok_status
+	case req = <-c.pendingResps:
+		c.pendingResps <- req
+		// continue to process
+	}
+	reader := c.super.reader
+//	cmd := &SUBSCRIBE
+
+	// REVU can optimize by just reading MultiBulkResponse
+	// REVU it is NOT a multi bulk, it is a mix
+	// TODO getMessageResponse(reader)
+	// Almost like a multibulk but always *3, then 2 $size//string then number reponse
+	resp, e3 := getMultiBulkResponse(reader, nil)
+	if e3 != nil {
+		// system error
+		log.Println("<TEMP DEBUG> on error in msgProcessingTask: ", e3)
+		req.stat = rcverr
+		req.error = NewErrorWithCause(SYSTEM_ERR, "GetResponse os.Error", e3)
+		c.faults <- req
+		return nil, &taskStatus{rcverr, e3}
+	}
+	log.Printf("MSG IN: %s\n", resp.GetMultiBulkData())
+	//
+	panic("msgProcessingTask not implemented")
+}
+
+	// Pending further tests, this addresses bug in earlier version
 // and can be interrupted
 
 func reqProcessingTask(c *asyncConnHdl, ctl workerCtl) (ic *interrupt_code, ts *taskStatus) {
@@ -735,7 +806,7 @@ func reqProcessingTask(c *asyncConnHdl, ctl workerCtl) (ic *interrupt_code, ts *
 
 	bytecnt := 0
 	blen := 0
-	bufsize := c.super.spec.wBufSize
+	bufsize := c.spec().wBufSize
 	var sig interrupt_code
 
 	select {

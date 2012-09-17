@@ -523,32 +523,80 @@ type AsyncClient interface {
 }
 
 // PubSub Client
+//
+// Strictly speaking, this client can only subscribe, receive messages, and
+// unsubscribe.  Publishing to Redis PubSub channels is done via the standard
+// clients (either sync or async); see the Publish() method on Client and AsyncClient.
+//
+// Once created, the PubSub client has a message channel (of type <-chan []byte)
+// that the end-user can select, dequeue, etc.
+//
+// This client (very) slightly
+// modifies the native pubsub client's semantics in that it does NOT post the
+// 'subscribe' or 'unsubscribe' ACKs of Redis server on the exposed chan.  These
+// ACKs are effectively captured and returned via the returned results of the
+// PubSubClient's Subscribe() and Unsubscribe() methods, respectively.
+//
+// The subscribe and unsubscribe methods are both blocking (synchronous).  The
+// messages published via the incoming chan are naturally asynchronous.
+//
+// Given the fact that Redis PSUBSCRIBE to channel names that do NOT end in *
+// is identical to SUBSCRIBE to the same, PubSubClient only exposes Subscribe and
+// Unsubscribe methods and supporting implementation are expected to always use
+// the Redis PSUBSCRIBE and PUNSUBSCRIBE commands.  For example, if one issues
+// PSUBSCRIBE foo/* (via telnet) to Redis, and then UNSUBSCRIBE or PUNSUBSCRIBE foo/bar,
+// messages published to foo/bar will still be received in the (telnet) client.  So
+// given that Redis does NOT filter subscriptions and it merely has a 1-1 mapping
+// to subscribed and unsubscribed patterns, PSUBSCRIBE foo is equivalent to SUBSCRIBE foo.
+// These facts inform the design decision to keep the API of PubSubClient simple and
+// not expose explicit pattern or explicit (un)subscription.
+//
+// Also note that (per Redis semantics) ALL subscribed channels will publish to the
+// single chan exposed by this client.  For practical applications, you will minimally
+// want to use one PubSubClient per PubSub channel priority category.  For example,
+// if your system has general priority application level and high priority critical system
+// level PubSub channels, you should at least create 2 clients, one per priority category.
+//
+// Like all Go-Redis clients, you can (and should) Quit() once you are done with
+// the client.
+//
 type PubSubClient interface {
-	//	// REVU - publish can/should be be a method on both sync/async
-	//	Publish(channel string, message []byte) (recieverCout int, err Error)
-
 	// returns the incoming messages channel for this client.
 	// Never nil.
 	// If the client has not currently subscribed to any PubSub channels
 	// then (obviously) nothing ever appears on this channel.
-	Channel() <-chan []byte
+	Channel() <-chan *Message
 
-	// return the subscribed channel ids
+	// return the subscribed channel ids, whether specificly named, or
+	// pattern based.
 	Subscriptions() []string
 
-	// unsubscribe from 1 or more pubsub channels.
-	//
-	// Returns the number of currently subscribed channels OR error (if any)
-	Unsubscribe(channel string, otherChannels ...string) (subscriptionCount int, err Error)
-
+	// Redis PSUBSCRIBE command.
 	// Subscribes to one or more pubsub channels.
+	// This is a blocking call.
+	// Channel names can be explicit or pattern based (ending in '*')
 	//
 	// Returns the number of currently subscribed channels OR error (if any)
 	Subscribe(channel string, otherChannels ...string) (subscriptionCount int, err Error)
 
+	// Redis PUNSUBSCRIBE command.
+	// unsubscribe from 1 or more pubsub channels.  If arg is nil,
+	// client unsubcribes from ALL subscribed channels.
+	// This is a blocking call.
+	// Channel names can be explicit or pattern based (ending in '*')
+	//
+	// Returns the number of currently subscribed channels OR error (if any)
+	Unsubscribe(channels ...string) (subscriptionCount int, err Error)
+
 	// Quit closes the client and client reference can be disposed.
+	// This is a blocking call.
 	// Returns error, if any, e.g. network issues.
 	Quit() Error
+}
+
+type Message struct {
+	Channel string
+	Data    []byte
 }
 
 // ----------------------------------------------------------------------------

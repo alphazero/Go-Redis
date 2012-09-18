@@ -241,9 +241,8 @@ func GetResponse(reader *bufio.Reader, cmd *Command) (resp Response, err error) 
 		assertCtlByte(buf, SIZE_BYTE, "BULK")
 		size, e := strconv.Atoi(string(buf[1:]))
 		assertNotError(e, "in GetResponse - parse error in BULK size")
-		_resp := &_response{}
-		_resp.bulkdata = readBulkData(reader, size)
-		return _resp, err
+		resp = &_response{bulkdata: readBulkData(reader, size)}
+		return
 	case MULTI_BULK:
 		assertCtlByte(buf, COUNT_BYTE, "MULTI_BULK")
 		cnt, e := strconv.Atoi(string(buf[1:]))

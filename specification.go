@@ -14,6 +14,8 @@
 
 package redis
 
+import "fmt"
+
 // ----------------------------------------------------------------------------
 // PROTOCOL SPEC
 //
@@ -191,3 +193,104 @@ var (
 	SUBSCRIBE   Command = Command{"PSUBSCRIBE", MULTI_KEY, MULTI_BULK}
 	UNSUBSCRIBE Command = Command{"PUNSUBSCRIBE", MULTI_KEY, MULTI_BULK}
 )
+
+// ----------------------------------------------------------------------
+// BlackBox testing contract (WIP)
+// ----------------------------------------------------------------------
+
+// For use by the generated tests.
+type MethodSpec struct {
+	NoPanics         bool
+	NoRedisErr       bool
+	NoNilResultValue bool
+	NoNilFuture      bool
+}
+
+// For use by the generated tests.
+//
+// Get MethodSpec for the given client type (name) and Method.
+//
+func GetMethodSpec(client, method string) (spec *MethodSpec) {
+
+	// Default spec for all clients and methods
+	//
+	//   - Never panic
+	//   - Never return redisError
+	//   - Never return nil/zerovalue for any non-error result
+
+	defspec := &MethodSpec{
+		NoPanics:         true,
+		NoRedisErr:       true,
+		NoNilResultValue: true,
+		NoNilFuture:      true,
+	}
+
+	// Allow client specific mods to the default spec, as required.
+	//
+	switch client {
+	case "Client":
+		spec = syncClientMethodSpec(defspec, method)
+	case "AsyncClient":
+		spec = asyncClientMethodSpec(defspec, method)
+	case "PubSubClient":
+		spec = pubsubClientMethodSpec(defspec, method)
+	}
+
+	return
+}
+
+// spec.NoRedisErr
+// Specs MethodSpec.NoRedisErr - client type invariant
+func anyClientRedisErrSpec(spec *MethodSpec, method string) *MethodSpec {
+	fmt.Printf("DEBUG: spec.NoRedisErr check for m%s\n", method)
+	// Commands that can return ERR given random input and state
+	switch method {
+	// Redis-Spec: Background save may be running already and can raise -ERR
+	case "Bgsave":
+		spec.NoRedisErr = false
+	}
+
+	return spec
+}
+
+// spec.NoNilResultValue
+// Specs MethodSpec.NoNilResultValue - client type invariant
+func anyClientNilResultValueSpec(spec *MethodSpec, method string) *MethodSpec {
+	fmt.Printf("DEBUG: spec.NoNilResultValue check for m%s\n", method)
+	// Commands that can return nil/zero-value given random input and state
+	switch method {
+	// Redis-Spec: DB may be empty and AllKeys can return nil result
+	// REVU: check if this is actually conformant
+	case "AllKeys":
+		spec.NoNilResultValue = false
+	}
+
+	return spec
+}
+
+func syncClientMethodSpec(defspec *MethodSpec, method string) (spec *MethodSpec) {
+	spec = defspec
+
+	// spec.NoRedisErr
+	spec = anyClientRedisErrSpec(spec, method)
+	spec = anyClientNilResultValueSpec(spec, method)
+
+	return
+}
+
+func asyncClientMethodSpec(defspec *MethodSpec, method string) (spec *MethodSpec) {
+	spec = defspec
+
+	// spec.NoRedisErr
+	spec = anyClientRedisErrSpec(spec, method)
+	spec = anyClientNilResultValueSpec(spec, method)
+
+	return
+}
+
+func pubsubClientMethodSpec(defspec *MethodSpec, method string) (spec *MethodSpec) {
+	spec = defspec
+	switch method {
+	}
+	return
+}

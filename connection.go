@@ -294,7 +294,8 @@ func (c *connHdl) connect() (e Error) {
 			return
 		}
 	}
-	log.Printf("<INFO> %s - CONNECTED", c)
+	// REVU - pretty please TODO do the customized log
+//	log.Printf("<INFO> %s - CONNECTED", c)
 	return
 }
 
@@ -642,13 +643,15 @@ func (c *asyncConnHdl) startup() {
 	go c.worker(heartbeatworker, "response-processor", rspProcTask, c.rspProcCtl, c.feedback)
 	c.rspProcCtl <- start
 
-	log.Printf("<INFO> %s - READY", c)
+	// REVU - pretty please TODO do the customized log
+//	log.Printf("<INFO> %s - READY", c)
 }
 
 // This could find a happy home in a generalized worker package ...
 // TODO
 func (c *asyncConnHdl) worker(id int, name string, task workerTask, ctl workerCtl, fb chan workerStatus) {
-	log.Printf("<INFO> %s - %s STARTED.", c, name)
+	// REVU - pretty please TODO do the customized log
+//	log.Printf("<INFO> %s - %s STARTED.", c, name)
 	var signal interrupt_code
 	var tstat *taskStatus
 
@@ -701,7 +704,8 @@ before_stop:
 	//	fmt.Println(name, "_worker: before_stop!")
 	// TODO: add shutdown hook for worker
 
-	log.Printf("<INFO> %s - %s STOPPED.", c, name)
+	// REVU - pretty please TODO do the customized log
+//	log.Printf("<INFO> %s - %s STOPPED.", c, name)
 }
 
 // ----------------------------------------------------------------------------
@@ -727,12 +731,15 @@ func managementTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *ta
 		// do the shutdown for now -- TODO: try reconnect
 		if stat.event == faulted || stat.event == quit_processed {
 			if stat.event == faulted {
+				// REVU - pretty please TODO do the customized log
 				log.Printf("<INFO> - %s (manager task) FAULT EVENT ", c)
 			}
-			log.Printf("<INFO> %s - (manager task) SHUTTING DOWN ...", c)
+			// REVU - pretty please TODO do the customized log
+//			log.Printf("<INFO> %s - (manager task) SHUTTING DOWN ...", c)
 			c.shutdown <- true
 
-			log.Printf("<INFO> %s - (manager task) RAISING SIGNAL STOP ...", c)
+			// REVU - pretty please TODO do the customized log
+//			log.Printf("<INFO> %s - (manager task) RAISING SIGNAL STOP ...", c)
 			go func() { c.reqProcCtl <- stop }()
 			go func() { c.rspProcCtl <- stop }()
 			go func() { c.heartbeatCtl <- stop }()

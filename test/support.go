@@ -36,7 +36,8 @@ func quickConfAll(method string) *quick.Config {
 	conf.MaxCount = 2
 
 	switch method {
-	case "Quit": conf.MaxCount = 1
+	case "Quit":
+		conf.MaxCount = 1
 	}
 
 	return conf
@@ -68,6 +69,7 @@ func getTestConnSpec() *redis.ConnectionSpec {
 	spec.Password("go-redis").Db(13)
 	return spec
 }
+
 // ----------------------------------------------------------------------
 // Test helper methods -
 // ----------------------------------------------------------------------
@@ -103,7 +105,6 @@ func FlushClient(t *testing.T, client redis.Client) {
 	}
 }
 
-
 func QuitAsyncClient(t *testing.T, client redis.AsyncClient) {
 	// flush it
 	fstat, e := client.Quit()
@@ -125,4 +126,3 @@ func QuitClient(t *testing.T, client redis.Client) {
 		t.Fatalf("on Quit - %s", e)
 	}
 }
-

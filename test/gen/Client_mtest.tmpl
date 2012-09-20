@@ -56,12 +56,15 @@ func Test{{$mname}}(t *testing.T) {
             }
         }()
         {{end}}
-	    test.Flush{{$ctype}}(t, c)
-        {{$outcnt := .OutCnt}}{{range $out_idx, $out_type := .OutArgs}}
-        var r{{$out_idx}} {{$out_type}}{{end}}
 
-    	{{range $out_idx, $out_type := .OutArgs}}r{{$out_idx}}{{comma $out_idx $outcnt}}{{end}} = c.{{$mname}}({{range $in_idx, $in_type := .InArgs}}arg_{{$in_idx}}{{comma $in_idx $incnt}}{{end}})
-        {{range $out_idx, $out_type := .OutArgs}}{{if isRedisError $out_type}}
+	    test.Flush{{$ctype}}(t, c)
+
+        {{$outcnt := .OutCnt}}{{range $out_idx, $out_arg := .OutArgs}}
+        var r{{$out_idx}} {{$out_arg.Type}}{{end}}
+
+    	{{range $out_idx, $out_arg := .OutArgs}}r{{$out_idx}}{{comma $out_idx $outcnt}}{{end}} = c.{{$mname}}({{range $in_idx, $in_type := .InArgs}}arg_{{$in_idx}}{{comma $in_idx $incnt}}{{end}})
+
+        {{range $out_idx, $out_arg := .OutArgs}}{{if isRedisError $out_arg.Type}}
         // check redis.Error
         if r{{$out_idx}} != nil {
         {{if $spec_norediserror}}
@@ -74,9 +77,9 @@ func Test{{$mname}}(t *testing.T) {
            fmt.Printf("WARN: error result on {{$mname}} - %s\n", r{{$out_idx}})
         }
         {{end}}{{end}}{{end}}
-        {{range $out_idx, $out_type := .OutArgs}}{{if isRedisError $out_type}}{{else}}
+        {{range $out_idx, $out_arg := .OutArgs}}{{if isRedisError $out_arg.Type}}{{else}}
         // check result value
-        if r{{$out_idx}} {{zvTest $out_type}} {
+        if r{{$out_idx}} {{zvTest $out_arg.Type}} {
         {{if $spec_nonilresult}}
             // Spec: no zerovalue result
             t.Errorf("Client error - {{$mname}}() - r{{$out_idx}}) is nil")
@@ -101,11 +104,11 @@ func Test{{$mname}}(t *testing.T) {
 
 	{{range $in_idx, $in_type := .InArgs}}
     var arg_{{$in_idx}} {{$in_type}}{{end}}
-    {{range $out_idx, $out_type := .OutArgs}}
-    var r{{$out_idx}} {{$out_type}}{{end}}
+    {{range $out_idx, $out_arg := .OutArgs}}
+    var r{{$out_idx}} {{$out_arg.Type}}{{end}}
 
-	{{range $out_idx, $out_type := .OutArgs}}r{{$out_idx}}{{comma $out_idx $outcnt}}{{end}} = c.{{.Method}}({{range $in_idx, $in_type := .InArgs}}arg_{{$in_idx}}{{comma $in_idx $incnt}}{{end}})
-    {{range $out_idx, $out_type := .OutArgs}}{{if isRedisError $out_type}}if r{{$out_idx}} != nil {
+	{{range $out_idx, $out_arg := .OutArgs}}r{{$out_idx}}{{comma $out_idx $outcnt}}{{end}} = c.{{.Method}}({{range $in_idx, $in_type := .InArgs}}arg_{{$in_idx}}{{comma $in_idx $incnt}}{{end}})
+    {{range $out_idx, $out_arg := .OutArgs}}{{if isRedisError $out_arg.Type}}if r{{$out_idx}} != nil {
        t.Fatalf("error - {{$mname}}() - %s", r{{$out_idx}})
     }
     {{end}}{{end}}

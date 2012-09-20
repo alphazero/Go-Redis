@@ -20,7 +20,7 @@ var LF []byte = []byte("\n")
 
 func init() {
 	var e error
-	filter1, e = regexp.Compile("( |\t)*\n")
+	filter1, e = regexp.Compile("\n( |\t)*\n")
 	if e != nil {
 		panic(e)
 	}
@@ -58,7 +58,6 @@ func main() {
 			writeTestFile(path, data, ctype, m)
 		}
 		gofmt(path)
-		//		fmt.Printf("gofmt --\n%s\n", out)
 	}
 }
 
@@ -84,8 +83,8 @@ func verifyOrCreateDir(ctype reflect.Type) (dir string) {
 }
 func cleanup(data []byte) []byte {
 	data = filter1.ReplaceAll(data, LF)
-	data = filter2.ReplaceAll(data, []byte("\n\n\n"))
-	data = filter3.ReplaceAll(data, []byte("\n\n"))
+	data = filter2.ReplaceAll(data, []byte("\n\n"))
+	data = filter3.ReplaceAll(data, []byte("\n"))
 	return data
 }
 
@@ -117,9 +116,18 @@ type mtest struct {
 	Method  string
 	InArgs  []string
 	InCnt   int
-	OutArgs []string
+	//	OutArgs []string
+	OutArgs []outarg
 	OutCnt  int
 	Spec    *redis.MethodSpec
+}
+type outarg struct {
+	Type string
+
+	IsFuture      bool
+	FutureMethod  string
+	FutureOutArgs []string
+	FutureOutCnt  int
 }
 
 func getMethodInArgs(m reflect.Method) []string {
@@ -135,14 +143,48 @@ func getMethodOutArgs(m reflect.Method) []string {
 	mt := m.Type
 	args := make([]string, mt.NumOut())
 	for i := 0; i < mt.NumOut(); i++ {
-		args[i] = fmt.Sprintf("%s", mt.Out(i))
+		otype := mt.Out(i)
+		args[i] = fmt.Sprintf("%s", otype)
+	}
+	return args
+}
+
+func getMethodOutArgsWIP(m reflect.Method) []outarg {
+	mt := m.Type
+	args := make([]outarg, mt.NumOut())
+	for i := 0; i < mt.NumOut(); i++ {
+		arg := outarg{}
+		otype := mt.Out(i)
+		arg.Type = fmt.Sprintf("%s", otype)
+
+		// future results only
+		if strings.HasPrefix(otype.Name(), "Future") {
+			arg.IsFuture = true
+
+			fvalGet, ok := otype.MethodByName("Get")
+			if !ok {
+				panic(fmt.Errorf("Future type %s does not have a Get method!", otype))
+			}
+
+			arg.FutureMethod = "Get"
+			arg.FutureOutArgs = getMethodOutArgs(fvalGet)
+			arg.FutureOutCnt = len(arg.FutureOutArgs)
+
+			// TODO TryGets ...
+			//			fmt.Printf("\t%s\n", getMethodOutArgs(fvalGet))
+			//			fvalTryGet, ok := otype.MethodByName("TryGet"); if !ok {
+			//				panic(fmt.Errorf("Future type %s does not have a TryGet method!", otype))
+			//			}
+			//			fmt.Printf("\t%s\n", fvalTryGet)
+		}
+		args[i] = arg
 	}
 	return args
 }
 
 func renderFeatureTest(w io.Writer, ctype reflect.Type, m reflect.Method, t *template.Template) {
 	ins := getMethodInArgs(m)
-	outs := getMethodOutArgs(m)
+	outs := getMethodOutArgsWIP(m)
 	data := &mtest{
 		Type:    ctype,
 		Subject: ctype.Name(),

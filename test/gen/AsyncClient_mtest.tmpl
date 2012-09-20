@@ -14,6 +14,7 @@
 
 {{$spec_norediserror := .Spec.NoRedisErr}}
 {{$spec_nonilfuture := .Spec.NoNilFuture}}
+{{$spec_nonilresult := .Spec.NoNilResultValue}}
 {{$mname := .Method}}
 {{$ctype := .Type.Name}}
 
@@ -56,12 +57,15 @@ func Test{{$mname}}(t *testing.T) {
             }
         }()
         {{end}}
-	    test.Flush{{$ctype}}(t, c)
-        {{$outcnt := .OutCnt}}{{range $out_idx, $out_type := .OutArgs}}
-        var r{{$out_idx}} {{$out_type}}{{end}}
 
-    	{{range $out_idx, $out_type := .OutArgs}}r{{$out_idx}}{{comma $out_idx $outcnt}}{{end}} = c.{{.Method}}({{range $in_idx, $in_type := .InArgs}}arg_{{$in_idx}}{{comma $in_idx $incnt}}{{end}})
-        {{range $out_idx, $out_type := .OutArgs}}{{if isRedisError $out_type}}
+	    test.Flush{{$ctype}}(t, c)
+
+        {{$outcnt := .OutCnt}}{{range $out_idx, $out_arg := .OutArgs}}
+        var r{{$out_idx}} {{$out_arg.Type}}{{end}}
+
+    	{{range $out_idx, $out_arg := .OutArgs}}r{{$out_idx}}{{comma $out_idx $outcnt}}{{end}} = c.{{.Method}}({{range $in_idx, $in_type := .InArgs}}arg_{{$in_idx}}{{comma $in_idx $incnt}}{{end}})
+
+        {{range $out_idx, $out_arg := .OutArgs}}{{if isRedisError $out_arg.Type}}
         // check redis.Error
         if r{{$out_idx}} != nil {
         {{if $spec_norediserror}}
@@ -74,12 +78,59 @@ func Test{{$mname}}(t *testing.T) {
            fmt.Printf("WARN: error result on {{$mname}} - %s\n", r{{$out_idx}})
         }
         {{end}}{{end}}{{end}}
-        {{range $out_idx, $out_type := .OutArgs}}{{if isFuture $out_type}}{{if $spec_nonilfuture}}
+
+        {{range $out_idx, $out_arg := .OutArgs}}
+        {{if isFuture $out_arg.Type}}{{if $spec_nonilfuture}}
         // Spec: no nil futures
         if r{{$out_idx}} == nil {
-           t.Fatalf("error - {{$mname}}() - Expecting a non-nil {{$out_type}}")
+           t.Fatalf("error - {{$mname}}() - Expecting a non-nil {{$out_arg.Type}}")
         }
         {{end}}{{end}}{{end}}
+
+        {{/* ========= checking future results =========== */}}
+        /* check future results */
+        {{range $out_idx, $out_arg := .OutArgs}}
+        {{if isFuture $out_arg.Type}}
+
+        {{$fmethod := $out_arg.FutureMethod}}{{$foutargs := $out_arg.FutureOutArgs}}{{$foutcnt := $out_arg.FutureOutCnt}}
+
+        {{range $fout_idx, $fout_arg := $foutargs}}
+        var f_r{{$fout_idx}} {{$fout_arg}}{{end}}
+
+    	{{range $fout_idx, $fout_arg := $foutargs}}f_r{{$fout_idx}}{{comma $fout_idx $foutcnt}}{{end}} = r{{$out_idx}}.{{$fmethod}}()
+
+        {{range $fout_idx, $fout_arg := $foutargs}}{{if isRedisError $fout_arg}}
+        // check future's redis.Error
+        if f_r{{$fout_idx}} != nil {
+        {{if $spec_norediserror}}
+            // Spec: future should never return redis.Error
+            t.Errorf("Client error - future {{$fmethod}}() - %s", f_r{{$fout_idx}})
+            return false
+        }
+        {{else}}
+           // Spec: OK to return redis.Error - log it
+           fmt.Printf("WARN: error result on future {{$fmethod}} - %s\n", r{{$out_idx}})
+        }
+        {{end}}{{end}}{{end}}
+
+        {{range $fout_idx, $fout_arg := $foutargs}}{{if isRedisError $fout_arg}}{{else}}
+        // check future's result value
+        if f_r{{$fout_idx}} {{zvTest $fout_arg}} {
+        {{if $spec_nonilresult}}
+            // Spec: no zerovalue result
+            t.Errorf("Client error - future {{$fmethod}}() - f_r{{$fout_idx}} is nil/zero-value")
+            return false
+        }
+        {{else}}
+           // Spec: OK to return zero value - log it
+            t.Errorf("Client error - future {{$fmethod}}() - f_r{{$fout_idx}} is nil/zero-value")
+           fmt.Printf("WARN: nil/zero-value result on future {{$fmethod}} for future out f_r{{$fout_idx}}\n")
+        }
+        {{end}}{{end}}{{end}}
+
+        {{end}}
+        {{end}}
+        {{/* ========= checking future results =========== */}}
 
         return true
 	}
@@ -94,15 +145,15 @@ func Test{{$mname}}(t *testing.T) {
 
 	{{range $in_idx, $in_type := .InArgs}}
     var arg_{{$in_idx}} {{$in_type}}{{end}}
-    {{range $out_idx, $out_type := .OutArgs}}
-    var r{{$out_idx}} {{$out_type}}{{end}}
+    {{range $out_idx, $out_arg := .OutArgs}}
+    var r{{$out_idx}} {{$out_arg.Type}}{{end}}
 
-	{{range $out_idx, $out_type := .OutArgs}}r{{$out_idx}}{{comma $out_idx $outcnt}}{{end}} = c.{{.Method}}({{range $in_idx, $in_type := .InArgs}}arg_{{$in_idx}}{{comma $in_idx $incnt}}{{end}})
-    {{range $out_idx, $out_type := .OutArgs}}{{if isRedisError $out_type}}if r{{$out_idx}} != nil {
+	{{range $out_idx, $out_arg := .OutArgs}}r{{$out_idx}}{{comma $out_idx $outcnt}}{{end}} = c.{{.Method}}({{range $in_idx, $in_type := .InArgs}}arg_{{$in_idx}}{{comma $in_idx $incnt}}{{end}})
+    {{range $out_idx, $out_arg := .OutArgs}}{{if isRedisError $out_arg.Type}}if r{{$out_idx}} != nil {
        t.Fatalf("error - {{$mname}}() - %s", r{{$out_idx}})
     }
-    {{end}}{{end}}{{range $out_idx, $out_type := .OutArgs}}{{if isFuture $out_type}}if r{{$out_idx}} == nil {
-       t.Fatalf("error - {{$mname}}() - Expecting a non-nil {{$out_type}}")
+    {{end}}{{end}}{{range $out_idx, $out_arg := .OutArgs}}{{if isFuture $out_arg.Type}}if r{{$out_idx}} == nil {
+       t.Fatalf("error - {{$mname}}() - Expecting a non-nil {{$out_arg.Type}}")
     }
     {{end}}{{end}}
 	*/

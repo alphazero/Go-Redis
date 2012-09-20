@@ -226,6 +226,17 @@ func (c *syncClient) Setnx(arg0 string, arg1 []byte) (result bool, err Error) {
 
 }
 
+// Redis SETEX command.
+func (c *syncClient) Setex(arg0 string, arg1 int64, arg2 []byte) (err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := arg2
+
+	//var resp Response
+	_, err = c.conn.ServiceRequest(&SETEX, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	return
+}
+
 // Redis GETSET command.
 func (c *syncClient) Getset(arg0 string, arg1 []byte) (result []byte, err Error) {
 	arg0bytes := []byte(arg0)

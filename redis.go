@@ -149,6 +149,9 @@ type Client interface {
 	// Redis SETNX command.
 	Setnx(key string, arg1 []byte) (result bool, err Error)
 
+	// Redis SETEX command.
+	Setex(key string, arg1 int64, arg2 []byte) (err Error)
+
 	// Redis GETSET command.
 	Getset(key string, arg1 []byte) (result []byte, err Error)
 
@@ -369,6 +372,9 @@ type AsyncClient interface {
 
 	// Redis SETNX command.
 	Setnx(key string, arg1 []byte) (result FutureBool, err Error)
+
+	// Redis SETEX command.
+	Setex(key string, arg1 int64, arg2 []byte) (result FutureBool, err Error)
 
 	// Redis GETSET command.
 	Getset(key string, arg1 []byte) (result FutureBytes, err Error)

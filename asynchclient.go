@@ -203,6 +203,20 @@ func (c *asyncClient) Setnx(arg0 string, arg1 []byte) (result FutureBool, err Er
 
 }
 
+// Redis SETEX command.
+func (c *asyncClient) Setex(arg0 string, arg1 int64, arg2 []byte) (stat FutureBool, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := arg2
+
+	resp, err := c.conn.QueueRequest(&SETEX, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		stat = resp.future.(FutureBool)
+	}
+
+	return
+}
+
 // Redis GETSET command.
 func (c *asyncClient) Getset(arg0 string, arg1 []byte) (result FutureBytes, err Error) {
 	arg0bytes := []byte(arg0)

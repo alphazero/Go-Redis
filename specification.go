@@ -85,6 +85,7 @@ const (
 	KEY_NUM
 	KEY_SPEC
 	KEY_NUM_NUM
+	KEY_NUM_VALUE
 	KEY_VALUE
 	KEY_IDX_VALUE
 	KEY_KEY_VALUE
@@ -126,6 +127,7 @@ var (
 	GETSET        Command = Command{"GETSET", KEY_VALUE, BULK}
 	MGET          Command = Command{"MGET", MULTI_KEY, MULTI_BULK}
 	SETNX         Command = Command{"SETNX", KEY_VALUE, BOOLEAN}
+	SETEX         Command = Command{"SETEX", KEY_NUM_VALUE, STATUS}
 	INCR          Command = Command{"INCR", KEY, NUMBER}
 	INCRBY        Command = Command{"INCRBY", KEY_NUM, NUMBER}
 	DECR          Command = Command{"DECR", KEY, NUMBER}

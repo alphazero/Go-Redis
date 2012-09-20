@@ -14,7 +14,7 @@
 
 package redis
 
-import "fmt"
+//import "fmt"
 
 // ----------------------------------------------------------------------------
 // PROTOCOL SPEC
@@ -242,7 +242,6 @@ func GetMethodSpec(client, method string) (spec *MethodSpec) {
 // spec.NoRedisErr
 // Specs MethodSpec.NoRedisErr - client type invariant
 func anyClientRedisErrSpec(spec *MethodSpec, method string) *MethodSpec {
-	fmt.Printf("DEBUG: spec.NoRedisErr check for m%s\n", method)
 	// Commands that can return ERR given random input and state
 	switch method {
 	// Redis-Spec: Background save may be running already and can raise -ERR
@@ -256,7 +255,6 @@ func anyClientRedisErrSpec(spec *MethodSpec, method string) *MethodSpec {
 // spec.NoNilResultValue
 // Specs MethodSpec.NoNilResultValue - client type invariant
 func anyClientNilResultValueSpec(spec *MethodSpec, method string) *MethodSpec {
-	fmt.Printf("DEBUG: spec.NoNilResultValue check for m%s\n", method)
 	// Commands that can return nil/zero-value given random input and state
 	switch method {
 	// Redis-Spec: DB may be empty and AllKeys can return nil result

@@ -57,17 +57,19 @@ func main() {
 			data := cleanup(buf.Bytes())
 			writeTestFile(path, data, ctype, m)
 		}
-		out := gofmt(path)
-		fmt.Printf("gofmt --\n%s\n", out)
+		gofmt(path)
+		//		fmt.Printf("gofmt --\n%s\n", out)
 	}
 }
 
 func gofmt(path string) (out []byte) {
 
 	gofmt := exec.Command("go", "fmt", path)
-	var fmtout bytes.Buffer
+	var fmtout, fmterr bytes.Buffer
 	gofmt.Stdout = &fmtout
+	gofmt.Stderr = &fmterr
 	if e := gofmt.Run(); e != nil {
+		fmt.Printf("gofmt --error out:\n%s\n", fmterr.Bytes())
 		panic(e)
 	}
 	return fmtout.Bytes()

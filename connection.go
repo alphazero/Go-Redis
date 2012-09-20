@@ -610,7 +610,8 @@ func (c *asyncConnHdl) connect() {
 }
 
 // REVU - TODO opt 2 for Quit here
-func (c *asyncConnHdl) disconnect() (e Error) {
+// panics
+func (c *asyncConnHdl) disconnect() {
 
 	panic("asyncConnHdl.disconnect NOT IMLEMENTED!")
 	//	return
@@ -850,7 +851,7 @@ func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 	reader := c.super.reader
 	//	cmd := &SUBSCRIBE
 
-	message, e3 := getPubSubResponse(reader, nil)
+	message, e3 := GetPubSubResponse(reader, nil)
 	if e3 != nil {
 		// system error
 		log.Println("<TEMP DEBUG> on error in msgProcessingTask: ", e3)

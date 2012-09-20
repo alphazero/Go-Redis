@@ -333,7 +333,7 @@ func newUnsubcribeAck(channel string, scnt int64) *message {
 // PubSub message processing
 // ----------------------------------------------------------------------------
 
-func getPubSubResponse(r *bufio.Reader, cmd *Command) (msg *message, err error) {
+func GetPubSubResponse(r *bufio.Reader, cmd *Command) (msg *message, err error) {
 	defer func() {
 		e := recover()
 		if e != nil {

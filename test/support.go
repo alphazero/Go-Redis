@@ -33,10 +33,16 @@ func QuickConfClient(method string) *quick.Config {
 
 func quickConfAll(method string) *quick.Config {
 	conf := &quick.Config{}
-	conf.MaxCount = 2
+	conf.MaxCount = 100
 
 	switch method {
-	case "Quit":
+	// Commands that only need to be tested once
+	case "Quit",
+		"Ping",
+		"flushdb",
+		"flushall",
+		"Bgsave",
+		"AllKeys":
 		conf.MaxCount = 1
 	}
 

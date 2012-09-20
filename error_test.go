@@ -1,3 +1,5 @@
+// REVU - whitebox testing of internal comps -- OK.
+
 package redis
 
 import (

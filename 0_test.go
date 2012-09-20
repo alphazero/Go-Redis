@@ -1,3 +1,7 @@
+// REVU - only whitebox testing in redis package
+//		- freeze adding any more test code for client here
+// TODO - move to blackbox redis/test package
+
 package redis
 
 import (

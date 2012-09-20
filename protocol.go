@@ -52,10 +52,14 @@ var WHITESPACE ctlbytes = ctlbytes{SPACE_BYTE}
 // Creates the byte buffer that corresponds to the specified Command and
 // provided command arguments.
 //
-// TODO: tedious but need to check for errors on all buffer writes ..
-//
-func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, error) {
+// panics on error (with error)
+func CreateRequestBytes(cmd *Command, args [][]byte) []byte {
 
+	defer func() {
+		if e := recover(); e != nil {
+			panic(fmt.Errorf("CreateRequestBytes(%s) - failed to create request buffer", cmd.Code))
+		}
+	}()
 	cmd_bytes := []byte(cmd.Code)
 
 	buffer := bytes.NewBufferString("")
@@ -76,7 +80,7 @@ func CreateRequestBytes(cmd *Command, args [][]byte) ([]byte, error) {
 		buffer.Write(CRLF)
 	}
 
-	return buffer.Bytes(), nil
+	return buffer.Bytes()
 }
 
 // Creates a specific Future type for the given Redis command
@@ -134,16 +138,16 @@ func SetFutureResult(future interface{}, cmd *Command, r Response) {
 
 // Either writes all the bytes or it fails and returns an error
 //
-func sendRequest(w io.Writer, data []byte) (e error) {
+// panics on error (with error)
+func sendRequest(w io.Writer, data []byte) {
 	loginfo := "sendRequest"
 	if w == nil {
-		return withNewError(fmt.Sprintf("<BUG> in %s(): nil Writer", loginfo))
+		panic(fmt.Errorf("<BUG> %s() - nil Writer", loginfo))
 	}
 
 	n, e := w.Write(data)
 	if e != nil {
-		msg := fmt.Sprintf("%s(): connection Write wrote %d bytes only.", loginfo, n)
-		return withNewError(msg)
+		panic(fmt.Errorf("%s() - connection Write wrote %d bytes only.", loginfo, n))
 	}
 
 	// doc isn't too clear but the underlying netFD may return n<len(data) AND
@@ -151,10 +155,8 @@ func sendRequest(w io.Writer, data []byte) (e error) {
 	// presumably we can try sending the remaining bytes but that is precisely
 	// what netFD.Write is doing (and it couldn't) so ...
 	if n < len(data) {
-		msg := fmt.Sprintf("%s(): connection Write wrote %d bytes only.", loginfo, n)
-		return withNewError(msg)
+		panic(fmt.Sprintf("%s() - connection Write wrote %d bytes only.", loginfo, n))
 	}
-	return
 }
 
 // ----------------------------------------------------------------------------

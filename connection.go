@@ -222,11 +222,14 @@ func (c *connHdl) String() string {
 // The new connection is wrapped by a new connHdl with its bufio.Reader
 // delegating to the net.Conn's reader.
 //
-func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
+// panics on error (with error)
+func newConnHdl(spec *ConnectionSpec) (hdl *connHdl) {
 	loginfo := "newConnHdl"
 
-	if hdl = new(connHdl); hdl == nil {
-		return nil, NewError(SYSTEM_ERR, fmt.Sprintf("%s(): failed to allocate connHdl", loginfo))
+	hdl = new(connHdl)
+	// REVU - this is silly
+	if hdl == nil {
+		panic(fmt.Errorf("%s(): failed to allocate connHdl", loginfo))
 	}
 
 	var mode, addr string
@@ -238,19 +241,16 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 		addr = fmt.Sprintf("%s:%d", spec.host, spec.port)
 		_, e := net.ResolveTCPAddr(TCP, addr)
 		if e != nil {
-			msg := fmt.Sprintf("%s(): failed to resolve remote address %s", loginfo, addr)
-			return nil, NewErrorWithCause(SYSTEM_ERR, msg, e)
+			panic(fmt.Errorf("%s(): failed to resolve remote address %s", loginfo, addr))
 		}
 	}
 
 	conn, e := net.Dial(mode, addr)
 	switch {
 	case e != nil:
-		err = NewErrorWithCause(SYSTEM_ERR, fmt.Sprintf("%s(): could not open connection", loginfo), e)
-		return nil, withError(err)
+		panic(fmt.Errorf("%s(): could not open connection", loginfo))
 	case conn == nil:
-		err = NewError(SYSTEM_ERR, fmt.Sprintf("%s(): net.Dial returned nil, nil (?)", loginfo))
-		return nil, withError(err)
+		panic(fmt.Errorf("%s(): net.Dial returned nil, nil (?)", loginfo))
 	default:
 		configureConn(conn, spec)
 		hdl.spec = spec
@@ -259,7 +259,7 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl, err Error) {
 		bufsize := 4096
 		hdl.reader = bufio.NewReaderSize(conn, bufsize)
 	}
-	return hdl, nil
+	return
 }
 
 func configureConn(conn net.Conn, spec *ConnectionSpec) {
@@ -279,19 +279,18 @@ func configureConn(conn net.Conn, spec *ConnectionSpec) {
 
 // connect event handler will issue AUTH/SELECT on new connection
 // if required.
-func (c *connHdl) connect() (e Error) {
+// panics on error (with error)
+func (c *connHdl) connect() {
 	if c.spec.password != DefaultRedisPassword {
-		_, e = c.ServiceRequest(&AUTH, [][]byte{[]byte(c.spec.password)})
-		if e != nil {
-			log.Printf("<ERROR> Authentication failed - %s", e.Message())
-			return
+		args := [][]byte{[]byte(c.spec.password)}
+		if _, e := c.ServiceRequest(&AUTH, args); e != nil {
+			panic(fmt.Errorf("<ERROR> Authentication failed - %s", e.Message()))
 		}
 	}
 	if c.spec.db != DefaultRedisDB {
-		_, e = c.ServiceRequest(&SELECT, [][]byte{[]byte(fmt.Sprintf("%d", c.spec.db))})
-		if e != nil {
-			log.Printf("<ERROR> REDIS_DB Select failed - %s", e.Message())
-			return
+		args := [][]byte{[]byte(fmt.Sprintf("%d", c.spec.db))}
+		if _, e := c.ServiceRequest(&SELECT, args); e != nil {
+			panic(fmt.Errorf("<ERROR> REDIS_DB Select failed - %s", e.Message()))
 		}
 	}
 	// REVU - pretty please TODO do the customized log
@@ -299,68 +298,72 @@ func (c *connHdl) connect() (e Error) {
 	return
 }
 
-func (hdl *connHdl) disconnect() Error {
+// disconnects from net connections and sets connected state to false
+// panics on net error (with error)
+func (hdl *connHdl) disconnect() {
 	// silently ignore repeated calls to closed connections
 	if hdl.connected {
 		if e := hdl.conn.Close(); e != nil {
-			return NewErrorWithCause(SYSTEM_ERR, "on connHdl.Close()", e)
+			panic(fmt.Errorf("on connHdl.Close()", e))
+			//			return NewErrorWithCause(SYSTEM_ERR, "on connHdl.Close()", e)
 		}
 		hdl.connected = false
 		// REVU - pretty please TODO do the customized log
 		//		log.Printf("<INFO> %s - DISCONNECTED", hdl)
 	}
-	return nil
+	//	return nil
 }
 
 // Creates a new SyncConnection using the provided ConnectionSpec.
 // Note that this function will also connect to the specified redis server.
 func NewSyncConnection(spec *ConnectionSpec) (c SyncConnection, err Error) {
-	connHdl, e := newConnHdl(spec)
-	if e != nil {
-		return nil, e
-	}
+	defer func() {
+		if e := recover(); e != nil {
+			connerr := e.(error)
+			err = NewErrorWithCause(SYSTEM_ERR, "NewSyncConnection", connerr)
+		}
+	}()
 
-	e = connHdl.connect()
-	return connHdl, e
+	connHdl := newConnHdl(spec)
+	connHdl.connect()
+	c = connHdl
+	return
 }
 
 // Implementation of SyncConnection.ServiceRequest.
-func (hdl *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response, err Error) {
+func (c *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response, err Error) {
 	loginfo := "connHdl.ServiceRequest"
-	errmsg := ""
-	if !hdl.connected {
-		return nil, NewError(REDIS_ERR, "Connection"+hdl.String()+" is closed")
-	}
-	if cmd == &QUIT {
-		return nil, hdl.disconnect()
-	}
-	ok := false
-	buff, e := CreateRequestBytes(cmd, args) // 2<<<
-	if e == nil {
-		e = sendRequest(hdl.conn, buff)
-		if e == nil {
-			// REVU - this demands resp to be non-nil even in case of io errors
-			// TODO - refactor this
-			resp, e = GetResponse(hdl.reader, cmd)
-			//			fmt.Printf("DEBUG-TEMP - resp: %s\n", resp)   // REVU REMOVE TODO
-			if e == nil {
-				if resp.IsError() {
-					redismsg := fmt.Sprintf(" [%s]: %s", cmd.Code, resp.GetMessage())
-					err = NewRedisError(redismsg)
-				}
-				ok = true
-			} else {
-				errmsg = fmt.Sprintf("%s(%s): failed to get response", loginfo, cmd.Code)
-			}
-		} else {
-			errmsg = fmt.Sprintf("%s(%s): failed to send request", loginfo, cmd.Code)
+
+	defer func() {
+		if re := recover(); re != nil {
+			// REVU - needs to be logged - TODO
+			err = NewErrorWithCause(SYSTEM_ERR, "ServiceRequest", re.(error))
 		}
-	} else {
-		errmsg = fmt.Sprintf("%s(%s): failed to create request buffer", loginfo, cmd.Code)
+	}()
+
+	if !c.connected {
+		panic(fmt.Errorf("Connection %s is alredy closed", c.String()))
 	}
 
-	if !ok {
-		return resp, withError(NewErrorWithCause(SYSTEM_ERR, errmsg, e)) // log it on debug
+	if cmd == &QUIT {
+		c.disconnect()
+		return
+	}
+
+	buff := CreateRequestBytes(cmd, args)
+	sendRequest(c.conn, buff) // panics
+
+	// REVU - this demands resp to be non-nil even in case of io errors
+	// TODO - look into this
+	resp, e := GetResponse(c.reader, cmd)
+	if e != nil {
+		panic(fmt.Errorf("%s(%s) - failed to get response", loginfo, cmd.Code))
+	}
+
+	// handle Redis server ERR - don't panic
+	if resp.IsError() {
+		redismsg := fmt.Sprintf(" [%s]: %s", cmd.Code, resp.GetMessage())
+		err = NewRedisError(redismsg)
 	}
 
 	return
@@ -471,93 +474,89 @@ func (c *asyncConnHdl) spec() *ConnectionSpec {
 
 // Creates a new asyncConnHdl with a new connHdl as its delegated 'super'.
 // Note it does not start the processing goroutines for the channels.
+//
 // REVU - PubSub could be checked here
-func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl, err Error) {
-	connHdl, err := newConnHdl(spec)
-	if err == nil && connHdl != nil {
-		async = new(asyncConnHdl)
-		if async != nil {
-			async.super = connHdl
-			//			var e error
-			async.writer = bufio.NewWriterSize(connHdl.conn, spec.wBufSize)
+func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl) {
 
-			async.pendingReqs = make(chan asyncReqPtr, spec.reqChanCap)
-			async.pendingResps = make(chan asyncReqPtr, spec.rspChanCap)
-			async.faults = make(chan asyncReqPtr, spec.reqChanCap) // REVU - not sure about sizing
+	// create (super) connHdl
+	connHdl := newConnHdl(spec) // panics
 
-			async.reqProcCtl = make(workerCtl)
-			async.rspProcCtl = make(workerCtl)
-			async.heartbeatCtl = make(workerCtl)
-			async.managerCtl = make(workerCtl)
+	async = new(asyncConnHdl)
+	async.super = connHdl
+	//			var e error
+	async.writer = bufio.NewWriterSize(connHdl.conn, spec.wBufSize)
 
-			async.feedback = make(chan workerStatus)
-			async.shutdown = make(chan bool, 1)
+	async.pendingReqs = make(chan asyncReqPtr, spec.reqChanCap)
+	async.pendingResps = make(chan asyncReqPtr, spec.rspChanCap)
+	async.faults = make(chan asyncReqPtr, spec.reqChanCap) // REVU - not sure about sizing
 
-			async.isShutdown = false
+	async.reqProcCtl = make(workerCtl)
+	async.rspProcCtl = make(workerCtl)
+	async.heartbeatCtl = make(workerCtl)
+	async.managerCtl = make(workerCtl)
 
-			return
-		}
-	}
-	// reached on errors only
-	if debug() {
-		log.Println("Error creating asyncConnHdl: ", err)
-	}
-	return nil, err
+	async.feedback = make(chan workerStatus)
+	async.shutdown = make(chan bool, 1)
+
+	async.isShutdown = false
+
+	return
 }
 
 // Creates and opens a new AsyncConnection and starts the goroutines for
 // request and response processing
 // interaction with redis (AUTH &| SELECT)
 func NewAsynchConnection(spec *ConnectionSpec) (conn AsyncConnection, err Error) {
-	var async *asyncConnHdl
-	if async, err = newAsyncConnHdl(spec); err == nil {
-		if err = async.connect(); err == nil {
-			async.startup()
-		} else {
-			async = nil // do not return a ref if we could not connect
+	defer func() {
+		if e := recover(); e != nil {
+			connerr := e.(error)
+			err = NewErrorWithCause(SYSTEM_ERR, "NewSyncConnection", connerr)
 		}
-	}
-	return async, err
+	}()
+
+	//	var async *asyncConnHdl
+	async := newAsyncConnHdl(spec)
+	async.connect()
+	async.startup()
+
+	conn = async
+	return
 }
 
 // ----------------------------------------------------------------------------
 // asyncConnHdl support for AsyncConnection interface
 // ----------------------------------------------------------------------------
 
-// TODO Quit - see REVU notes added for adding Quit to async in body
-func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (*PendingResponse, Error) {
+func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (pending *PendingResponse, err Error) {
+
+	defer func() {
+		if re := recover(); re != nil {
+			// REVU - needs to be logged - TODO
+			err = NewErrorWithCause(SYSTEM_ERR, "QueueRequest", re.(error))
+		}
+	}()
 
 	if c.isShutdown {
-		return nil, NewError(SYSTEM_ERR, "Connection is shutdown.")
+		panic(fmt.Errorf("Connection %s is alredy shutdown", c.String()))
 	}
 
 	select {
 	case <-c.shutdown:
 		c.isShutdown = true
 		c.shutdown <- true // put it back REVU likely to be a bug under heavy load ..
-		//		log.Println("<DEBUG> we're shutdown and not accepting any more requests ...")
-		return nil, NewError(SYSTEM_ERR, "Connection is shutdown.")
+		panic(fmt.Errorf("Connection %s is alredy shutdown", c.String()))
 	default:
 	}
 
+	buff := CreateRequestBytes(cmd, args) // panics
 	future := CreateFuture(cmd)
-	request := &asyncRequestInfo{0, 0, cmd, nil, future, nil}
+	request := &asyncRequestInfo{0, 0, cmd, &buff, future, nil}
 
-	buff, e1 := CreateRequestBytes(cmd, args)
-	if e1 == nil {
-		request.outbuff = &buff
-		c.pendingReqs <- request // REVU - opt 1 TODO is handling QUIT and sending stop to workers
-	} else {
-		errmsg := fmt.Sprintf("Failed to create asynchrequest - %s aborted", cmd.Code)
-		request.stat = inierr
-		request.error = NewErrorWithCause(SYSTEM_ERR, errmsg, e1) // only makes sense if using go ...
-		request.future.(FutureResult).onError(request.error)
+	c.pendingReqs <- request // REVU - opt 1 TODO is handling QUIT and sending stop to workers
 
-		return nil, request.error // remove if restoring go
-	}
-	//}();
-	// done.
-	return &PendingResponse{future}, nil
+	pending = &PendingResponse{future}
+
+	return
 }
 
 // ----------------------------------------------------------------------------
@@ -604,10 +603,10 @@ func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (*PendingRespon
 // asyncConnHdl internal ops
 // ----------------------------------------------------------------------------
 
-// connect event handler.
+// Delegates to connHdl - suepr panics.
 // See connHdl#connect
-func (c *asyncConnHdl) connect() (e Error) {
-	return c.super.connect()
+func (c *asyncConnHdl) connect() {
+	c.super.connect()
 }
 
 // REVU - TODO opt 2 for Quit here
@@ -631,7 +630,7 @@ func (c *asyncConnHdl) startup() {
 		c.heartbeatCtl <- start
 	}
 
-	go c.worker(heartbeatworker, "request-processor", reqProcessingTask, c.reqProcCtl, c.feedback)
+	go c.worker(requesthandler, "request-processor", reqProcessingTask, c.reqProcCtl, c.feedback)
 	c.reqProcCtl <- start
 
 	var rspProcTask workerTask
@@ -641,7 +640,7 @@ func (c *asyncConnHdl) startup() {
 	case REDIS_PUBSUB:
 		rspProcTask = msgProcessingTask
 	}
-	go c.worker(heartbeatworker, "response-processor", rspProcTask, c.rspProcCtl, c.feedback)
+	go c.worker(responsehandler, "response-processor", rspProcTask, c.rspProcCtl, c.feedback)
 	c.rspProcCtl <- start
 
 	// REVU - pretty please TODO do the customized log
@@ -926,25 +925,31 @@ proc_error:
 // asyncConnHdl internal ops
 // ----------------------------------------------------------------------------
 
+// REVU - error return on this internal func is OK - see call site usage.
 func (c *asyncConnHdl) processAsyncRequest(req asyncReqPtr) (blen int, e error) {
 	//	req := <-c.pendingReqs;
 	req.id = c.nextId()
 	blen = len(*req.outbuff)
-	e = sendRequest(c.writer, *req.outbuff)
-	if e == nil {
-		req.outbuff = nil
-		select {
-		case c.pendingResps <- req:
-		default:
-			c.writer.Flush()
-			c.pendingResps <- req
-			blen = 0
+
+	defer func() {
+		if re := recover(); re != nil {
+			e = re.(error)
+			log.Println("<BUG> lazy programmer >> ERROR in processRequest goroutine -req requeued for now")
+			// TODO: set stat on future & inform conn control and put it in faulted list
+			c.pendingReqs <- req
 		}
-	} else {
-		log.Println("<BUG> lazy programmer >> ERROR in processRequest goroutine -req requeued for now")
-		// TODO: set stat on future & inform conn control and put it in faulted list
-		c.pendingReqs <- req
+	}()
+	sendRequest(c.writer, *req.outbuff)
+
+	req.outbuff = nil
+	select {
+	case c.pendingResps <- req:
+	default:
+		c.writer.Flush()
+		c.pendingResps <- req
+		blen = 0
 	}
+
 	return
 }
 

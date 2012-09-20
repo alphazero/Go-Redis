@@ -119,6 +119,21 @@ func TestSetnx(t *testing.T) {
 	flushAndQuitOnCompletion(t, client)
 }
 
+func TestSetex(t *testing.T) {
+	client, e := _test_getDefaultSyncClient()
+	if e != nil {
+		t.Fatalf("on getDefaultClient - %s", e)
+	}
+
+	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
+		if e := client.Setex(k, 120, v); e != nil {
+			t.Errorf("on Setex(%s, 120, %s) - %s", k, v, e)
+		}
+	}
+
+	flushAndQuitOnCompletion(t, client)
+}
+
 func TestGetset(t *testing.T) {
 	client, e := _test_getDefaultSyncClient()
 	if e != nil {

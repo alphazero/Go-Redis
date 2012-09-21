@@ -6,6 +6,18 @@ import (
 	"testing/quick"
 )
 
+func compareByteArrays(got, expected []byte) bool {
+	if len(got) != len(expected) {
+		return false
+	}
+	for i, b := range expected {
+		if got[i] != b {
+			return false
+		}
+	}
+	return true
+}
+
 // ----------------------------------------------------------------------
 // testing/quick/Config settings for client types
 // Modify quickConf<Type> for specific test case, as necessary

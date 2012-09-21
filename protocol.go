@@ -269,7 +269,7 @@ func assertNotError(e error, info string) {
 }
 
 // ----------------------------------------------------------------------------
-// PubSub Message
+// PubSub message
 // ----------------------------------------------------------------------------
 
 // REVU - export?
@@ -282,6 +282,18 @@ const (
 	MESSAGE
 )
 
+func (t PubSubMType) String() string {
+	switch t {
+	case SUBSCRIBE_ACK:
+		return "SUBSCRIBE_ACK"
+	case UNSUBSCRIBE_ACK:
+		return "UNSUBSCRIBE_ACK"
+	case MESSAGE:
+		return "MESSAGE"
+	}
+	panic(fmt.Errorf("BUG - unknown PubSubMType %d", t))
+}
+
 //// REVU - necessary?
 //// REVU - export?
 //type PubSubMessage interface {
@@ -292,48 +304,55 @@ const (
 //}
 
 // Conforms to the payload as received from wire.
-// If mtype is mtype_message, then body will contain the message body, and
-// sinfo will be -1.
-// otherwise, it is expected that sinfo will contain subscription-info,
+// If Type is MESSAGE, then Body will contain a message, and
+// SubscriptionCnt will be -1.
+// otherwise, it is expected that SubscriptionCnt will contain subscription-info,
 // e.g. number of subscribed channels, and data will be nil.
-type message struct {
-	mtype   PubSubMType
-	channel string
-	body    []byte
-	sinfo   int64
+type Message struct {
+	Type            PubSubMType
+	Topic           string
+	Body            []byte
+	SubscriptionCnt int
 }
 
-func newMessage(channel string, body []byte) *message {
-	m := message{}
-	m.mtype = MESSAGE
-	m.channel = channel
-	m.body = body
-	m.sinfo = -1
+func (m Message) String() string {
+	return fmt.Sprintf("Message [type:%s topic:%s body:<%s> subcnt:%d]",
+		m.Type,
+		m.Topic,
+		m.Body,
+		m.SubscriptionCnt,
+	)
+}
+
+func newMessage(topic string, Body []byte) *Message {
+	m := Message{}
+	m.Type = MESSAGE
+	m.Topic = topic
+	m.Body = Body
 	return &m
 }
 
-func newPubSubAck(mtype PubSubMType, channel string, scnt int64) *message {
-	m := message{}
-	m.mtype = mtype
-	m.channel = channel
-	m.body = nil
-	m.sinfo = scnt
+func newPubSubAck(Type PubSubMType, topic string, scnt int) *Message {
+	m := Message{}
+	m.Type = Type
+	m.Topic = topic
+	m.SubscriptionCnt = scnt
 	return &m
 }
 
-func newSubcribeAck(channel string, scnt int64) *message {
-	return newPubSubAck(SUBSCRIBE_ACK, channel, scnt)
+func newSubcribeAck(topic string, scnt int) *Message {
+	return newPubSubAck(SUBSCRIBE_ACK, topic, scnt)
 }
 
-func newUnsubcribeAck(channel string, scnt int64) *message {
-	return newPubSubAck(UNSUBSCRIBE_ACK, channel, scnt)
+func newUnsubcribeAck(topic string, scnt int) *Message {
+	return newPubSubAck(UNSUBSCRIBE_ACK, topic, scnt)
 }
 
 // ----------------------------------------------------------------------------
 // PubSub message processing
 // ----------------------------------------------------------------------------
 
-func GetPubSubResponse(r *bufio.Reader, cmd *Command) (msg *message, err error) {
+func GetPubSubResponse(r *bufio.Reader) (msg *Message, err error) {
 	defer func() {
 		e := recover()
 		if e != nil {
@@ -352,21 +371,22 @@ func GetPubSubResponse(r *bufio.Reader, cmd *Command) (msg *message, err error) 
 
 	header := readMultiBulkData(r, 2)
 
-	mtype := string(header[0])
+	msgtype := string(header[0])
 	subid := string(header[1])
 
 	buf = readToCRLF(r)
 
-	n, e := strconv.ParseInt(string(buf[1:]), 10, 64)
+	n, e := strconv.Atoi(string(buf[1:]))
 	assertNotError(e, "in getPubSubResponse - pubsub msg seq 3 line - number parse error")
 
-	switch mtype {
+	// TODO - REVU decisiont to conflate P/SUB and P/UNSUB
+	switch msgtype {
 	case "subscribe", "psubscribe":
-		assertCtlByte(buf, NUM_BYTE, "UNSUBSCRIBE_ACK")
-		msg = newPubSubAck(UNSUBSCRIBE_ACK, subid, n)
+		assertCtlByte(buf, NUM_BYTE, "subscribe")
+		msg = newSubcribeAck(subid, n)
 	case "unsubscribe", "punsubscribe":
-		assertCtlByte(buf, NUM_BYTE, "SUBSCRIBE_ACK")
-		msg = newPubSubAck(SUBSCRIBE_ACK, subid, n)
+		assertCtlByte(buf, NUM_BYTE, "unsubscribe")
+		msg = newUnsubcribeAck(subid, n)
 	case "message":
 		assertCtlByte(buf, SIZE_BYTE, "MESSAGE")
 		msg = newMessage(subid, readBulkData(r, int(n)))

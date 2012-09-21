@@ -851,7 +851,7 @@ func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 	reader := c.super.reader
 	//	cmd := &SUBSCRIBE
 
-	message, e3 := GetPubSubResponse(reader, nil)
+	message, e3 := GetPubSubResponse(reader)
 	if e3 != nil {
 		// system error
 		log.Println("<TEMP DEBUG> on error in msgProcessingTask: ", e3)

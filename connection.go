@@ -187,17 +187,15 @@ type PendingResponse struct {
 // Defines the service contract supported by asynchronous (Request/FutureReply)
 // connections.
 
-// REVU - does this need its own special connection structure or
-// can we get away with just using the asyncConnHdl structure?
-// REVU - BEST is to reuse asyncConnHdl and simple have that support this
-//	      interface.
 type PubSubConnection interface {
-	// TODO - this connector needs to be given a channel to feed responses
-	// into as it does not use futures.
-	//	SetOutputChannel(<-chan message) bool
-	// TODO - then either a generic ServiceRequest or explicit Sub/UnSub/Quit
-	// REVU - best to keep it simple and use a single method so using Command
-	//	    -
+	Subscriptions() map[string]*Subscription
+	ServiceRequest(cmd *Command, args [][]byte) (ok bool, err Error)
+}
+
+type Subscription struct {
+	activated chan bool
+	Channel   chan []byte
+	IsActive  bool
 }
 
 // ----------------------------------------------------------------------------
@@ -311,7 +309,6 @@ func (hdl *connHdl) disconnect() {
 		// REVU - pretty please TODO do the customized log
 		//		log.Printf("<INFO> %s - DISCONNECTED", hdl)
 	}
-	//	return nil
 }
 
 // Creates a new SyncConnection using the provided ConnectionSpec.
@@ -448,15 +445,18 @@ type asyncConnHdl struct {
 	super  *connHdl
 	writer *bufio.Writer
 
-	nextid       int64
+	nextid int64
+
 	pendingReqs  chan asyncReqPtr
 	pendingResps chan asyncReqPtr
 	faults       chan asyncReqPtr
 
+	subscriptions map[string]*Subscription // REDIS_PUBSUB only
+
+	managerCtl   workerCtl
 	reqProcCtl   workerCtl
 	rspProcCtl   workerCtl
-	heartbeatCtl workerCtl
-	managerCtl   workerCtl
+	heartbeatCtl workerCtl // REDIS_DB only
 
 	feedback chan workerStatus
 
@@ -476,31 +476,42 @@ func (c *asyncConnHdl) spec() *ConnectionSpec {
 // Note it does not start the processing goroutines for the channels.
 //
 // REVU - PubSub could be checked here
-func newAsyncConnHdl(spec *ConnectionSpec) (async *asyncConnHdl) {
+func newAsyncConnHdl(spec *ConnectionSpec) *asyncConnHdl {
 
-	// create (super) connHdl
+	c := new(asyncConnHdl)
+
+	// connection base
 	connHdl := newConnHdl(spec) // panics
+	c.super = connHdl
 
-	async = new(asyncConnHdl)
-	async.super = connHdl
-	//			var e error
-	async.writer = bufio.NewWriterSize(connHdl.conn, spec.wBufSize)
+	// conn management
+	c.managerCtl = make(workerCtl)
+	c.feedback = make(chan workerStatus)
+	c.shutdown = make(chan bool, 1)
 
-	async.pendingReqs = make(chan asyncReqPtr, spec.reqChanCap)
-	async.pendingResps = make(chan asyncReqPtr, spec.rspChanCap)
-	async.faults = make(chan asyncReqPtr, spec.reqChanCap) // REVU - not sure about sizing
+	// request processing
+	c.writer = bufio.NewWriterSize(connHdl.conn, spec.wBufSize)
+	c.reqProcCtl = make(workerCtl)
+	c.pendingReqs = make(chan asyncReqPtr, spec.reqChanCap) // REVU for PubSub
 
-	async.reqProcCtl = make(workerCtl)
-	async.rspProcCtl = make(workerCtl)
-	async.heartbeatCtl = make(workerCtl)
-	async.managerCtl = make(workerCtl)
+	// fault processing
+	c.faults = make(chan asyncReqPtr, spec.reqChanCap) // REVU - not sure about sizing
 
-	async.feedback = make(chan workerStatus)
-	async.shutdown = make(chan bool, 1)
+	// response processing
+	c.rspProcCtl = make(workerCtl)
 
-	async.isShutdown = false
+	switch spec.protocol {
+	case REDIS_DB:
+		c.heartbeatCtl = make(workerCtl)
+		c.pendingResps = make(chan asyncReqPtr, spec.rspChanCap)
+	case REDIS_PUBSUB:
+		c.subscriptions = make(map[string]*Subscription)
+	}
 
-	return
+	// REVU - this is state - TODO move to startup
+	c.isShutdown = false
+
+	return c
 }
 
 // Creates and opens a new AsyncConnection and starts the goroutines for
@@ -515,6 +526,24 @@ func NewAsynchConnection(spec *ConnectionSpec) (conn AsyncConnection, err Error)
 	}()
 
 	//	var async *asyncConnHdl
+	async := newAsyncConnHdl(spec)
+	async.connect()
+	async.startup()
+
+	conn = async
+	return
+}
+
+func NewPubSubConnection(spec *ConnectionSpec) (conn PubSubConnection, err Error) {
+	defer func() {
+		if e := recover(); e != nil {
+			connerr := e.(error)
+			err = NewErrorWithCause(SYSTEM_ERR, "NewSyncConnection", connerr)
+		}
+	}()
+
+	//	var async *asyncConnHdl
+	spec.Protocol(REDIS_PUBSUB) // must be so set it regardless
 	async := newAsyncConnHdl(spec)
 	async.connect()
 	async.startup()
@@ -539,7 +568,6 @@ func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (pending *Pendi
 	if c.isShutdown {
 		panic(fmt.Errorf("Connection %s is alredy shutdown", c.String()))
 	}
-
 	select {
 	case <-c.shutdown:
 		c.isShutdown = true
@@ -552,7 +580,7 @@ func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (pending *Pendi
 	future := CreateFuture(cmd)
 	request := &asyncRequestInfo{0, 0, cmd, &buff, future, nil}
 
-	c.pendingReqs <- request // REVU - opt 1 TODO is handling QUIT and sending stop to workers
+	c.pendingReqs <- request
 
 	pending = &PendingResponse{future}
 
@@ -563,41 +591,65 @@ func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (pending *Pendi
 // asyncConnHdl support for PubSubConnection interface
 // ----------------------------------------------------------------------------
 
-//// TODO Quit - see REVU notes added for adding Quit to async in body
-//func (c *asyncConnHdl) ServicePubSubRequest(cmd *Command, args [][]byte) (, Error) {
-//
-//	if c.isShutdown {
-//		return nil, NewError(SYSTEM_ERR, "Connection is shutdown.")
-//	}
-//
-//	select {
-//	case <-c.shutdown:
-//		c.isShutdown = true
-//		c.shutdown <- true // put it back REVU likely to be a bug under heavy load ..
-//		//		log.Println("<DEBUG> we're shutdown and not accepting any more requests ...")
-//		return nil, NewError(SYSTEM_ERR, "Connection is shutdown.")
-//	default:
-//	}
-//
-//	future := CreateFuture(cmd)
-//	request := &asyncRequestInfo{0, 0, cmd, nil, future, nil}
-//
-//	buff, e1 := CreateRequestBytes(cmd, args)
-//	if e1 == nil {
-//		request.outbuff = &buff
-//		c.pendingReqs <- request // REVU - opt 1 TODO is handling QUIT and sending stop to workers
-//	} else {
-//		errmsg := fmt.Sprintf("Failed to create asynchrequest - %s aborted", cmd.Code)
-//		request.stat = inierr
-//		request.error = NewErrorWithCause(SYSTEM_ERR, errmsg, e1) // only makes sense if using go ...
-//		request.future.(FutureResult).onError(request.error)
-//
-//		return nil, request.error // remove if restoring go
-//	}
-//	//}();
-//	// done.
-//	return &PendingResponse{future}, nil
-//}
+// TODO - HERE
+// PubSubConnection support (only)
+// Accepts Redis commands (P)SUBSCRIBE and (P)UNSUBSCRIBE.
+// Request is processed asynchronously but call semantics are sync/blocking.
+func (c *asyncConnHdl) ServiceRequest(cmd *Command, args [][]byte) (ok bool, err Error) {
+
+	defer func() {
+		if re := recover(); re != nil {
+			// REVU - needs to be logged - TODO
+			err = NewErrorWithCause(SYSTEM_ERR, "QueueRequest", re.(error))
+		}
+	}()
+	switch *cmd {
+	case SUBSCRIBE, UNSUBSCRIBE: /* nop - ok */
+	default:
+		panic(fmt.Errorf("BUG - command %s is not applicable to PubSub", cmd))
+	}
+
+	if c.isShutdown {
+		panic(fmt.Errorf("Connection %s is alredy shutdown", c.String()))
+	}
+	select {
+	case <-c.shutdown:
+		c.isShutdown = true
+		c.shutdown <- true // put it back REVU likely to be a bug under heavy load ..
+		panic(fmt.Errorf("Connection %s is alredy shutdown", c.String()))
+	default:
+	}
+
+	buff := CreateRequestBytes(cmd, args) // panics
+	for _, arg := range args {
+		topic := string(arg)
+		if s := c.subscriptions[topic]; s != nil {
+			panic(fmt.Errorf("already subscribed to topic %s", topic))
+		}
+		subscription := &Subscription{
+			IsActive:  false,
+			activated: make(chan bool, 1),
+			Channel:   make(chan []byte, 100), // TODO - from spec
+		}
+		c.subscriptions[topic] = subscription
+		//  TODO - go routine for each sub to wait on the ack
+		//  TODO - and we wait here for all
+	}
+
+	//	future := CreateFuture(cmd)
+	//	request := &asyncRequestInfo{0, 0, cmd, &buff, future, nil}
+	request := &asyncRequestInfo{0, 0, cmd, &buff, nil, nil}
+	c.pendingReqs <- request
+
+	// REVU - we can do timeout and mod the sig.
+	ok = true
+
+	return
+}
+
+func (c *asyncConnHdl) Subscriptions() map[string]*Subscription {
+	return c.subscriptions
+}
 
 // ----------------------------------------------------------------------------
 // asyncConnHdl internal ops
@@ -838,7 +890,13 @@ func dbRspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, t
 	return nil, &ok_status
 }
 
+// REVU - 	this is wrong
+//			Given that there is no symmetric REQ for RESPs (unlike db reqs/rsps)
+// 			this needs to be a read on net with timeout so we need to mod
+//			or enhance the protocol funcs to deal with net read timeout.
 func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
+	log.Println("<TEMP DEBUG> msgProcessingTask - S0 ")
+	log.Printf("<TEMP DEBUG> msgProcessingTask - c.pendingResps:%s\n", c.pendingResps)
 	var req asyncReqPtr
 	select {
 	case sig := <-ctl:
@@ -848,17 +906,19 @@ func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 		c.pendingResps <- req
 		// continue to process
 	}
+
+	log.Println("<TEMP DEBUG> msgProcessingTask - S1 ")
 	reader := c.super.reader
 	//	cmd := &SUBSCRIBE
 
-	message, e3 := GetPubSubResponse(reader)
-	if e3 != nil {
+	message, e := GetPubSubResponse(reader)
+	if e != nil {
 		// system error
-		log.Println("<TEMP DEBUG> on error in msgProcessingTask: ", e3)
+		log.Println("<TEMP DEBUG> on error in msgProcessingTask: ", e)
 		req.stat = rcverr
-		req.error = NewErrorWithCause(SYSTEM_ERR, "GetResponse os.Error", e3)
+		req.error = NewErrorWithCause(SYSTEM_ERR, "GetResponse os.Error", e)
 		c.faults <- req
-		return nil, &taskStatus{rcverr, e3}
+		return nil, &taskStatus{rcverr, e}
 	}
 	log.Printf("MSG IN: %s\n", message)
 	//

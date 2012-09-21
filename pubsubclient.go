@@ -22,12 +22,8 @@ import ()
 
 type pubsubClient struct {
 	//	messages      chan []byte
-	subscriptions map[string]*subscriptionInfo
-	conn          PubSubConnection
-}
-
-type subscriptionInfo struct {
-	channel chan []byte
+	//	subscriptions map[string]*Subscription
+	conn PubSubConnection
 }
 
 func NewPubSubClient() (PubSubClient, Error) {
@@ -37,46 +33,65 @@ func NewPubSubClient() (PubSubClient, Error) {
 
 func NewPubSubClientWithSpec(spec *ConnectionSpec) (PubSubClient, Error) {
 	c := new(pubsubClient)
-	spec.Protocol(REDIS_PUBSUB) // must be so set it regardless
 	var err Error
-	c.conn, err = NewAsynchConnection(spec)
+	c.conn, err = NewPubSubConnection(spec)
 	if err != nil {
 		return nil, err
 	}
 
 	//	c.messages = make(chan []byte, spec.rspChanCap)
-	c.subscriptions = make(map[string]*subscriptionInfo)
+	//	c.subscriptions = make(map[string]*Subscription)
 
 	return c, nil
 }
 
-func (psc *pubsubClient) Messages(id string) PubSubChannel {
-	if s := psc.subscriptions[id]; s != nil {
-		return s.channel
+func (c *pubsubClient) Messages(topic string) PubSubChannel {
+	if s := c.conn.Subscriptions()[topic]; s != nil && s.IsActive {
+		return s.Channel
 	}
 	return nil
 }
 
-func (psc *pubsubClient) Subscriptions() []string {
-	ids := make([]string, 0)
-	for id, _ := range psc.subscriptions {
-		ids = append(ids, id)
+func (c *pubsubClient) Subscriptions() []string {
+	topics := make([]string, 0)
+	for topic, s := range c.conn.Subscriptions() {
+		if s.IsActive {
+			topics = append(topics, topic)
+		}
 	}
-	return ids
+	return topics
 }
 
-func (psc *pubsubClient) Subscribe(channel string, otherChannels ...string) (ch PubSubChannel, subscriptionCount int, err Error) {
-	//	args := appendAndConvert(channel, otherChannels...)
-
-	err = NewError(REDIS_ERR, "Subscribe() NOT IMPLEMENTED")
+// REVU - why not async semantics?
+func (c *pubsubClient) Subscribe(topic string, otherTopics ...string) (err Error) {
+	args := appendAndConvert(topic, otherTopics...)
+	//	var ok bool
+	_, err = c.conn.ServiceRequest(&SUBSCRIBE, args)
+	//	if err == nil {
+	//		err = NewError(REDIS_ERR, "Subscribe() NOT IMPLEMENTED")
+	//	}
 	return
 }
 
-func (psc *pubsubClient) Unsubscribe(channels ...string) (subscriptionCount int, err Error) {
-	err = NewError(REDIS_ERR, "Unsubscribe() NOT IMPLEMENTED")
+// REVU - why not async semantics?
+func (c *pubsubClient) Unsubscribe(topics ...string) (err Error) {
+	if topics == nil {
+		topics = c.Subscriptions()
+	}
+	var otherTopics []string = nil
+	if len(topics) > 1 {
+		otherTopics = topics[1:]
+	}
+	args := appendAndConvert(topics[0], otherTopics...)
+	//	var ok bool
+	_, err = c.conn.ServiceRequest(&UNSUBSCRIBE, args)
+	//	if err == nil {
+	//		err = NewError(REDIS_ERR, "Subscribe() NOT IMPLEMENTED")
+	//	}
 	return
 }
 
-func (psc *pubsubClient) Quit() Error {
+// REVU - why not async semantics?
+func (c *pubsubClient) Quit() Error {
 	return NewError(REDIS_ERR, "Quit() NOT IMPLEMENTED")
 }

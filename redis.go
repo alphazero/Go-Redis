@@ -580,37 +580,11 @@ type AsyncClient interface {
 //
 type PubSubClient interface {
 
-	//	// Allows client user to demux (e.g. merge) a given subscription's
-	//	// incoming messages chan to a common (user provided) channel
-	//	// of type <- chan PubSubMessage.
-	//	//
-	//	// The subscription specific channel (obtained on Subscribe() or via
-	//	// Messages method will still
-	//	//
-	//	// usage example (given initialized PubSubClient)
-	//	//    subid := "examples/subscription/123"
-	//	//    // we subscribe to subid
-	//	//    _, _, sube :- pubsub.Subscribe(subid)
-	//	//    if sube != nil { /* deal with error */}
-	//	//
-	//	//    // we also have (typically elsewhere) created a common
-	//	//	  // channel of depth n.
-	//	//    // e.g.
-	//	//    depth := 100
-	//	//    demuxchan := make(PubSubMessage, depth)
-	//	//
-	//	//    // Demux all messages for the subid to the provided demux chan
-	//	//	  // Note that unlike the subscription specific PubSubChannel
-	//	//    // the messages to this chan are PubSubMessage and not plain []bytes.
-	//	//    //
-	//
-	//	Demux (channel <- chan PubSubMessage, subscriptionId string) bool
-
 	// returns the incoming messages channel for this client, or nil
 	// if no such subscription is active.
 	// In event of Unsubscribing from a Redis channel, the
 	// client will close this channel.
-	Messages(subscriptionId string) PubSubChannel
+	Messages(topic string) PubSubChannel
 
 	// return the subscribed channel ids, whether specificly named, or
 	// pattern based.
@@ -622,7 +596,8 @@ type PubSubClient interface {
 	// Channel names can be explicit or pattern based (ending in '*')
 	//
 	// Returns the number of currently subscribed channels OR error (if any)
-	Subscribe(channel string, otherChannels ...string) (messages PubSubChannel, subscriptionCount int, err Error)
+	//	Subscribe(channel string, otherChannels ...string) (messages PubSubChannel, subscriptionCount int, err Error)
+	Subscribe(topic string, otherTopics ...string) (err Error)
 
 	// Redis PUNSUBSCRIBE command.
 	// unsubscribe from 1 or more pubsub channels.  If arg is nil,
@@ -631,7 +606,7 @@ type PubSubClient interface {
 	// Channel names can be explicit or pattern based (ending in '*')
 	//
 	// Returns the number of currently subscribed channels OR error (if any)
-	Unsubscribe(channels ...string) (subscriptionCount int, err Error)
+	Unsubscribe(channels ...string) (err Error)
 
 	// Quit closes the client and client reference can be disposed.
 	// This is a blocking call.

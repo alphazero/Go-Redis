@@ -189,9 +189,11 @@ var (
 	INFO          Command = Command{"INFO", NO_ARG, BULK}
 	MONITOR       Command = Command{"MONITOR", NO_ARG, VIRTUAL}
 	// TODO	SORT		(RequestType.MULTI_KEY,		ResponseType.MULTI_BULK),
-	PUBLISH     Command = Command{"PUBLISH", KEY_VALUE, NUMBER}
-	SUBSCRIBE   Command = Command{"PSUBSCRIBE", MULTI_KEY, MULTI_BULK}
-	UNSUBSCRIBE Command = Command{"PUNSUBSCRIBE", MULTI_KEY, MULTI_BULK}
+	PUBLISH      Command = Command{"PUBLISH", KEY_VALUE, NUMBER}
+	SUBSCRIBE    Command = Command{"SUBSCRIBE", MULTI_KEY, MULTI_BULK}
+	UNSUBSCRIBE  Command = Command{"UNSUBSCRIBE", MULTI_KEY, MULTI_BULK}
+	PSUBSCRIBE   Command = Command{"PSUBSCRIBE", MULTI_KEY, MULTI_BULK}
+	PUNSUBSCRIBE Command = Command{"PUNSUBSCRIBE", MULTI_KEY, MULTI_BULK}
 )
 
 // ----------------------------------------------------------------------

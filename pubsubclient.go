@@ -14,8 +14,6 @@
 
 package redis
 
-import ()
-
 // -----------------------------------------------------------------------------
 // pubsubClient - supports PubSubClient interface
 // -----------------------------------------------------------------------------
@@ -46,9 +44,21 @@ func NewPubSubClientWithSpec(spec *ConnectionSpec) (PubSubClient, Error) {
 }
 
 func (c *pubsubClient) Messages(topic string) PubSubChannel {
-	if s := c.conn.Subscriptions()[topic]; s != nil && s.IsActive {
-		return s.Channel
+	// REVU - only after impl blocking subscribe in connection#ServiceRequest
+	if s := c.conn.Subscriptions()[topic]; s != nil {
+		ok, err := s.activated.Get()
+		if err != nil {
+			panic("BUG")
+		}
+		if ok {
+			return s.Channel
+		} else {
+			panic("BUG - isActivated.Get() returned nil err and false future results")
+		}
 	}
+	//	if s := c.conn.Subscriptions()[topic]; s != nil {
+	//		return s.Channel
+	//	}
 	return nil
 }
 

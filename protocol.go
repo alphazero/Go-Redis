@@ -352,6 +352,7 @@ func newUnsubcribeAck(topic string, scnt int) *Message {
 // PubSub message processing
 // ----------------------------------------------------------------------------
 
+// REVU - needs to return Error to capture cause e.g. net.Error (timeout)
 func GetPubSubResponse(r *bufio.Reader) (msg *Message, err error) {
 	defer func() {
 		e := recover()
@@ -366,7 +367,7 @@ func GetPubSubResponse(r *bufio.Reader) (msg *Message, err error) {
 	num, e := strconv.ParseInt(string(buf[1:len(buf)]), 10, 64)
 	assertNotError(e, "in getPubSubResponse - ParseInt")
 	if num != 3 {
-		panic(fmt.Errorf("<BUG> Expecting *3 for len in response - got %d", num))
+		panic(fmt.Errorf("<BUG> Expecting *3 for len in response - got %d - buf: %s", num, buf))
 	}
 
 	header := readMultiBulkData(r, 2)
@@ -381,15 +382,18 @@ func GetPubSubResponse(r *bufio.Reader) (msg *Message, err error) {
 
 	// TODO - REVU decisiont to conflate P/SUB and P/UNSUB
 	switch msgtype {
-	case "subscribe", "psubscribe":
+	case "subscribe":
 		assertCtlByte(buf, NUM_BYTE, "subscribe")
 		msg = newSubcribeAck(subid, n)
-	case "unsubscribe", "punsubscribe":
+	case "unsubscribe":
 		assertCtlByte(buf, NUM_BYTE, "unsubscribe")
 		msg = newUnsubcribeAck(subid, n)
 	case "message":
 		assertCtlByte(buf, SIZE_BYTE, "MESSAGE")
 		msg = newMessage(subid, readBulkData(r, int(n)))
+	// TODO
+	case "psubscribe", "punsubscribe", "pmessage":
+		panic(fmt.Errorf("<BUG> - pattern-based message type %s not implemented", msgtype))
 	}
 
 	return
@@ -406,6 +410,7 @@ func GetPubSubResponse(r *bufio.Reader) (msg *Message, err error) {
 //
 // panics on error
 
+// REVU - needs to throw Error to capture cause e.g. net.Error (timeout)
 func readToCRLF(r *bufio.Reader) []byte {
 	//	var buf []byte
 	buf, err := r.ReadBytes(CR_BYTE)
@@ -424,6 +429,7 @@ func readToCRLF(r *bufio.Reader) []byte {
 	return buf[0 : len(buf)-1]
 }
 
+// REVU - needs to throw Error to capture cause e.g. net.Error (timeout)
 func readBulkData(r *bufio.Reader, n int) (data []byte) {
 	if n >= 0 {
 		buffsize := n + 2
@@ -440,6 +446,7 @@ func readBulkData(r *bufio.Reader, n int) (data []byte) {
 	return
 }
 
+// REVU - needs to throw Error to capture cause e.g. net.Error (timeout)
 func readMultiBulkData(conn *bufio.Reader, num int) [][]byte {
 	data := make([][]byte, num)
 	for i := 0; i < num; i++ {

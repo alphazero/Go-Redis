@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"reflect"
 	"time"
 )
 
@@ -35,8 +36,8 @@ const (
 	DefaultRespChanSize         = 1000000
 	DefaultTCPReadBuffSize      = 1024 * 256
 	DefaultTCPWriteBuffSize     = 1024 * 256
-	DefaultTCPReadTimeoutNSecs  = 10 * time.Second
-	DefaultTCPWriteTimeoutNSecs = 10 * time.Second
+	DefaultTCPReadTimeoutNSecs  = 1000 * time.Nanosecond
+	DefaultTCPWriteTimeoutNSecs = 1000 * time.Nanosecond
 	DefaultTCPLinger            = 0 // -n: finish io; 0: discard, +n: wait for n secs to finish
 	DefaultTCPKeepalive         = true
 	DefaultHeartbeatSecs        = 1 * time.Second
@@ -189,13 +190,16 @@ type PendingResponse struct {
 
 type PubSubConnection interface {
 	Subscriptions() map[string]*Subscription
-	ServiceRequest(cmd *Command, args [][]byte) (ok bool, err Error)
+	ServiceRequest(cmd *Command, args [][]byte) (pending map[string]FutureBool, err Error)
 }
 
+// REVU - why is this exported?
 type Subscription struct {
-	activated chan bool
-	Channel   chan []byte
-	IsActive  bool
+	activated FutureBool
+	//	closed FutureBool // REVU - for unsubscribe - necessary?
+	//	activated chan bool
+	Channel  chan []byte
+	IsActive bool // REVU - not necessary
 }
 
 // ----------------------------------------------------------------------------
@@ -261,12 +265,11 @@ func newConnHdl(spec *ConnectionSpec) (hdl *connHdl) {
 }
 
 func configureConn(conn net.Conn, spec *ConnectionSpec) {
-	// REVU [jh] - TODO look into this 09-13-2012
-	// these two -- the most important -- are causing problems on my osx/64
-	// where a "service unavailable" pops up in the async reads
-	// but we absolutely need to be able to use timeouts.
-	//			conn.SetReadTimeout(spec.rTimeout);
-	//			conn.SetWriteTimeout(spec.wTimeout);
+	// REVU - this requires a refact of protocol.go's error propagation
+	// starting from read or write op -- 09-22-2012
+	// TODO 09-23-2012
+	// Deadline can be set in a handful of callsites in connection.go
+	// but need a clean way to test for net.Error (as cause) and timeout
 	if tcp, ok := conn.(*net.TCPConn); ok {
 		tcp.SetLinger(spec.lingerspec)
 		tcp.SetKeepAlive(spec.keepalive)
@@ -595,7 +598,8 @@ func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (pending *Pendi
 // PubSubConnection support (only)
 // Accepts Redis commands (P)SUBSCRIBE and (P)UNSUBSCRIBE.
 // Request is processed asynchronously but call semantics are sync/blocking.
-func (c *asyncConnHdl) ServiceRequest(cmd *Command, args [][]byte) (ok bool, err Error) {
+func (c *asyncConnHdl) ServiceRequest(cmd *Command, args [][]byte) (pending map[string]FutureBool, err Error) {
+	//func (c *asyncConnHdl) ServiceRequest(cmd *Command, args [][]byte) (ok bool, err Error) {
 
 	defer func() {
 		if re := recover(); re != nil {
@@ -620,29 +624,32 @@ func (c *asyncConnHdl) ServiceRequest(cmd *Command, args [][]byte) (ok bool, err
 	default:
 	}
 
+	// REVU - issue with this pattern is that request side errors
+	// REVU   are not captured.
+	pending = make(map[string]FutureBool)
+
 	buff := CreateRequestBytes(cmd, args) // panics
 	for _, arg := range args {
 		topic := string(arg)
 		if s := c.subscriptions[topic]; s != nil {
 			panic(fmt.Errorf("already subscribed to topic %s", topic))
 		}
+		pendingActivation := newFutureBool()
+		pending[topic] = pendingActivation
 		subscription := &Subscription{
 			IsActive:  false,
-			activated: make(chan bool, 1),
+			activated: pendingActivation,
 			Channel:   make(chan []byte, 100), // TODO - from spec
 		}
 		c.subscriptions[topic] = subscription
-		//  TODO - go routine for each sub to wait on the ack
-		//  TODO - and we wait here for all
 	}
 
+	// REVU - errors on request side are conveyed via the future in request
+	// REVU - issue is how t
 	//	future := CreateFuture(cmd)
 	//	request := &asyncRequestInfo{0, 0, cmd, &buff, future, nil}
 	request := &asyncRequestInfo{0, 0, cmd, &buff, nil, nil}
 	c.pendingReqs <- request
-
-	// REVU - we can do timeout and mod the sig.
-	ok = true
 
 	return
 }
@@ -692,6 +699,8 @@ func (c *asyncConnHdl) startup() {
 		rspProcTask = dbRspProcessingTask
 	case REDIS_PUBSUB:
 		rspProcTask = msgProcessingTask
+		//		cmd := SUBSCRIBE
+		//		c.pendingResps <- &asyncRequestInfo{0, 0, &cmd, nil, nil, nil}
 	}
 	go c.worker(responsehandler, "response-processor", rspProcTask, c.rspProcCtl, c.feedback)
 	c.rspProcCtl <- start
@@ -890,39 +899,58 @@ func dbRspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, t
 	return nil, &ok_status
 }
 
-// REVU - 	this is wrong
-//			Given that there is no symmetric REQ for RESPs (unlike db reqs/rsps)
-// 			this needs to be a read on net with timeout so we need to mod
-//			or enhance the protocol funcs to deal with net read timeout.
 func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
-	log.Println("<TEMP DEBUG> msgProcessingTask - S0 ")
-	log.Printf("<TEMP DEBUG> msgProcessingTask - c.pendingResps:%s\n", c.pendingResps)
-	var req asyncReqPtr
+	//	log.Println("<TEMP DEBUG> msgProcessingTask - S0 ")
+	//	log.Printf("<TEMP DEBUG> msgProcessingTask - c.pendingResps:%s\n", c.pendingResps)
+	//	var req asyncReqPtr
+	timer := time.NewTimer(2 * time.Nanosecond)
 	select {
 	case sig := <-ctl:
 		// interrupted
 		return &sig, &ok_status
-	case req = <-c.pendingResps:
-		c.pendingResps <- req
-		// continue to process
+	case <-timer.C:
+		// continue
 	}
 
-	log.Println("<TEMP DEBUG> msgProcessingTask - S1 ")
+	//	log.Println("<TEMP DEBUG> msgProcessingTask - S2 ")
 	reader := c.super.reader
 	//	cmd := &SUBSCRIBE
 
+	deadline := time.Now().Add(100 * time.Second)
+	c.super.conn.SetReadDeadline(deadline)
 	message, e := GetPubSubResponse(reader)
 	if e != nil {
+		// REVU - need to check if it is a timeout error
+		// TODO - GetPubSubResponse needs to return cause
+		etype := reflect.TypeOf(e)
+		log.Printf("<TEMP><DEBUG> e: %s - etype:%s\n", e, etype)
 		// system error
 		log.Println("<TEMP DEBUG> on error in msgProcessingTask: ", e)
-		req.stat = rcverr
-		req.error = NewErrorWithCause(SYSTEM_ERR, "GetResponse os.Error", e)
-		c.faults <- req
+		return nil, &ok_status
+		//		req.stat = rcverr
+		//		req.error = NewErrorWithCause(SYSTEM_ERR, "GetResponse os.Error", e)
+		//		c.faults <- req
+		//		return nil, &taskStatus{rcverr, e}
+	}
+	s := c.subscriptions[message.Topic]
+	switch message.Type {
+	case SUBSCRIBE_ACK:
+		s.activated.set(true)
+		s.IsActive = true
+		//		c.subscriptions[message.Topic].activated <- true
+	case UNSUBSCRIBE_ACK:
+		s.IsActive = false
+		close(s.Channel)
+	case MESSAGE:
+		log.Printf("MSG IN: %s\n", message)
+		s.Channel <- message.Body
+	default:
+		e := fmt.Errorf("BUG - TODO - unhandled message type - %s", message.Type)
 		return nil, &taskStatus{rcverr, e}
 	}
-	log.Printf("MSG IN: %s\n", message)
 	//
-	panic("msgProcessingTask not implemented")
+	//	panic("msgProcessingTask not implemented")
+	return nil, &ok_status
 }
 
 // Pending further tests, this addresses bug in earlier version
@@ -997,9 +1025,13 @@ func (c *asyncConnHdl) processAsyncRequest(req asyncReqPtr) (blen int, e error) 
 			e = re.(error)
 			log.Println("<BUG> lazy programmer >> ERROR in processRequest goroutine -req requeued for now")
 			// TODO: set stat on future & inform conn control and put it in faulted list
-			c.pendingReqs <- req
+			req.future.(FutureResult).onError(NewErrorWithCause(SYSTEM_ERR, "recovered panic in processAsyncRequest", e))
+			c.faults <- req
+			//			c.pendingReqs <- req
 		}
 	}()
+
+	// REVU - where is error check on this?
 	sendRequest(c.writer, *req.outbuff)
 
 	req.outbuff = nil

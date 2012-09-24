@@ -1,10 +1,7 @@
-// REVU - only whitebox testing in redis package
-//		- freeze adding any more test code for client here
-// TODO - move to blackbox redis/test package
-
-package redis
+package test
 
 import (
+	"redis"
 	"testing"
 	"testing/quick"
 )
@@ -26,14 +23,14 @@ const (
 
 // connection spec used in tests, using db 13 and password 'go-redis'.
 // db 13 will be repeatedly flushed, as noted elsewhere.
-func _test_getDefConnSpec() *ConnectionSpec {
+func _test_getDefConnSpec() *redis.ConnectionSpec {
 
 	host := "localhost"
 	port := 6379
 	db := 13
 	password := "go-redis"
 
-	connspec := DefaultSpec().Host(host).Port(port).Db(db).Password(password)
+	connspec := redis.DefaultSpec().Host(host).Port(port).Db(db).Password(password)
 	return connspec
 }
 
@@ -79,17 +76,17 @@ func TestFu(t *testing.T) {
 	quick.Check(setup_nums, config)
 }
 
-func _test_getDefaultSyncClient() (Client, Error) {
-	spec := DefaultSpec()
-	spec.Db(13).Password("go-redis")
-	return NewSynchClientWithSpec(spec)
-}
-
-func _test_getDefaultAsyncClient() (AsyncClient, Error) {
-	spec := DefaultSpec()
-	spec.Db(13).Password("go-redis")
-	return NewAsynchClientWithSpec(spec)
-}
+//func _test_getDefaultSyncClient() (redis.Client, redis.Error) {
+//	spec := redis.DefaultSpec()
+//	spec.Db(13).Password("go-redis")
+//	return redis.NewSynchClientWithSpec(spec)
+//}
+//
+//func _test_getDefaultAsyncClient() (AsyncClient, redis.Error) {
+//	spec := redis.DefaultSpec()
+//	spec.Db(13).Password("go-redis")
+//	return NewAsynchClientWithSpec(spec)
+//}
 
 // ----------------------------------------------------------------------
 // test utility functions

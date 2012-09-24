@@ -2,15 +2,16 @@
 //		- freeze adding any more test code for client here
 // TODO - move to blackbox redis/test package
 
-package redis
+package test
 
 import (
 	"fmt"
 	"log"
+	"redis"
 	"testing"
 )
 
-func asyncFlushAndQuitOnCompletion(t *testing.T, client AsyncClient) {
+func asyncFlushAndQuitOnCompletion(t *testing.T, client redis.AsyncClient) {
 	// flush it
 	fStat, e := client.Flushdb()
 	if e != nil {
@@ -40,9 +41,9 @@ func asyncFlushAndQuitOnCompletion(t *testing.T, client AsyncClient) {
 // Check that connection is actually passing passwords from spec
 // and catching AUTH ERRs.
 func TestAsyncClientConnectWithBadSpec(t *testing.T) {
-	spec := _test_getDefConnSpec()
+	spec := getTestConnSpec()
 	spec.Password("bad-password")
-	client, expected := NewAsynchClientWithSpec(spec)
+	client, expected := redis.NewAsynchClientWithSpec(spec)
 	if expected == nil {
 		t.Error("BUG: Expected a RedisError")
 	}
@@ -53,9 +54,9 @@ func TestAsyncClientConnectWithBadSpec(t *testing.T) {
 
 // Check that connection is actually passing passwords from spec
 func TestAsyncClientConnectWithSpec(t *testing.T) {
-	spec := _test_getDefConnSpec()
+	spec := getTestConnSpec()
 
-	client, err := NewAsynchClientWithSpec(spec)
+	client, err := redis.NewAsynchClientWithSpec(spec)
 	if err != nil {
 		t.Fatalf("failed to create client with spec. Error: %s ", err)
 	} else if client == nil {
@@ -92,10 +93,7 @@ func TestAsyncClientConnectWithSpec(t *testing.T) {
 }
 
 func TestAsyncMget(t *testing.T) {
-	client, e := _test_getDefaultAsyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewAsyncClient(t)
 
 	vprefix := "the-value"
 	key := "mget-test"
@@ -107,7 +105,7 @@ func TestAsyncMget(t *testing.T) {
 	if _, fe := fSet.Get(); fe != nil {
 		t.Fatalf("on fset.Get - %s", fe)
 	}
-	var fMget FutureBytesArray
+	var fMget redis.FutureBytesArray
 	fMget, e = client.Mget(key, nil)
 	if e != nil {
 		t.Fatalf("on Set(%s, %s) - %s", key, vprefix, e)
@@ -125,7 +123,7 @@ func TestAsyncMget(t *testing.T) {
 	}
 	expected := []byte(vprefix)
 	got := vset[0]
-	if !_test_compareByteArrays(expected, got) {
+	if !compareByteArrays(expected, got) {
 		t.Fatalf("Mget res [0] - expected: %s got: %s", expected, got)
 	}
 
@@ -155,7 +153,7 @@ func TestAsyncMget(t *testing.T) {
 		}
 		for j := 1; j < len(vset); j++ {
 			expected := []byte(fmt.Sprintf("%s_%03d", vprefix, j-1))
-			if !_test_compareByteArrays(vset[j], expected) {
+			if !compareByteArrays(vset[j], expected) {
 				t.Errorf("on Mget(%s) - expected %s, got: %s", key, expected, vset[j])
 			}
 		}

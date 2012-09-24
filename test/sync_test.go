@@ -1,16 +1,13 @@
-// REVU - only whitebox testing in redis package
-//		- freeze adding any more test code for client here
-// TODO - move to blackbox redis/test package
-
-package redis
+package test
 
 import (
 	"fmt"
 	"log"
+	"redis"
 	"testing"
 )
 
-func flushAndQuitOnCompletion(t *testing.T, client Client) {
+func flushAndQuitOnCompletion(t *testing.T, client redis.Client) {
 	// flush it
 	e := client.Flushdb()
 	if e != nil {
@@ -25,9 +22,9 @@ func flushAndQuitOnCompletion(t *testing.T, client Client) {
 // Check that connection is actually passing passwords from spec
 // and catching AUTH ERRs.
 func TestSyncClientConnectWithBadSpec(t *testing.T) {
-	spec := _test_getDefConnSpec()
+	spec := getTestConnSpec()
 	spec.Password("bad-password")
-	client, expected := NewSynchClientWithSpec(spec)
+	client, expected := redis.NewSynchClientWithSpec(spec)
 	if expected == nil {
 		t.Error("BUG: Expected a RedisError")
 	}
@@ -38,9 +35,9 @@ func TestSyncClientConnectWithBadSpec(t *testing.T) {
 
 // Check that connection is actually passing passwords from spec
 func TestSyncClientConnectWithSpec(t *testing.T) {
-	spec := _test_getDefConnSpec()
+	spec := getTestConnSpec()
 
-	client, err := NewSynchClientWithSpec(spec)
+	client, err := redis.NewSynchClientWithSpec(spec)
 	if err != nil {
 		t.Fatalf("failed to create client with spec. Error: %s", err)
 	} else if client == nil {
@@ -50,10 +47,7 @@ func TestSyncClientConnectWithSpec(t *testing.T) {
 }
 
 func TestPing(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	if e := client.Ping(); e != nil {
 		t.Errorf("on Ping() - %s", e)
@@ -63,10 +57,7 @@ func TestPing(t *testing.T) {
 }
 
 func TestQuit(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	if e := client.Quit(); e != nil {
 		t.Errorf("on Quit() - %s", e)
@@ -81,10 +72,7 @@ func TestQuit(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
 		if e := client.Set(k, v); e != nil {
@@ -96,10 +84,7 @@ func TestSet(t *testing.T) {
 }
 
 func TestSetnx(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
 		ok, e := client.Setnx(k, v)
@@ -124,10 +109,7 @@ func TestSetnx(t *testing.T) {
 }
 
 func TestGetset(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
 		// set some
@@ -160,10 +142,7 @@ func TestGetset(t *testing.T) {
 }
 
 func TestSetThenGet(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	for k, v := range testdata[_testdata_kv].(map[string][]byte) {
 		if e := client.Set(k, v); e != nil {
@@ -185,10 +164,7 @@ func TestSetThenGet(t *testing.T) {
 }
 
 func TestMget(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	vprefix := "the-value"
 	key := "mget-test"
@@ -240,20 +216,17 @@ func TestMget(t *testing.T) {
 }
 
 func TestGetType(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
-	var expected, got KeyType
+	var expected, got redis.KeyType
 	var key string
 
 	key = "string-key"
 	if e := client.Set(key, []byte("woof")); e != nil {
 		t.Errorf("on Set - %s", e)
 	}
-	expected = RT_STRING
-	got, e = client.Type(key)
+	expected = redis.RT_STRING
+	got, e := client.Type(key)
 	if e != nil {
 		t.Errorf("on Type(%s) - %s", key, e)
 	}
@@ -265,7 +238,7 @@ func TestGetType(t *testing.T) {
 	if _, e := client.Sadd(key, []byte("woof")); e != nil {
 		t.Errorf("on Sadd - %s", e)
 	}
-	expected = RT_SET
+	expected = redis.RT_SET
 	got, e = client.Type(key)
 	if e != nil {
 		t.Errorf("on Type(%s) - %s", key, e)
@@ -278,7 +251,7 @@ func TestGetType(t *testing.T) {
 	if e = client.Lpush(key, []byte("woof")); e != nil {
 		t.Errorf("on Lpush - %s", e)
 	}
-	expected = RT_LIST
+	expected = redis.RT_LIST
 	got, e = client.Type(key)
 	if e != nil {
 		t.Errorf("on Type(%s) - %s", key, e)
@@ -291,7 +264,7 @@ func TestGetType(t *testing.T) {
 	if _, e = client.Zadd(key, float64(0), []byte("woof")); e != nil {
 		t.Errorf("on Zadd - %s", e)
 	}
-	expected = RT_ZSET
+	expected = redis.RT_ZSET
 	got, e = client.Type(key)
 	if e != nil {
 		t.Errorf("on Type(%s) - %s", key, e)
@@ -304,10 +277,7 @@ func TestGetType(t *testing.T) {
 }
 
 func TestSave(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	if e := client.Save(); e != nil {
 		t.Errorf("on Save() - %s", e)
@@ -317,10 +287,7 @@ func TestSave(t *testing.T) {
 }
 
 func TestAllKeys(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	kvmap := testdata[_testdata_kv].(map[string][]byte)
 	for k, v := range kvmap {
@@ -350,10 +317,7 @@ func TestAllKeys(t *testing.T) {
 }
 
 func TestKeys(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	prefix := "prefix_"
 	kvmap := testdata[_testdata_kv].(map[string][]byte)
@@ -389,10 +353,7 @@ func TestKeys(t *testing.T) {
 }
 
 func TestExists(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	kvmap := testdata[_testdata_kv].(map[string][]byte)
 	for k, v := range kvmap {
@@ -419,10 +380,7 @@ func TestExists(t *testing.T) {
 }
 
 func TestRename(t *testing.T) {
-	client, e := _test_getDefaultSyncClient()
-	if e != nil {
-		t.Fatalf("on getDefaultClient - %s", e)
-	}
+	client := NewClient(t)
 
 	prefix := "renamed_"
 	kvmap := testdata[_testdata_kv].(map[string][]byte)

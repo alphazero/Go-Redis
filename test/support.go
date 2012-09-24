@@ -66,6 +66,10 @@ func quickConfAll(method string) *quick.Config {
 // ----------------------------------------------------------------------
 
 func NewAsyncClient(t *testing.T) redis.AsyncClient {
+	return NewAsyncClientWithSpec(t, getTestConnSpec())
+}
+
+func NewAsyncClientWithSpec(t *testing.T, spec *redis.ConnectionSpec) redis.AsyncClient {
 	client, err := redis.NewAsynchClientWithSpec(getTestConnSpec())
 	if err != nil {
 		t.Fatalf("NewAsynchClientWithSpec - ", err)

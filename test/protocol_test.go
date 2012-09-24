@@ -45,7 +45,7 @@ func TestGetPubSubResponse(t *testing.T) {
 // Note: func uses t.Errorf and NOT Fatalf.
 
 func verifyMessage(info string, t *testing.T, expected, got *redis.Message) {
-//	fmt.Printf("compare:\n\t%s\n\t%s\n", expected, got)
+	//	fmt.Printf("compare:\n\t%s\n\t%s\n", expected, got)
 	var expectedMType, gotMType redis.PubSubMType
 	var expectedTopic, gotTopic string
 	var expectedBody, gotBody []byte

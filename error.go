@@ -17,6 +17,8 @@ package redis
 import (
 	"fmt"
 	"log"
+	"net"
+	"reflect"
 )
 
 // ----------------------------------------------------------------------------
@@ -53,6 +55,9 @@ type systemError struct {
 func newSystemError(msg string) Error {
 	return newSystemErrorWithCause(msg, nil)
 }
+func newSystemErrorf(format string, args ...interface{}) Error {
+	return newSystemError(fmt.Sprintf(format, args...))
+}
 
 func newSystemErrorWithCause(msg string, cause error) Error {
 	e := &systemError{
@@ -86,22 +91,69 @@ type RedisError interface {
 	Message() string
 }
 
-type redisError2 struct {
+type redisError struct {
 	msg string
 }
 
 func newRedisError(msg string) Error {
-	e := &redisError2{
+	e := &redisError{
 		msg: msg,
 	}
 	return e
 }
 
 // See: redis.Error#IsRedisError()
-func (e *redisError2) IsRedisError() bool { return true }
+func (e *redisError) IsRedisError() bool { return true }
 
-func (e *redisError2) Error() string {
+func (e *redisError) Error() string {
 	return fmt.Sprintf("REDIS_ERROR - %s", e.msg)
+}
+
+// ----------------------------------------------------------------------
+// error handling helper functions
+// ----------------------------------------------------------------------
+
+func onRecover(e interface{}, info string) (err Error) {
+	if e != nil {
+		switch {
+		case isSystemError(e):
+			return e.(Error)
+		case isGenericError(e):
+			return newSystemErrorWithCause(info, e.(error))
+		default:
+			return newSystemErrorf(info+" - recovered: %s", e)
+		}
+	}
+	return nil
+}
+func isGenericError(e interface{}) bool {
+	if e != nil && !(isRedisError(e) || isSystemError(e)) {
+		return true
+	}
+	return false
+}
+func isSystemError(e interface{}) bool {
+	if e != nil && reflect.TypeOf(e).Implements(reflect.TypeOf((*SystemError)(nil)).Elem()) {
+		return true
+	}
+
+	return false
+}
+func isRedisError(e interface{}) bool {
+	if e != nil && reflect.TypeOf(e).Implements(reflect.TypeOf((*RedisError)(nil)).Elem()) {
+		return true
+	}
+	return false
+}
+func isNetError(e interface{}) bool {
+	if e != nil && reflect.TypeOf(e).Implements(reflect.TypeOf((*net.Error)(nil)).Elem()) {
+		return true
+	}
+	fmt.Printf("a: %s\n", reflect.TypeOf((*error)(nil)).Elem())
+	fmt.Printf("b: %s\n", reflect.TypeOf((**net.Error)(nil)).Elem())
+	var xtype = reflect.TypeOf((*net.Error)(nil)).Elem()
+	fmt.Printf("implements: %t\n", reflect.TypeOf(e).Implements(xtype))
+	return false
 }
 
 // ----------------------------------------------------------------------

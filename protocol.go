@@ -12,6 +12,11 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
+// REVU notes for protocol.go
+// - all exported funcs that can raise error must return Error.
+// - If error is via panic, then it must be a SystemError
+// - If SystemError and with cause, the cause must be std.lib or 3rd party
+
 package redis
 
 import (
@@ -52,12 +57,12 @@ var WHITESPACE ctlbytes = ctlbytes{SPACE_BYTE}
 // Creates the byte buffer that corresponds to the specified Command and
 // provided command arguments.
 //
-// panics on error (with error)
+// panics on error (with redis.Error)
 func CreateRequestBytes(cmd *Command, args [][]byte) []byte {
 
 	defer func() {
 		if e := recover(); e != nil {
-			panic(fmt.Errorf("CreateRequestBytes(%s) - failed to create request buffer", cmd.Code))
+			panic(newSystemErrorf("CreateRequestBytes(%s) - failed to create request buffer", cmd.Code))
 		}
 	}()
 	cmd_bytes := []byte(cmd.Code)
@@ -138,16 +143,16 @@ func SetFutureResult(future interface{}, cmd *Command, r Response) {
 
 // Either writes all the bytes or it fails and returns an error
 //
-// panics on error (with error)
+// panics on error (with redis.Error)
 func sendRequest(w io.Writer, data []byte) {
 	loginfo := "sendRequest"
 	if w == nil {
-		panic(fmt.Errorf("<BUG> %s() - nil Writer", loginfo))
+		panic(newSystemErrorf("<BUG> %s() - nil Writer", loginfo))
 	}
 
 	n, e := w.Write(data)
 	if e != nil {
-		panic(fmt.Errorf("%s() - connection Write wrote %d bytes only.", loginfo, n))
+		panic(newSystemErrorf("%s() - connection Write wrote %d bytes only.", loginfo, n))
 	}
 
 	// doc isn't too clear but the underlying netFD may return n<len(data) AND
@@ -155,7 +160,7 @@ func sendRequest(w io.Writer, data []byte) {
 	// presumably we can try sending the remaining bytes but that is precisely
 	// what netFD.Write is doing (and it couldn't) so ...
 	if n < len(data) {
-		panic(fmt.Sprintf("%s() - connection Write wrote %d bytes only.", loginfo, n))
+		panic(newSystemErrorf("%s() - connection Write wrote %d bytes only.", loginfo, n))
 	}
 }
 
@@ -197,17 +202,15 @@ func (r *_response) GetMultiBulkData() [][]byte {
 // ----------------------------------------------------------------------------
 
 // Gets the response to the command.
-// Any errors (whether runtime or bugs) are returned as os.Error.
-// The returned response (regardless of flavor) may have (application level)
-// errors as sent from Redis server.
 //
-func GetResponse(reader *bufio.Reader, cmd *Command) (resp Response, err error) {
+// The returned response (regardless of flavor) may have (application level)
+// errors as sent from Redis server.  (Note err will be nil in that case)
+//
+// Any errors (whether runtime or bugs) are returned as redis.Error.
+func GetResponse(reader *bufio.Reader, cmd *Command) (resp Response, err Error) {
 
 	defer func() {
-		e := recover()
-		if e != nil {
-			err = e.(error)
-		}
+		err = onRecover(recover(), "GetResponse")
 	}()
 
 	buf := readToCRLF(reader)
@@ -256,15 +259,17 @@ func GetResponse(reader *bufio.Reader, cmd *Command) (resp Response, err error) 
 	panic(fmt.Errorf("BUG - GetResponse - this should not have been reached"))
 }
 
+// panics on error (with redis.Error)
 func assertCtlByte(buf []byte, b byte, info string) {
 	if buf[0] != b {
-		panic(fmt.Errorf("control byte for %s is not '%s' as expected - got '%s'", info, string(b), string(buf[0])))
+		panic(newSystemErrorf("control byte for %s is not '%s' as expected - got '%s'", info, string(b), string(buf[0])))
 	}
 }
 
+// panics on error (with redis.Error)
 func assertNotError(e error, info string) {
 	if e != nil {
-		panic(fmt.Errorf("%s - error: %s", info, e))
+		panic(newSystemErrorWithCause(info, e))
 	}
 }
 
@@ -291,17 +296,8 @@ func (t PubSubMType) String() string {
 	case MESSAGE:
 		return "MESSAGE"
 	}
-	panic(fmt.Errorf("BUG - unknown PubSubMType %d", t))
+	panic(newSystemErrorf("BUG - unknown PubSubMType %d", t))
 }
-
-//// REVU - necessary?
-//// REVU - export?
-//type PubSubMessage interface {
-//	Subscription() string
-//	Type() PubSubMType
-//	Body() []byte
-//	Info() int64
-//}
 
 // Conforms to the payload as received from wire.
 // If Type is MESSAGE, then Body will contain a message, and
@@ -355,10 +351,7 @@ func newUnsubcribeAck(topic string, scnt int) *Message {
 // REVU - needs to return Error to capture cause e.g. net.Error (timeout)
 func GetPubSubResponse(r *bufio.Reader) (msg *Message, err error) {
 	defer func() {
-		e := recover()
-		if e != nil {
-			err = e.(error)
-		}
+		err = onRecover(recover(), "GetPubSubResponse")
 	}()
 
 	buf := readToCRLF(r)
@@ -413,18 +406,18 @@ func GetPubSubResponse(r *bufio.Reader) (msg *Message, err error) {
 // REVU - needs to throw Error to capture cause e.g. net.Error (timeout)
 func readToCRLF(r *bufio.Reader) []byte {
 	//	var buf []byte
-	buf, err := r.ReadBytes(CR_BYTE)
-	if err != nil {
-		panic(fmt.Errorf("readToCRLF - %s", err))
+	buf, e := r.ReadBytes(CR_BYTE)
+	if e != nil {
+		panic(newSystemErrorWithCause("readToCRLF - ReadBytes", e))
 	}
 
 	var b byte
-	b, err = r.ReadByte()
-	if err != nil {
-		panic(fmt.Errorf("readToCRLF - %s", err))
+	b, e = r.ReadByte()
+	if e != nil {
+		panic(newSystemErrorWithCause("readToCRLF - ReadByte", e))
 	}
 	if b != LF_BYTE {
-		err = errors.New("<BUG> Expecting a Linefeed byte here!")
+		e = errors.New("<BUG> Expecting a Linefeed byte here!")
 	}
 	return buf[0 : len(buf)-1]
 }
@@ -435,10 +428,10 @@ func readBulkData(r *bufio.Reader, n int) (data []byte) {
 		buffsize := n + 2
 		data = make([]byte, buffsize)
 		if _, e := io.ReadFull(r, data); e != nil {
-			panic(fmt.Errorf("readBulkData - ReadFull - %s", e))
+			panic(newSystemErrorWithCause("readBulkData - ReadFull", e))
 		} else {
 			if data[n] != CR_BYTE || data[n+1] != LF_BYTE {
-				panic(fmt.Errorf("terminal was not CRLF as expected"))
+				panic(newSystemErrorf("terminal was not CRLF as expected - data[n:n+1]:%s", data[n:n+1]))
 			}
 			data = data[:n]
 		}
@@ -452,12 +445,12 @@ func readMultiBulkData(conn *bufio.Reader, num int) [][]byte {
 	for i := 0; i < num; i++ {
 		buf := readToCRLF(conn)
 		if buf[0] != SIZE_BYTE {
-			panic(fmt.Errorf("readMultiBulkData - Expecting a SIZE_BYTE"))
+			panic(newSystemErrorf("readMultiBulkData - expected: SIZE_BYTE got: %d", buf[0]))
 		}
 
 		size, e := strconv.Atoi(string(buf[1:]))
 		if e != nil {
-			panic(fmt.Errorf("readMultiBulkData - Atoi parse error - %s", e))
+			panic(newSystemErrorWithCause("readMultiBulkData - Atoi parse error", e))
 		}
 		data[i] = readBulkData(conn, size)
 	}

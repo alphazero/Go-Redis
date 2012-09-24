@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"reflect"
 	"time"
 )
 
@@ -824,7 +823,7 @@ func managementTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *ta
 // KNOWN ISSUE:
 // possible connection is OK but TryGet timesout and now we just log a warning
 // but it is a good measure of latencies in the pipeline and perhaps could be used
-// to autoconfigure the params to decrease latencies ... TODO
+// to auto-configure the pipeline params to decrease latencies ... TODO
 
 func heartbeatTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
 	var async AsyncConnection = c
@@ -860,9 +859,7 @@ func heartbeatTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *tas
 // - can be interrupted while waiting on the pending responses queue
 // - buffered reader takes care of minimizing network io
 //
-// KNOWN BUG:
-// until we figure out what's the problem with read timeout, can not
-// be interrupted if hanging on a read
+// TODO - add timeout handling
 func dbRspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
 
 	var req asyncReqPtr
@@ -902,11 +899,15 @@ func dbRspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, t
 	return nil, &ok_status
 }
 
+// Task:
+// process one incoming Redis PubSub message at a time
+// - can be interrupted while waiting on the net read
+
 func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *taskStatus) {
-	//	log.Println("<TEMP DEBUG> msgProcessingTask - S0 ")
-	//	log.Printf("<TEMP DEBUG> msgProcessingTask - c.pendingResps:%s\n", c.pendingResps)
-	//	var req asyncReqPtr
-	timer := time.NewTimer(2 * time.Nanosecond)
+
+	// REVU - this should just be an if check with a sig, ok := chan reciever call
+	// TODO
+	timer := time.NewTimer(1 * time.Nanosecond)
 	select {
 	case sig := <-ctl:
 		// interrupted
@@ -915,44 +916,39 @@ func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 		// continue
 	}
 
-	//	log.Println("<TEMP DEBUG> msgProcessingTask - S2 ")
-	reader := c.super.reader
-	//	cmd := &SUBSCRIBE
-
-	deadline := time.Now().Add(100 * time.Second)
+	// this deadline affects responsiveness to connection control
+	// signals, and not net io.
+	deadline := time.Now().Add(1 * time.Second) // REVU - TODO
 	c.super.conn.SetReadDeadline(deadline)
-	message, e := GetPubSubResponse(reader)
+	message, e := GetPubSubResponse(c.super.reader)
 	if e != nil {
-		// REVU - need to check if it is a timeout error
-		// TODO - GetPubSubResponse needs to return cause
-		etype := reflect.TypeOf(e)
-		log.Printf("<TEMP><DEBUG> e: %s - etype:%s\n", e, etype)
-		// system error
-		log.Println("<TEMP DEBUG> on error in msgProcessingTask: ", e)
-		return nil, &ok_status
-		//		req.stat = rcverr
-		//		req.error = newSystemErrorWithCause( "GetResponse os.Error", e)
-		//		c.faults <- req
-		//		return nil, &taskStatus{rcverr, e}
+		// check if error is net.Error timeout
+		if isSystemError(e) {
+			syserr := e.(SystemError).Cause()
+			if isNetError(syserr) && syserr.(net.Error).Timeout() {
+				return nil, &ok_status
+			}
+		}
+		// treat anything else as a recieve error
+		return nil, &taskStatus{rcverr, e}
+	}
+	if message == nil {
+		panic(newSystemError("BUG - msgProcessingTask - message is nil on nil error"))
 	}
 	s := c.subscriptions[message.Topic]
 	switch message.Type {
 	case SUBSCRIBE_ACK:
 		s.activated.set(true)
 		s.IsActive = true
-		//		c.subscriptions[message.Topic].activated <- true
 	case UNSUBSCRIBE_ACK:
 		s.IsActive = false
 		close(s.Channel)
 	case MESSAGE:
-		log.Printf("MSG IN: %s\n", message)
 		s.Channel <- message.Body
 	default:
-		e := fmt.Errorf("BUG - TODO - unhandled message type - %s", message.Type)
+		e := newSystemErrorf("BUG - TODO - unhandled message type - %s", message.Type)
 		return nil, &taskStatus{rcverr, e}
 	}
-	//
-	//	panic("msgProcessingTask not implemented")
 	return nil, &ok_status
 }
 

@@ -149,10 +149,6 @@ func isNetError(e interface{}) bool {
 	if e != nil && reflect.TypeOf(e).Implements(reflect.TypeOf((*net.Error)(nil)).Elem()) {
 		return true
 	}
-	fmt.Printf("a: %s\n", reflect.TypeOf((*error)(nil)).Elem())
-	fmt.Printf("b: %s\n", reflect.TypeOf((**net.Error)(nil)).Elem())
-	var xtype = reflect.TypeOf((*net.Error)(nil)).Elem()
-	fmt.Printf("implements: %t\n", reflect.TypeOf(e).Implements(xtype))
 	return false
 }
 

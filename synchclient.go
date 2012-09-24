@@ -41,7 +41,7 @@ func NewSynchClient() (c Client, err Error) {
 	}
 	if c == nil {
 		log.Println("NewSynchClientWithSpec returned nil Client.")
-		err = NewError(SYSTEM_ERR, "NewSynchClientWithSpec returned nil Client")
+		err = newSystemError("NewSynchClientWithSpec returned nil Client")
 	}
 	return
 }
@@ -203,10 +203,10 @@ func parseInfo(buff []byte) map[string]string {
 func (c *syncClient) Ping() (err Error) {
 	if c == nil {
 		log.Println("FAULT in synchclient.Ping(): why is c nil?")
-		return NewError(SYSTEM_ERR, "c *syncClient is NIL!")
+		return newSystemError("c *syncClient is NIL!")
 	} else if c.conn == nil {
 		log.Println("FAULT in synchclient.Ping(): why is c.conn nil?")
-		return NewError(SYSTEM_ERR, "c.conn *SynchConnection is NIL!")
+		return newSystemError("c.conn *SynchConnection is NIL!")
 	}
 	_, err = c.conn.ServiceRequest(&PING, [][]byte{})
 	return
@@ -789,7 +789,7 @@ func (c *syncClient) Zscore(arg0 string, arg1 []byte) (result float64, err Error
 		buff := resp.GetBulkData()
 		//		fnum, oserr := strconv.Atof64(bytes.NewBuffer(buff).String());
 		//		if oserr != nil {
-		//			err = NewErrorWithCause(SYSTEM_ERR, "Expected a parsable byte representation of a float64 in Zscore!", oserr);
+		//			err = newSystemErrorWithCause("Expected a parsable byte representation of a float64 in Zscore!", oserr);
 		//		}
 		//		result = fnum;
 		result, err = Btof64(buff)
@@ -801,7 +801,7 @@ func (c *syncClient) Zscore(arg0 string, arg1 []byte) (result float64, err Error
 func Btof64(buff []byte) (num float64, e Error) {
 	num, ce := strconv.ParseFloat(bytes.NewBuffer(buff).String(), 64)
 	if ce != nil {
-		e = NewErrorWithCause(SYSTEM_ERR, "Expected a parsable byte representation of a float64", ce)
+		e = newSystemErrorWithCause("Expected a parsable byte representation of a float64", ce)
 	}
 	return
 }

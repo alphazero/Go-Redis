@@ -103,5 +103,5 @@ func (c *pubsubClient) Unsubscribe(topics ...string) (err Error) {
 
 // REVU - why not async semantics?
 func (c *pubsubClient) Quit() Error {
-	return NewError(REDIS_ERR, "Quit() NOT IMPLEMENTED")
+	return newSystemError("Quit() NOT IMPLEMENTED")
 }

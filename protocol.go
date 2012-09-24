@@ -110,7 +110,7 @@ func CreateFuture(cmd *Command) (future interface{}) {
 // based on the command type.
 func SetFutureResult(future interface{}, cmd *Command, r Response) {
 	if r.IsError() {
-		future.(FutureResult).onError(NewRedisError(r.GetMessage()))
+		future.(FutureResult).onError(newRedisError(r.GetMessage()))
 	} else {
 		switch cmd.RespType {
 		case BOOLEAN:

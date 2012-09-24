@@ -285,13 +285,15 @@ func (c *connHdl) connect() {
 	if c.spec.password != DefaultRedisPassword {
 		args := [][]byte{[]byte(c.spec.password)}
 		if _, e := c.ServiceRequest(&AUTH, args); e != nil {
-			panic(fmt.Errorf("<ERROR> Authentication failed - %s", e.Message()))
+			panic(e)
+			//			panic(fmt.Errorf("<ERROR> Authentication failed - %s", e.Message()))
 		}
 	}
 	if c.spec.db != DefaultRedisDB {
 		args := [][]byte{[]byte(fmt.Sprintf("%d", c.spec.db))}
 		if _, e := c.ServiceRequest(&SELECT, args); e != nil {
-			panic(fmt.Errorf("<ERROR> REDIS_DB Select failed - %s", e.Message()))
+			panic(e)
+			//			panic(fmt.Errorf("<ERROR> REDIS_DB Select failed - %s", e.Message()))
 		}
 	}
 	// REVU - pretty please TODO do the customized log
@@ -306,7 +308,7 @@ func (hdl *connHdl) disconnect() {
 	if hdl.connected {
 		if e := hdl.conn.Close(); e != nil {
 			panic(fmt.Errorf("on connHdl.Close()", e))
-			//			return NewErrorWithCause(SYSTEM_ERR, "on connHdl.Close()", e)
+			//			return newSystemErrorWithCause( "on connHdl.Close()", e)
 		}
 		hdl.connected = false
 		// REVU - pretty please TODO do the customized log
@@ -320,7 +322,7 @@ func NewSyncConnection(spec *ConnectionSpec) (c SyncConnection, err Error) {
 	defer func() {
 		if e := recover(); e != nil {
 			connerr := e.(error)
-			err = NewErrorWithCause(SYSTEM_ERR, "NewSyncConnection", connerr)
+			err = newSystemErrorWithCause("NewSyncConnection", connerr)
 		}
 	}()
 
@@ -337,7 +339,7 @@ func (c *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response, er
 	defer func() {
 		if re := recover(); re != nil {
 			// REVU - needs to be logged - TODO
-			err = NewErrorWithCause(SYSTEM_ERR, "ServiceRequest", re.(error))
+			err = newSystemErrorWithCause("ServiceRequest", re.(error))
 		}
 	}()
 
@@ -363,7 +365,7 @@ func (c *connHdl) ServiceRequest(cmd *Command, args [][]byte) (resp Response, er
 	// handle Redis server ERR - don't panic
 	if resp.IsError() {
 		redismsg := fmt.Sprintf(" [%s]: %s", cmd.Code, resp.GetMessage())
-		err = NewRedisError(redismsg)
+		err = newRedisError(redismsg)
 	}
 
 	return
@@ -524,7 +526,7 @@ func NewAsynchConnection(spec *ConnectionSpec) (conn AsyncConnection, err Error)
 	defer func() {
 		if e := recover(); e != nil {
 			connerr := e.(error)
-			err = NewErrorWithCause(SYSTEM_ERR, "NewSyncConnection", connerr)
+			err = newSystemErrorWithCause("NewSyncConnection", connerr)
 		}
 	}()
 
@@ -541,7 +543,7 @@ func NewPubSubConnection(spec *ConnectionSpec) (conn PubSubConnection, err Error
 	defer func() {
 		if e := recover(); e != nil {
 			connerr := e.(error)
-			err = NewErrorWithCause(SYSTEM_ERR, "NewSyncConnection", connerr)
+			err = newSystemErrorWithCause("NewSyncConnection", connerr)
 		}
 	}()
 
@@ -564,7 +566,7 @@ func (c *asyncConnHdl) QueueRequest(cmd *Command, args [][]byte) (pending *Pendi
 	defer func() {
 		if re := recover(); re != nil {
 			// REVU - needs to be logged - TODO
-			err = NewErrorWithCause(SYSTEM_ERR, "QueueRequest", re.(error))
+			err = newSystemErrorWithCause("QueueRequest", re.(error))
 		}
 	}()
 
@@ -604,7 +606,7 @@ func (c *asyncConnHdl) ServiceRequest(cmd *Command, args [][]byte) (pending map[
 	defer func() {
 		if re := recover(); re != nil {
 			// REVU - needs to be logged - TODO
-			err = NewErrorWithCause(SYSTEM_ERR, "QueueRequest", re.(error))
+			err = newSystemErrorWithCause("QueueRequest", re.(error))
 		}
 	}()
 	switch *cmd {
@@ -843,7 +845,8 @@ func heartbeatTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te *tas
 			// flytrap
 			if stat != true {
 				log.Println("<BUG> Heartbeat recieved false stat on PING while response error was nil")
-				return nil, &taskStatus{error_, NewError(SYSTEM_ERR, "BUG false stat on PING w/out error")}
+				//				return nil, &taskStatus{error_, NewError(SYSTEM_ERR, "BUG false stat on PING w/out error")}
+				return nil, &taskStatus{error_, newSystemError("BUG false stat on PING w/out error")}
 			}
 		}
 	case sig := <-ctl:
@@ -880,7 +883,7 @@ func dbRspProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, t
 		// system error
 		log.Println("<TEMP DEBUG> Request sent to faults chan on error in GetResponse: ", e3)
 		req.stat = rcverr
-		req.error = NewErrorWithCause(SYSTEM_ERR, "GetResponse os.Error", e3)
+		req.error = newSystemErrorWithCause("GetResponse os.Error", e3)
 		c.faults <- req
 		return nil, &taskStatus{rcverr, e3}
 	}
@@ -928,7 +931,7 @@ func msgProcessingTask(c *asyncConnHdl, ctl workerCtl) (sig *interrupt_code, te 
 		log.Println("<TEMP DEBUG> on error in msgProcessingTask: ", e)
 		return nil, &ok_status
 		//		req.stat = rcverr
-		//		req.error = NewErrorWithCause(SYSTEM_ERR, "GetResponse os.Error", e)
+		//		req.error = newSystemErrorWithCause( "GetResponse os.Error", e)
 		//		c.faults <- req
 		//		return nil, &taskStatus{rcverr, e}
 	}
@@ -1025,7 +1028,7 @@ func (c *asyncConnHdl) processAsyncRequest(req asyncReqPtr) (blen int, e error) 
 			e = re.(error)
 			log.Println("<BUG> lazy programmer >> ERROR in processRequest goroutine -req requeued for now")
 			// TODO: set stat on future & inform conn control and put it in faulted list
-			req.future.(FutureResult).onError(NewErrorWithCause(SYSTEM_ERR, "recovered panic in processAsyncRequest", e))
+			req.future.(FutureResult).onError(newSystemErrorWithCause("recovered panic in processAsyncRequest", e))
 			c.faults <- req
 			//			c.pendingReqs <- req
 		}

@@ -125,6 +125,9 @@ type Client interface {
 	// Redis SET command.
 	Set(key string, arg1 []byte) Error
 
+	// Redis APPEND command.
+	Append(key string, arg1 []byte) Error
+
 	// Redis SAVE command.
 	Save() Error
 
@@ -339,6 +342,9 @@ type AsyncClient interface {
 
 	// Redis GET command.
 	Get(key string) (result FutureBytes, err Error)
+
+	// Redis APPEND command.
+	Append(key string, arg1 []byte) (result FutureInt64, err Error)
 
 	// Redis TYPE command.
 	Type(key string) (result FutureKeyType, err Error)

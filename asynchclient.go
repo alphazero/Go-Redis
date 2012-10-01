@@ -80,6 +80,18 @@ func (c *asyncClient) Get(arg0 string) (result FutureBytes, err Error) {
 
 }
 
+// Redis APPEND command.
+func (c *asyncClient) Append(arg0 string, data []byte) (result FutureInt64, err
+	arg0bytes := []byte(arg0)
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&APPEND, [][]byte{arg0bytes, data})
+	if err == nil {
+		result = resp.future.(FutureInt64)
+	}
+	return result, err
+}
+
 // Redis TYPE command.
 func (c *asyncClient) Type(arg0 string) (result FutureKeyType, err Error) {
 	arg0bytes := []byte(arg0)

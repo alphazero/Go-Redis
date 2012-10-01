@@ -82,6 +82,19 @@ func (c *syncClient) Get(arg0 string) (result []byte, err Error) {
 
 }
 
+// Redis APPEND command.
+func (c *syncClient) Append(arg0 string, arg1 []byte) (result int64, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := arg1
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&APPEND, [][]byte{arg0bytes, arg1bytes})
+	if err == nil {
+		result = resp.GetNumberValue()
+	}
+	return result, err
+}
+
 // Redis TYPE command.
 func (c *syncClient) Type(arg0 string) (result KeyType, err Error) {
 	arg0bytes := []byte(arg0)

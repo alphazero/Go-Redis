@@ -122,6 +122,7 @@ var (
 	PING          Command = Command{"PING", NO_ARG, STATUS}
 	QUIT          Command = Command{"QUIT", NO_ARG, VIRTUAL}
 	SET           Command = Command{"SET", KEY_VALUE, STATUS}
+	APPEND        Command = Command{"APPEND", KEY_VALUE, NUMBER}
 	GET           Command = Command{"GET", KEY, BULK}
 	GETSET        Command = Command{"GETSET", KEY_VALUE, BULK}
 	MGET          Command = Command{"MGET", MULTI_KEY, MULTI_BULK}

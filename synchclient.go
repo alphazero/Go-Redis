@@ -851,6 +851,21 @@ func (c *syncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (res
 
 }
 
+// Redis ZREMRANGEBYSCORE command.
+func (c *syncClient) Zremrangebyscore(arg0 string, arg1 float64, arg2 float64) (result int64, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%e", arg2))
+
+	var resp Response
+	resp, err = c.conn.ServiceRequest(&ZREMRANGEBYSCORE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		result = resp.GetNumberValue()
+	}
+	return result, err
+
+}
+
 // Redis HGET command.
 func (c *syncClient) Hget(arg0 string, arg1 string) (result []byte, err Error) {
 	arg0bytes := []byte(arg0)

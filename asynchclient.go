@@ -846,7 +846,7 @@ func (c *asyncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (re
 }
 
 // Redis ZREMRANGEBYSCORE command.
-func (c *asyncClient) Zremrangebyscore(arg0 string, arg1 float64, arg2 float64) (result FutureBytesArray, err Error) {
+func (c *asyncClient) Zremrangebyscore(arg0 string, arg1 float64, arg2 float64) (result FutureInt64, err Error) {
 	arg0bytes := []byte(arg0)
 	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
 	arg2bytes := []byte(fmt.Sprintf("%e", arg2))

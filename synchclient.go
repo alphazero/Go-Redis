@@ -739,7 +739,7 @@ func (c *syncClient) Srandmember(arg0 string) (result []byte, err Error) {
 // Redis ZADD command.
 func (c *syncClient) Zadd(arg0 string, arg1 float64, arg2 []byte) (result bool, err Error) {
 	arg0bytes := []byte(arg0)
-	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
+	arg1bytes := []byte(strconv.FormatFloat(arg1, 'e', 15, 64))
 	arg2bytes := arg2
 
 	var resp Response
@@ -839,8 +839,8 @@ func (c *syncClient) Zrevrange(arg0 string, arg1 int64, arg2 int64) (result [][]
 // Redis ZRANGEBYSCORE command.
 func (c *syncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (result [][]byte, err Error) {
 	arg0bytes := []byte(arg0)
-	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
-	arg2bytes := []byte(fmt.Sprintf("%e", arg2))
+	arg1bytes := []byte(strconv.FormatFloat(arg1, 'e', 15, 64))
+	arg2bytes := []byte(strconv.FormatFloat(arg2, 'e', 15, 64))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&ZRANGEBYSCORE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
@@ -854,8 +854,8 @@ func (c *syncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (res
 // Redis ZREMRANGEBYSCORE command.
 func (c *syncClient) Zremrangebyscore(arg0 string, arg1 float64, arg2 float64) (result int64, err Error) {
 	arg0bytes := []byte(arg0)
-	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
-	arg2bytes := []byte(fmt.Sprintf("%e", arg2))
+	arg1bytes := []byte(strconv.FormatFloat(arg1, 'e', 15, 64))
+	arg2bytes := []byte(strconv.FormatFloat(arg2, 'e', 15, 64))
 
 	var resp Response
 	resp, err = c.conn.ServiceRequest(&ZREMRANGEBYSCORE, [][]byte{arg0bytes, arg1bytes, arg2bytes})

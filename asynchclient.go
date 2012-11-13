@@ -748,7 +748,7 @@ func (c *asyncClient) Srandmember(arg0 string) (result FutureBytes, err Error) {
 // Redis ZADD command.
 func (c *asyncClient) Zadd(arg0 string, arg1 float64, arg2 []byte) (result FutureBool, err Error) {
 	arg0bytes := []byte(arg0)
-	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
+	arg1bytes := []byte(strconv.FormatFloat(arg1, 'e', 15, 64))
 	arg2bytes := arg2
 
 	var resp *PendingResponse
@@ -834,8 +834,8 @@ func (c *asyncClient) Zrevrange(arg0 string, arg1 int64, arg2 int64) (result Fut
 // Redis ZRANGEBYSCORE command.
 func (c *asyncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (result FutureBytesArray, err Error) {
 	arg0bytes := []byte(arg0)
-	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
-	arg2bytes := []byte(fmt.Sprintf("%e", arg2))
+	arg1bytes := []byte(strconv.FormatFloat(arg1, 'e', 15, 64))
+	arg2bytes := []byte(strconv.FormatFloat(arg2, 'e', 15, 64))
 
 	var resp *PendingResponse
 	resp, err = c.conn.QueueRequest(&ZRANGEBYSCORE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
@@ -843,7 +843,20 @@ func (c *asyncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (re
 		result = resp.future.(FutureBytesArray)
 	}
 	return result, err
+}
 
+// Redis ZREMRANGEBYSCORE command.
+func (c *asyncClient) Zremrangebyscore(arg0 string, arg1 float64, arg2 float64) (result FutureInt64, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(strconv.FormatFloat(arg1, 'e', 15, 64))
+	arg2bytes := []byte(strconv.FormatFloat(arg2, 'e', 15, 64))
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&ZREMRANGEBYSCORE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		result = resp.future.(FutureInt64)
+	}
+	return result, err
 }
 
 // Redis HGET command.

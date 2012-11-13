@@ -41,7 +41,7 @@ const (
 	DefaultTCPKeepalive         = true
 	DefaultHeartbeatSecs        = 1 * time.Second
 	DefaultProtocol             = REDIS_DB
-	DefaultReconnectDelay       = 1 * time.Second
+	DefaultReconnectDelay       = 500 * time.Millisecond
 	DefaultMaxReconnects        = 2
 )
 

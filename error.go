@@ -27,10 +27,8 @@ import (
 
 // Go-Redis API level error type
 //
-type Error interface {
+type Error struct {
 	error
-	// if true Error is a RedisError
-	IsRedisError() bool
 }
 
 // ----------------------------------------------------------------------

@@ -748,7 +748,7 @@ func (c *asyncClient) Srandmember(arg0 string) (result FutureBytes, err Error) {
 // Redis ZADD command.
 func (c *asyncClient) Zadd(arg0 string, arg1 float64, arg2 []byte) (result FutureBool, err Error) {
 	arg0bytes := []byte(arg0)
-	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
+	arg1bytes := []byte(fmt.Sprintf("%f", arg1))
 	arg2bytes := arg2
 
 	var resp *PendingResponse
@@ -834,8 +834,24 @@ func (c *asyncClient) Zrevrange(arg0 string, arg1 int64, arg2 int64) (result Fut
 // Redis ZRANGEBYSCORE command.
 func (c *asyncClient) Zrangebyscore(arg0 string, arg1 float64, arg2 float64) (result FutureBytesArray, err Error) {
 	arg0bytes := []byte(arg0)
-	arg1bytes := []byte(fmt.Sprintf("%e", arg1))
-	arg2bytes := []byte(fmt.Sprintf("%e", arg2))
+	arg1bytes := []byte(fmt.Sprintf("%f", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%f", arg2))
+
+	var resp *PendingResponse
+	resp, err = c.conn.QueueRequest(&ZRANGEBYSCORE, [][]byte{arg0bytes, arg1bytes, arg2bytes})
+	if err == nil {
+		result = resp.future.(FutureBytesArray)
+	}
+	return result, err
+
+}
+
+// Redis ZRANGEBYSCORE command.
+// Use ints to retain precision
+func (c *asyncClient) Zrangebyscoreint(arg0 string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error) {
+	arg0bytes := []byte(arg0)
+	arg1bytes := []byte(fmt.Sprintf("%d", arg1))
+	arg2bytes := []byte(fmt.Sprintf("%d", arg2))
 
 	var resp *PendingResponse
 	resp, err = c.conn.QueueRequest(&ZRANGEBYSCORE, [][]byte{arg0bytes, arg1bytes, arg2bytes})

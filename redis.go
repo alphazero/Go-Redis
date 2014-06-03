@@ -287,6 +287,9 @@ type Client interface {
 	// Redis ZRANGEBYSCORE command.
 	Zrangebyscore(key string, arg1 float64, arg2 float64) (result [][]byte, err Error)
 
+	// Redis ZRANGEBYSCORE command.
+	Zrangebyscoreint(key string, arg1 int64, arg2 int64) (result [][]byte, err Error)
+
 	// Redis HGET command.
 	Hget(key string, hashkey string) (result []byte, err Error)
 
@@ -317,6 +320,16 @@ type Client interface {
 	// Returns the number of PubSub subscribers that received the message.
 	// OR error if any.
 	Publish(channel string, message []byte) (recieverCout int64, err Error)
+	
+	// Redis MULTI command.
+	Multi() Error
+
+	// Redis EXEC command.
+	Exec() Error
+
+	// Redis DISCARD command.
+	Discard() Error
+	
 }
 
 // The asynchronous client interface provides asynchronous call semantics with
@@ -499,6 +512,10 @@ type AsyncClient interface {
 	// Redis ZRANGEBYSCORE command.
 	Zrangebyscore(key string, arg1 float64, arg2 float64) (result FutureBytesArray, err Error)
 
+	// Redis ZRANGEBYSCORE command.
+	// Use ints to retain precision
+	Zrangebyscoreint(key string, arg1 int64, arg2 int64) (result FutureBytesArray, err Error)
+
 	// Redis FLUSHDB command.
 	Flushdb() (status FutureBool, err Error)
 
@@ -520,6 +537,15 @@ type AsyncClient interface {
 	// Returns the future for number of PubSub subscribers that received the message.
 	// OR error if any.
 	Publish(channel string, message []byte) (recieverCountFuture FutureInt64, err Error)
+	
+	// Redis MULTI command.
+	Multi() Error
+
+	// Redis EXEC command.
+	Exec() Error
+
+	// Redis DISCARD command.
+	Discard() Error
 }
 
 // REVU - ALL THE COMMENS NEEDS REVIEW AND REVISION

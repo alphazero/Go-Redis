@@ -180,6 +180,9 @@ var (
 	SELECT        Command = Command{"SELECT", KEY, STATUS}
 	FLUSHDB       Command = Command{"FLUSHDB", NO_ARG, STATUS}
 	FLUSHALL      Command = Command{"FLUSHALL", NO_ARG, STATUS}
+	MULTI         Command = Command{"MULTI", NO_ARG, STATUS}
+	EXEC          Command = Command{"EXEC", NO_ARG, STATUS}
+	DISCARD       Command = Command{"DISCARD", NO_ARG, STATUS}
 	MOVE          Command = Command{"MOVE", KEY_NUM, BOOLEAN}
 	SORT          Command = Command{"SORT", KEY_SPEC, MULTI_BULK}
 	SAVE          Command = Command{"SAVE", NO_ARG, STATUS}

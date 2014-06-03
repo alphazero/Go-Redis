@@ -960,3 +960,21 @@ func (c *syncClient) Publish(arg0 string, arg1 []byte) (rcvCnt int64, err Error)
 	}
 	return rcvCnt, err
 }
+
+// Redis MULTI command.
+func (c *syncClient) Multi() (err Error) {
+	_, err = c.conn.ServiceRequest(&MULTI, [][]byte{})
+	return
+}
+
+// Redis EXEC command.
+func (c *syncClient) Exec() (err Error) {
+	_, err = c.conn.ServiceRequest(&EXEC, [][]byte{})
+	return
+}
+
+// Redis DISCARD command.
+func (c *syncClient) Discard() (err Error) {
+	_, err = c.conn.ServiceRequest(&DISCARD, [][]byte{})
+	return
+}

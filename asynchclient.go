@@ -969,3 +969,21 @@ func (c *asyncClient) Publish(arg0 string, arg1 []byte) (result FutureInt64, err
 	}
 	return result, err
 }
+
+// Redis MULTI command.
+func (c *asyncClient) Multi() (err Error) {
+	_, err = c.conn.QueueRequest(&MULTI, [][]byte{})
+	return
+}
+
+// Redis EXEC command.
+func (c *asyncClient) Exec() (err Error) {
+	_, err = c.conn.QueueRequest(&EXEC, [][]byte{})
+	return
+}
+
+// Redis DISCARD command.
+func (c *asyncClient) Discard() (err Error) {
+	_, err = c.conn.QueueRequest(&DISCARD, [][]byte{})
+	return
+}
